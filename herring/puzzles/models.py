@@ -14,6 +14,9 @@ class Round(models.Model):
     def __unicode__(self):
         return 'R' + str(self.number)
 
+    class Meta:
+        ordering = ['number']
+
 
 class Puzzle(models.Model):
     # class for all puzzles, including metas
