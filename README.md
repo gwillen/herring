@@ -4,7 +4,7 @@ Herring is a web application for a puzzlehunt team's progress tracking and task 
 
 ## Local dev setup
 
-Install `pip` and `virtualenv`. Then:
+Install `pip` and `virtualenv` and `postgres` (`brew install postgres` on Mac). Then:
 
 `$ virtualenv herringenv`
 
