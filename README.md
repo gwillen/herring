@@ -12,3 +12,4 @@ Install `pip` and `virtualenv`. Then:
 
 `$ pip install -r requirements.txt`
 
+This software is licensed under the [MIT License (Expat)](https://www.debian.org/legal/licenses/mit).
