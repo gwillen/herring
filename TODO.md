@@ -27,3 +27,4 @@ Link generation for puzzles --> GDocs/Etherpad
 Announcement for correct answers
 Ability to make other announcments
 Chat integration
+Add list of admin users to /admin login page to make it useful for nonadmins who want to know who to bother
