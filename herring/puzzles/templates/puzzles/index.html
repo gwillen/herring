@@ -1,37 +1,14 @@
 {% extends "puzzles/base.html" %}
 {% load to_json %}
 
+{% block head_scripts %}
+{% load staticfiles %}
+<script src="{% static 'puzzles/widgets.js' %}" type="text/jsx"></script>
+{% endblock %}
+
 {% block content %}
-	{% if rounds %}
-		<div class="shortcuts row">
-			<div class="col-lg-12">
-				Hop to: 
-				{% for round in rounds %}
-					<a href="#{{ round | slugify }}-{{ round.name | slugify}}">{{ round }}</a> | 
-				{% endfor %}
-			</div>
-		</div>
-	    {% for round in rounds %}
-	    <div class="row">
-		    <div class="col-lg-12 round">
-		    	<h2 id="{{ round | slugify }}-{{ round.name | slugify}}">
-		    		{{ round }} {{ round.name }}</h2>
-		    	{% for puzzle in round.puzzle_set.all %}
-		    		<div class="row">
-			        	<div class="col-lg-12 puzzle">
-			        		<span class="name" title="{{puzzle.name}}">
-			        			{{ puzzle }}
-			        		</span>
-			        	</div>
-			        </div>
-		        {% endfor %}
-		    </div>
-		</div>
-	    {% endfor %}
-	{% else %}
-	    <p>No puzzles are available.</p>
-	{% endif %}
-<pre>
-{{ rounds | to_json }}
-</pre>
+<div id="react-root"></div>
+<script type="text/javascript">
+var rounds = {{ rounds | to_json | safe }}
+</script>
 {% endblock %}
