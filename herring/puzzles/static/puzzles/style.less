@@ -1,0 +1,52 @@
+@mainColor: #87104a;
+@backgroundColor: lighten(@mainColor, 65%);
+@textcolor: #333;
+
+@stdpadding: 12px;
+
+body {
+	background: @backgroundColor;
+	color: @textcolor;
+	font-size: 16px;
+	line-height: 1.5;
+}
+
+h1, h2 {
+	color: @mainColor;
+}
+
+h3, h4, h5 {
+	color: black;
+}
+
+a {
+	color: @mainColor;
+	text-decoration: underline;
+}
+
+.dropdown a {
+	text-decoration: none;
+}
+
+.shortcuts {
+	border: 1pt solid darken(@backgroundColor, 10%);
+	padding-top: @stdpadding;
+	padding-bottom: @stdpadding;
+}
+
+.round + .round {
+	margin-top: 40px;
+}
+
+.puzzle {
+	margin-left: @stdpadding * 2;
+	.name {
+		display: inline-block;
+		font-weight: 900;
+		word-wrap: break-word;
+		width: 300px;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+}

@@ -16,6 +16,18 @@ Make sure you have `virtualenv` installed. Then:
 
 You'll see `(henv)` in front of your command line after doing this. If you open more terminals, you'll have to do the above step again for them.
 
+Install Django and other Pythonic dependencies:
+
 `pip3 install -r requirements.txt`
+
+Set up your database (TODO)
+
+Run:
+
+`cd herring && python3 herring/manage.py migrate`
+
+`python3 herring/manage.py runserver`
+
+You can then view the website at `localhost:8000`.
 
 This software is licensed under the [MIT License (Expat)](https://www.debian.org/legal/licenses/mit).

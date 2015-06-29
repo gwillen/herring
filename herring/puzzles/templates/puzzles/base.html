@@ -1,0 +1,41 @@
+<!doctype html>
+<head>
+    <title>Herring</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+    {% load staticfiles %}
+    <link rel="stylesheet/less" type="text/css" href="{% static 'puzzles/style.less' %}" />
+    <script src="//cdnjs.cloudflare.com/ajax/libs/less.js/2.2.0/less.min.js" type="text/javascript"></script>
+</head>
+<body>
+	<div class="container">
+		<div class="header">
+			<div class="dropdown pull-right">
+			  <button class="btn btn-default dropdown-toggle" type="button" id="nav-menu" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+			    <span class="glyphicon glyphicon-menu-hamburger"></span> Menu
+			  </button>
+			  <ul class="dropdown-menu dropdown-menu-right" aria-labelledby="nav-menu">
+			    <li><a href="#">Home</a></li>
+				<li><a href="#">Hunt site</a></li>
+				<li><a href="#">Puzzling resources</a></li>
+				<li><a href="#">Admin</a></li>
+			  </ul>
+			</div>
+			<h1>Metropolitan Rage Warehouse</h1>
+		</div>
+
+		<div class="content">
+		{% block content %}
+			Hello.
+		{% endblock %}
+		</div>
+
+		<div class="footer">
+			<h3>Powered by Herring</h3>
+		</div>
+	</div>
+
+	<script src="//code.jquery.com/jquery-1.11.2.min.js" type="text/javascript"></script>
+	<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js" type="text/javascript"></script>
+</body>
+</html>
