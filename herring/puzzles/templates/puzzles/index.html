@@ -1,4 +1,5 @@
 {% extends "puzzles/base.html" %}
+{% load to_json %}
 
 {% block content %}
 	{% if rounds %}
@@ -30,4 +31,7 @@
 	{% else %}
 	    <p>No puzzles are available.</p>
 	{% endif %}
+<pre>
+{{ rounds | to_json }}
+</pre>
 {% endblock %}
