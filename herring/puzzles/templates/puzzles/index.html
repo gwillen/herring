@@ -32,11 +32,6 @@
 	    <p>No puzzles are available.</p>
 	{% endif %}
 <pre>
-{% for round in rounds %}
-{{ round | to_json }}
-{% for puzzle in round.puzzle_set.all %}
-  {{ puzzle | to_json }}
-{% endfor %}
-{% endfor %}
+{{ rounds | to_json }}
 </pre>
 {% endblock %}

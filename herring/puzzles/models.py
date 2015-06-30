@@ -23,8 +23,10 @@ def to_json_value(field):
         return field
     if isinstance(field, dict):
         return field
-    if isinstance(field, list) or isinstance(field, models.query.QuerySet):
+    if isinstance(field, (list, models.query.QuerySet)):
         return [to_json_value(item) for item in field]
+    if isinstance(field, models.manager.Manager):
+        return [to_json_value(item) for item in field.all()]
     if isinstance(field, JSONMixin):
         return field.to_json()
 
@@ -39,7 +41,7 @@ class Round(models.Model,JSONMixin):
     class Meta:
         ordering = ['number']
     class Json:
-        include_fields = ['name', 'number']
+        include_fields = ['name', 'number', 'puzzle_set']
 
 
 class Puzzle(models.Model,JSONMixin):
@@ -55,7 +57,7 @@ class Puzzle(models.Model,JSONMixin):
     class Meta:
         ordering = ['parent', '-is_meta', 'number']
     class Json:
-        include_fields = ['parent', 'name', 'number', 'answer', 'note', 'tags', 'is_meta']
+        include_fields = ['name', 'number', 'answer', 'note', 'tags', 'is_meta']
 
     def __str__(self):
         child_type = 'P'
