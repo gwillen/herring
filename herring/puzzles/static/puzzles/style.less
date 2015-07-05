@@ -1,8 +1,16 @@
 @mainColor: #87104a;
-@backgroundColor: lighten(@mainColor, 70%);
+@backgroundColor: #f0f0f0;
 @textcolor: #333;
 
 @stdpadding: 12px;
+
+.dotdotdot() {
+	display: inline-block;
+	word-wrap: break-word;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
 
 body {
 	background: @backgroundColor;
@@ -32,6 +40,7 @@ a {
 
 .shortcuts {
 	border: 1pt solid darken(@backgroundColor, 10%);
+	background-color: lighten(@backgroundColor, 3%);
 	padding: @stdpadding;
 }
 
@@ -40,14 +49,31 @@ a {
 }
 
 .puzzle {
-	margin-left: @stdpadding;
-	.name {
+	line-height: 1;
+	padding-top: @stdpadding/2;
+	padding-bottom: @stdpadding/6;
+
+	&:hover {
+		background: white;
+	}
+
+	&.meta {
+		color: lighten(@backgroundColor, 3%);
+		background-color: @mainColor;
+		&:hover {
+			background: lighten(@mainColor, 5%);
+		}
+	}
+
+	span {
 		display: inline-block;
+	}
+
+	.name, .note, .tags {
+		.dotdotdot();
+	}
+
+	.name {
 		font-weight: 900;
-		word-wrap: break-word;
-		width: 300px;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
 	}
 }
