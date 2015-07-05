@@ -41,7 +41,7 @@ class Round(models.Model,JSONMixin):
     class Meta:
         ordering = ['number']
     class Json:
-        include_fields = ['name', 'number', 'puzzle_set']
+        include_fields = ['id', 'name', 'number', 'puzzle_set']
 
 
 class Puzzle(models.Model,JSONMixin):
@@ -57,7 +57,7 @@ class Puzzle(models.Model,JSONMixin):
     class Meta:
         ordering = ['parent', '-is_meta', 'number']
     class Json:
-        include_fields = ['name', 'number', 'answer', 'note', 'tags', 'is_meta']
+        include_fields = ['id', 'name', 'number', 'answer', 'note', 'tags', 'is_meta']
 
     def __str__(self):
         child_type = 'P'

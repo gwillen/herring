@@ -13,7 +13,8 @@ var NavHeaderComponent = React.createClass({
   render: function() {
     var roundTags = this.props.rounds.map(function(round) {
       var target = "#R" + round.number + "-" + round.name;
-      return <a href={target}>R{round.number}</a>
+      var key = 'shortcut-' + round.id.toString();
+      return <a key={key} href={target}>R{round.number}</a>
     });
     rs = interleave(" | ", roundTags);
     return (<div className="row">
@@ -44,11 +45,11 @@ var RoundComponent = React.createClass({
       return <PuzzleComponent puzzle={puzzle} />;
     });
     return (
-      <div className="row">
-      <div className="col-lg-12 round">
-        <h2 id={target}>R{round.number} {round.name}</h2>
-        {puzzles}
-      </div>
+      <div key={round.id} className="row">
+        <div className="col-lg-12 round">
+          <h2 id={target}>R{round.number} {round.name}</h2>
+          {puzzles}
+        </div>
       </div>
       );
   }
@@ -56,11 +57,24 @@ var RoundComponent = React.createClass({
 
 var PuzzleComponent = React.createClass({
   render: function() {
+    var cx = React.addons.classSet;
     var puzzle = this.props.puzzle;
+    var classes = cx({
+      'col-lg-12': true,
+      'puzzle': true,
+      'meta': puzzle.is_meta
+    });
     return (
-        <div className="row">
-          <div className="col-lg-12 puzzle">
-          <span className="name" title={puzzle.name}>{puzzle.name}</span>
+        <div key={puzzle.id} className="row">
+          <div className="col-lg-12">
+            <div className={classes}>
+              <div className="row">
+                <div className="col-xs-12 col-sm-6 col-lg-4 name" title={puzzle.name}>{puzzle.name}</div>
+                <div className="col-xs-6 col-lg-2 answer">{puzzle.answer}</div>
+                <div className="visible-md visible-lg col-md-3 col-lg-4 note" title={puzzle.note}>{puzzle.note}</div>
+                <div className="col-xs-6 col-md-3 col-lg-2 tags">{puzzle.tags}</div>
+              </div>
+            </div>
           </div>
         </div>
          );

@@ -2,8 +2,8 @@
 Field for link to actual puzzle page
 
 ## Views
-Load basic template
-Embed initial data into page load as JSON for React to use
+X Load basic template
+X Embed initial data into page load as JSON for React to use
 RESTful endpoints for updates/changes: write them, make React use them
 
 ## Templates:
