@@ -3,12 +3,14 @@
 
 {% block content %}
 	{% if rounds %}
-		<div class="shortcuts row">
+		<div class="row">
 			<div class="col-lg-12">
-				Hop to: 
-				{% for round in rounds %}
-					<a href="#{{ round | slugify }}-{{ round.name | slugify}}">{{ round }}</a> | 
-				{% endfor %}
+				<div class="shortcuts">
+					Hop to: 
+					{% for round in rounds %}
+						<a href="#{{ round | slugify }}-{{ round.name | slugify}}">{{ round }}</a> | 
+					{% endfor %}
+				</div>
 			</div>
 		</div>
 	    {% for round in rounds %}
