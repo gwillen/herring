@@ -20,14 +20,23 @@ Install Django and other Pythonic dependencies:
 
 `pip3 install -r requirements.txt`
 
-Set up your database (TODO)
+Set up your database:
+
+`ln -sfv /usr/local/opt/postgresql/*.plist ~/Library/LaunchAgents`
+`launchctl load ~/Library/LaunchAgents/homebrew.mxcl.postgresql.plist`
+
+`createdb herringdb`
 
 Run:
 
-`cd herring && python3 herring/manage.py migrate`
+`cd herring && python3 manage.py migrate`
 
-`python3 herring/manage.py runserver`
+`python3 manage.py runserver`
 
 You can then view the website at `localhost:8000`.
+
+Create a superuser so you can log into `localhost:8000/admin/` and make rounds and puzzles:
+
+`python3 manage.py createsuperuser`
 
 This software is licensed under the [MIT License (Expat)](https://www.debian.org/legal/licenses/mit).
