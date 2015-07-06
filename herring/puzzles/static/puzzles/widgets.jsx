@@ -48,6 +48,17 @@ var RoundComponent = React.createClass({
       <div key={round.id} className="row">
         <div className="col-lg-12 round">
           <h2 id={target}>R{round.number} {round.name}</h2>
+
+          <div className="col-lg-12">
+            <div className="row legend">
+              <div className="col-xs-6 col-sm-6 col-md-4 col-lg-4">
+                Name
+              </div>
+              <div className="col-xs-6 col-sm-3 col-md-3 col-lg-2">Answer</div>
+              <div className="visible-md visible-lg col-md-3 col-lg-4">Notes</div>
+              <div className="hidden-xs col-sm-3 col-md-2 col-lg-2">Tags</div>
+            </div>
+          </div>
           {puzzles}
         </div>
       </div>
@@ -62,17 +73,20 @@ var PuzzleComponent = React.createClass({
     var classes = cx({
       'col-lg-12': true,
       'puzzle': true,
-      'meta': puzzle.is_meta
+      'meta': puzzle.is_meta,
+      'solved': puzzle.answer
     });
     return (
         <div key={puzzle.id} className="row">
           <div className="col-lg-12">
             <div className={classes}>
               <div className="row">
-                <div className="col-xs-12 col-sm-6 col-lg-4 name" title={puzzle.name}>{puzzle.name}</div>
-                <div className="col-xs-6 col-lg-2 answer">{puzzle.answer}</div>
-                <div className="visible-md visible-lg col-md-3 col-lg-4 note" title={puzzle.note}>{puzzle.note}</div>
-                <div className="col-xs-6 col-md-3 col-lg-2 tags">{puzzle.tags}</div>
+                <div className="col-xs-6 col-sm-6 col-md-4 col-lg-4 name">
+                  <a title={puzzle.name}>{puzzle.name}</a>
+                </div>
+                <div className="col-xs-6 col-sm-3 col-md-3 col-lg-2 answer">{puzzle.answer}&nbsp;</div>
+                <div className="visible-md visible-lg col-md-3 col-lg-4 note" title={puzzle.note}>{puzzle.note}&nbsp;</div>
+                <div className="hidden-xs col-sm-3 col-md-2 col-lg-2 tags">{puzzle.tags}&nbsp;</div>
               </div>
             </div>
           </div>
