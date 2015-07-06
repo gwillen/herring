@@ -39,4 +39,6 @@ Create a superuser so you can log into `localhost:8000/admin/` and make rounds a
 
 `python3 manage.py createsuperuser`
 
+## License
+
 This software is licensed under the [MIT License (Expat)](https://www.debian.org/legal/licenses/mit).
