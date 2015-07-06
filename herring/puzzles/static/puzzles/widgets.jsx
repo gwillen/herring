@@ -40,7 +40,7 @@ var RoundsComponent = React.createClass({
 var RoundComponent = React.createClass({
   render: function() {
     var round = this.props.round;
-    var target = "#R" + round.number + "-" + round.name;
+    var target = "R" + round.number + "-" + round.name;
     var puzzles = round.puzzle_set.map(function(puzzle) {
       return <PuzzleComponent puzzle={puzzle} />;
     });
