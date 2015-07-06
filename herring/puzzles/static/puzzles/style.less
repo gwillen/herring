@@ -32,9 +32,27 @@ a {
 	text-decoration: underline;
 }
 
-.dropdown a {
-	text-decoration: none;
-	text-align: right;
+.dropdown {
+
+	button.dropdown-toggle, &.open button.dropdown-toggle {
+		background: @mainColor;
+		color: lighten(@backgroundColor, 3%);
+		border-color: darken(@mainColor, 5%);
+
+		&:hover {
+			background: lighten(@mainColor, 5%);
+			color: white;
+		}
+	}
+
+	.dropdown-menu {
+		border-color: lighten(@mainColor, 5%); // darken(@backgroundColor, 10%);
+		a {
+			text-decoration: none;
+			text-align: right;
+			color: @mainColor;
+		}
+	}
 }
 
 .shortcuts {
