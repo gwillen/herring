@@ -22,7 +22,7 @@ def to_json_value(field):
     if isinstance(field, int):
         return field
     if isinstance(field, dict):
-        return field
+        return { key: to_json_value(value) for key, value in field.items() }
     if isinstance(field, (list, models.query.QuerySet)):
         return [to_json_value(item) for item in field]
     if isinstance(field, models.manager.Manager):
