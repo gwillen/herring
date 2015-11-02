@@ -12,8 +12,7 @@ var interleave = function(element, array) {
 };
 
 var targetifyRound = function(round) {
-    var s = '#R' + round.number + '-' + round.name;
-    return s.replace(/[ \%\$\@\!\(\)\\\/\[\]\^\&\*\?\.\,]+/gi, '-');
+    return 'round-' + round.id.toString();
 };
 
 
@@ -21,7 +20,7 @@ var NavHeaderComponent = React.createClass({
   render: function() {
     var rs,
         roundTags = this.props.rounds.map(function(round) {
-          var target = targetifyRound(round);
+          var target = '#' + targetifyRound(round);
           var key = 'shortcut-' + round.id.toString();
           return (
               <a key={key} href={target}>R{round.number}</a>
@@ -65,7 +64,7 @@ var PuzzleComponent = React.createClass({
             </div>
           </div>
         </div>
-         );
+    );
   }
 });
 
