@@ -1,46 +1,10 @@
 'use strict';
 
-var React = require('react');
-var ReactDOM = require('react-dom');
-var cx = require('classnames');
-
-var interleave = function(element, array) {
-    var retval = [];
-    for (var i = 0; i < array.length; i++) {
-        retval.push(array[i]);
-        if (i !== array.length - 1) {
-            retval.push(element);
-        }
-    }
-    return retval;
-};
-
-var targetifyRound = function(round) {
-    return 'round-' + round.id.toString();
-};
-
-
-var NavHeaderComponent = React.createClass({
-  render: function() {
-    var rs,
-        roundTags = this.props.rounds.map(function(round) {
-          var target = '#' + targetifyRound(round);
-          var key = 'shortcut-' + round.id.toString();
-          return (
-              <a key={key} href={target}>R{round.number}</a>
-          );
-        });
-    rs = interleave(' | ', roundTags);
-    return (<div className="row">
-          <div className="col-lg-12">
-            <div className="shortcuts">
-              Hop to: {rs}
-            </div>
-          </div>
-        </div>
-         );
-  }
-});
+var React = require('react'),
+    ReactDOM = require('react-dom'),
+    cx = require('classnames'),
+    Utils = require('./utils'),
+    NavHeaderComponent = require('./components/nav-header');
 
 
 var DefaultInputComponent = React.createClass({
@@ -206,7 +170,7 @@ var PuzzleComponent = React.createClass({
 var RoundComponent = React.createClass({
   render: function() {
     var round = this.props.round;
-    var target = targetifyRound(round);
+    var target = Utils.targetifyRound(round);
     var puzzles = round.puzzle_set.map(function(puzzle) {
       return <PuzzleComponent key={ puzzle.id }
                               puzzle={ puzzle } />;
@@ -237,7 +201,8 @@ var RoundComponent = React.createClass({
 var RoundsComponent = React.createClass({
   render: function() {
     var rs = this.props.rounds.map(function(round) {
-      return <RoundComponent round={round} />;
+      return <RoundComponent key={ round.id }
+                             round={ round } />;
     });
     return <div>{rs.length > 0 ? rs : <p>No puzzles are available</p>}</div>
   }
