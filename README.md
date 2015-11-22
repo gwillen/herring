@@ -6,7 +6,11 @@ Members of teams Metropolitan Rage Warehouse and Death and Mayhem have contribut
 
 ## Local dev setup
 
-`brew install python3 postgres`
+`brew install python3 postgres npm`
+
+Install node/JS dependencies:
+
+`cd herring/puzzles/static-src && npm install && cd ../../../`
 
 Make sure you have `virtualenv` installed. Then:
 
@@ -32,6 +36,11 @@ Run:
 `cd herring && python3 manage.py migrate`
 
 `python3 manage.py runserver`
+
+And in a second shell:
+
+`cd herring/puzzles/static-src`
+`./node_modules/.bin/webpack --watch`
 
 You can then view the website at `localhost:8000`.
 

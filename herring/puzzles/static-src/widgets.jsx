@@ -1,5 +1,9 @@
 'use strict';
 
+var React = require('react');
+var ReactDOM = require('react-dom');
+var cx = require('classnames');
+
 var interleave = function(element, array) {
     var retval = [];
     for (var i = 0; i < array.length; i++) {
@@ -108,7 +112,7 @@ var RoundInfoComponent = React.createClass({
         );
     },
     handleDocumentClick: function (evt) {
-        var self = React.findDOMNode(this.refs.editableComponent),
+        var self = ReactDOM.findDOMNode(this.refs.editableComponent),
             target = evt.target;
         if (this.state.editable && (!self || !self.contains(target))) {
             this.setState({ editable: false });
@@ -133,7 +137,7 @@ var RoundInfoComponent = React.createClass({
         this.setState(newState);
     },
     focus: function() {
-        React.findDOMNode(this.refs.editInput).focus();
+        ReactDOM.findDOMNode(this.refs.editInput).focus();
     }
 });
 
@@ -143,7 +147,6 @@ var PuzzleComponent = React.createClass({
         puzzle: React.PropTypes.object.isRequired
     },
     render: function() {
-        var cx = React.addons.classSet;
         var puzzle = this.props.puzzle;
         var classes = cx({
           'col-lg-12': true,
@@ -236,7 +239,7 @@ var RoundsComponent = React.createClass({
     var rs = this.props.rounds.map(function(round) {
       return <RoundComponent round={round} />;
     });
-    return <div>{rs.length > 0 ? {rs} : <p>No puzzles are available</p>}</div>
+    return <div>{rs.length > 0 ? rs : <p>No puzzles are available</p>}</div>
   }
 });
 
@@ -254,4 +257,4 @@ var Page = React.createClass({
 });
 
 var page = <Page />;
-var renderedPage = React.render(page, document.getElementById('react-root'));
+var renderedPage = ReactDOM.render(page, document.getElementById('react-root'));

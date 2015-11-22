@@ -1,15 +1,12 @@
 {% extends "puzzles/base.html" %}
 {% load to_json %}
 
-{% block head_scripts %}
-	{% load staticfiles %}
-	<script src="{% static 'puzzles/widgets.jsx' %}" type="text/jsx"></script>
-{% endblock %}
-
 {% block content %}
 
 <div id="react-root"></div>
 <script type="text/javascript">
 	var rounds = {{ rounds | to_json | safe }}
 </script>
+{% load staticfiles %}
+<script src="{% static 'bundle.js' %}" type="text/javascript"></script>
 {% endblock %}
