@@ -39,33 +39,164 @@ var NavHeaderComponent = React.createClass({
 });
 
 
+var DefaultInputComponent = React.createClass({
+    propTypes: {
+        defaultValue: React.PropTypes.string.isRequired,
+    },
+    getInitialState: function() {
+        return {};
+    },
+    componentDidMount: function () {
+        this.setState({
+            val: this.props.defaultValue
+        });
+    },
+    render: function(){
+        return (
+            <input ref="editInput"
+                   type="text"
+                   value={ this.state.val }
+                   onChange={ this.handleChange } />
+        );
+    },
+    handleChange: function(evt){
+        this.setState({val: evt.target.value});
+    },
+});
+
+var RoundInfoComponent = React.createClass({
+    propTypes: {
+        className: React.PropTypes.string,
+        val: React.PropTypes.string,
+        onSubmit: React.PropTypes.func.isRequired
+    },
+    getInitialState: function() {
+        return {
+            newVal: undefined,
+            editable: false
+        };
+    },
+    componentDidMount: function () {
+        document.addEventListener('click', this.handleDocumentClick);
+    },
+
+    componentWillUnmount: function () {
+        document.removeEventListener('click', this.handleDocumentClick);
+    },
+    render: function() {
+        var contents;
+        if (this.state.editable) {
+            contents = (
+                <form onSubmit={ this.onSubmit }>
+                    <DefaultInputComponent
+                        ref="editInput"
+                        defaultValue={ this.props.val }/>
+                </form>
+            );
+        } else {
+            contents = (
+                <span>
+                    { this.props.val }&nbsp;
+                </span>
+            );
+        }
+        return (
+            <div ref="editableComponent" className={ this.props.className }
+                 onClick={ this.editElement } >
+                { contents }
+            </div>
+        );
+    },
+    handleDocumentClick: function (evt) {
+        var self = React.findDOMNode(this.refs.editableComponent),
+            target = evt.target;
+        if (this.state.editable && (!self || !self.contains(target))) {
+            this.setState({ editable: false });
+        }
+    },
+    editElement: function(evt) {
+        this.setState({
+            editable: true
+        },this.focus);
+    },
+    onSubmit: function(evt) {
+        evt.preventDefault();
+        var newState = {
+            editable: false
+        };
+
+        // if something's changed, call onSubmit
+        if (this.refs.editInput.state.val !== this.props.val) {
+            this.props.onSubmit(this.refs.editInput.state.val);
+        }
+        // else just make it not editable
+        this.setState(newState);
+    },
+    focus: function() {
+        React.findDOMNode(this.refs.editInput).focus();
+    }
+});
+
+
 var PuzzleComponent = React.createClass({
-  render: function() {
-    var cx = React.addons.classSet;
-    var puzzle = this.props.puzzle;
-    var classes = cx({
-      'col-lg-12': true,
-      'puzzle': true,
-      'meta': puzzle.is_meta,
-      'solved': puzzle.answer
-    });
-    return (
-        <div key={puzzle.id} className="row">
-          <div className="col-lg-12">
-            <div className={classes}>
-              <div className="row">
-                <div className="col-xs-6 col-sm-6 col-md-4 col-lg-4 name">
-                  <a title={puzzle.name}>{puzzle.name}</a>
+    propTypes: {
+        puzzle: React.PropTypes.object.isRequired
+    },
+    render: function() {
+        var cx = React.addons.classSet;
+        var puzzle = this.props.puzzle;
+        var classes = cx({
+          'col-lg-12': true,
+          'puzzle': true,
+          'meta': puzzle.is_meta,
+          'solved': puzzle.answer
+        });
+        return (
+            <div key={puzzle.id} className="row">
+              <div className="col-lg-12">
+                <div className={classes}>
+                  <div className="row">
+                    <div className="col-xs-6 col-sm-6 col-md-4 col-lg-4 name">
+                      <a title={ puzzle.name } href={ puzzle.url }>{ puzzle.name }</a>
+                    </div>
+                    <RoundInfoComponent
+                        className="col-xs-6 col-sm-3 col-md-3 col-lg-2 answer editable"
+                        val={ puzzle.answer }
+                        onSubmit={ this.updateAnswer }
+                    />
+                    <RoundInfoComponent
+                        className="visible-md visible-lg col-md-3 col-lg-4 note editable"
+                        val={ puzzle.note }
+                        onSubmit={ this.updateNote }
+                    />
+                    <RoundInfoComponent
+                        className="hidden-xs col-sm-3 col-md-2 col-lg-2 tags editable"
+                        val={ puzzle.tags }
+                        onSubmit={ this.updateTags }
+                    />
+                  </div>
                 </div>
-                <div className="col-xs-6 col-sm-3 col-md-3 col-lg-2 answer">{puzzle.answer}&nbsp;</div>
-                <div className="visible-md visible-lg col-md-3 col-lg-4 note" title={puzzle.note}>{puzzle.note}&nbsp;</div>
-                <div className="hidden-xs col-sm-3 col-md-2 col-lg-2 tags">{puzzle.tags}&nbsp;</div>
               </div>
             </div>
-          </div>
-        </div>
-    );
-  }
+        );
+    },
+    updateAnswer: function(val) {
+        this.updateData('answer', val);
+    },
+    updateNote: function(val) {
+        this.updateData('note', val);
+    },
+    updateTags: function(val) {
+        this.updateData('tags', val);
+    },
+    updateData: function(key, val){
+        // TODO
+        var update = {};
+        var puzzleID = this.props.puzzle.id;
+
+        update[key] = val;
+        console.log('I am totally updating puzzle ' + puzzleID + ' now', update);
+    }
 });
 
 
@@ -74,7 +205,8 @@ var RoundComponent = React.createClass({
     var round = this.props.round;
     var target = targetifyRound(round);
     var puzzles = round.puzzle_set.map(function(puzzle) {
-      return <PuzzleComponent puzzle={puzzle} />;
+      return <PuzzleComponent key={ puzzle.id }
+                              puzzle={ puzzle } />;
     });
     return (
       <div key={round.id} className="row">
