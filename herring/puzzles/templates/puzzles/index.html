@@ -5,7 +5,8 @@
 
 <div id="react-root"></div>
 <script type="text/javascript">
-	var rounds = {{ rounds | to_json | safe }}
+	var rounds = {{ rounds | to_json | safe }};
+	var csrfToken = "{{ csrf_token }}";
 </script>
 {% load staticfiles %}
 <script src="{% static 'bundle.js' %}" type="text/javascript"></script>

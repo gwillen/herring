@@ -2,9 +2,10 @@
   "name": "herring",
   "version": "0.0.0",
   "dependencies": {
+    "classnames": "^2.2.0",
     "react": "^0.14.3",
     "react-dom": "^0.14.3",
-    "classnames": "^2.2.0"
+    "then-request": "^2.1.1"
   },
   "devDependencies": {
     "webpack": "^1.12.8",

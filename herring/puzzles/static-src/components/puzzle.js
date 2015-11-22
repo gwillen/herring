@@ -2,6 +2,7 @@
 
 var React = require('react');
 var cx = require('classnames');
+var request = require('then-request');
 var RoundInfoComponent = require('./round-info');
 
 var PuzzleComponent = React.createClass({
@@ -60,7 +61,16 @@ var PuzzleComponent = React.createClass({
         var puzzleID = this.props.puzzle.id;
 
         update[key] = val;
-        console.log('I am totally updating puzzle ' + puzzleID + ' now', update);
+        request('POST', '/puzzles/' + this.props.puzzle.id.toString() + '/',
+          {
+            body: JSON.stringify(update),
+            headers: {
+              'X-CSRFToken': csrfToken
+            }
+          }
+        ).done(function (res) {
+            console.log('I am totally updating puzzle ' + puzzleID + ' now', update);
+          }.bind(this));
     }
 });
 
