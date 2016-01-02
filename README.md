@@ -27,6 +27,7 @@ Install Django and other Pythonic dependencies:
 Set up your database:
 
 `ln -sfv /usr/local/opt/postgresql/*.plist ~/Library/LaunchAgents`
+
 `launchctl load ~/Library/LaunchAgents/homebrew.mxcl.postgresql.plist`
 
 `createdb herringdb`
@@ -40,6 +41,7 @@ Run:
 And in a second shell:
 
 `cd herring/puzzles/static-src`
+
 `./node_modules/.bin/webpack --watch`
 
 You can then view the website at `localhost:8000`.
