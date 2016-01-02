@@ -52,7 +52,7 @@ var PuzzleComponent = React.createClass({
 
                   <div className="row">
                     <div className="col-xs-6 col-sm-6 col-md-4 col-lg-4 name">
-                        <a title={ puzzle.name } href={ puzzle.url }>{ puzzle.name }</a>
+                        <a title={ puzzle.name } href={ `/puzzles/${puzzle.id}/` }>{ puzzle.name }</a>
                         <button title="Reset puzzle URL"
                                 onClick={ this.showPuzzleUrlModal }>
                             <span className="glyphicon glyphicon-pencil"></span>

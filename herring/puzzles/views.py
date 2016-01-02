@@ -30,9 +30,21 @@ def get_puzzles(request):
 
 
 @login_required
+def one_puzzle(request, puzzle_id):
+    if request.method == "POST":
+        return update_puzzle(request, puzzle_id)
+    else:
+        return get_one_puzzle(request, puzzle_id)
+
+def get_one_puzzle(request, puzzle_id):
+    puzzle = get_object_or_404(Puzzle, pk=puzzle_id)
+    context = {
+        'puzzle': puzzle
+    }
+    return render(request, 'puzzles/one_puzzle.html', context)
+
 def update_puzzle(request, puzzle_id):
     puzzle = get_object_or_404(Puzzle, pk=puzzle_id)
-    # TODO: update puzzle with POST body
 
     data = json.loads(request.body.decode('utf-8'))
     for key in data.keys():

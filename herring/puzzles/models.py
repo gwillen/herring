@@ -54,11 +54,12 @@ class Puzzle(models.Model,JSONMixin):
     note = models.CharField(max_length=200, default='', **optional)
     tags = models.CharField(max_length=200, default='', **optional)
     is_meta = models.BooleanField(default=False)
+    url = models.CharField(max_length=1000, default='', **optional)
 
     class Meta:
         ordering = ['parent', '-is_meta', 'number']
     class Json:
-        include_fields = ['id', 'name', 'number', 'answer', 'note', 'tags', 'is_meta']
+        include_fields = ['id', 'name', 'number', 'answer', 'note', 'tags', 'is_meta', 'url']
 
     def __str__(self):
         child_type = 'P'
