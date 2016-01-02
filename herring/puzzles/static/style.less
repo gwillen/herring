@@ -4,6 +4,8 @@
 @textColor: #333;
 
 @stdpadding: 12px;
+@textSize: 16px;
+@lineHeight: 1.5;
 
 .dotdotdot() {
 	word-wrap: break-word;
@@ -15,8 +17,8 @@
 body {
 	background: @backgroundColor;
 	color: @textColor;
-	font-size: 16px;
-	line-height: 1.5;
+	font-size: @textSize;
+	line-height: @lineHeight;
 	font-family: 'Consolas', 'Courier Prime Sans', monospace;
 }
 
@@ -34,7 +36,6 @@ a {
 }
 
 .dropdown {
-
 	button.dropdown-toggle, &.open button.dropdown-toggle {
 		background: @mainColor;
 		color: lighten(@backgroundColor, 3%);
@@ -56,10 +57,45 @@ a {
 	}
 }
 
-.shortcuts {
+.shortcuts, .filters {
 	border: 1pt solid darken(@backgroundColor, 10%);
 	background-color: lighten(@backgroundColor, 3%);
 	padding: @stdpadding;
+	margin-bottom: @stdpadding;
+}
+
+.filters {
+	color: @backgroundColor;
+	background-color: @mainColor;
+	border-color: lighten(@mainColor, 10%);
+
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+
+	> div {
+		margin-left: @stdpadding * 2;
+	}
+
+	h4 {
+		color: white;
+		opacity: .5;
+		margin: 0;
+		margin-right: @stdpadding * 2;
+
+		flex: 1 1 auto;
+	}
+
+	input, label {
+		margin: 0;
+		margin-right: @stdpadding;
+		//height: @textSize * @lineHeight;
+	}
+
+	input {
+		margin-top: -2px;
+		color: @textColor;
+	}
 }
 
 .round {

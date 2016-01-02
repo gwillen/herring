@@ -22,7 +22,8 @@ var Page = React.createClass({
     return (
       <div>
         <NavHeaderComponent rounds={ this.state.rounds } />
-        <RoundsComponent rounds={ this.state.rounds } changeMade={this.loadDataFromServer} />
+        <RoundsComponent rounds={ this.state.rounds }
+                         changeMade={ this.loadDataFromServer } />
       </div>);
   },
   loadDataFromServer: function() {
