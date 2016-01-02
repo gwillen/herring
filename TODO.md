@@ -17,10 +17,10 @@ Static pages for puzzle-solving resources and team info, if any
 X Update answer to puzzle
 X Update notes on puzzle
 X Update tags on puzzle
-Make not laggy / update optimistically / something
+X Make not laggy / update optimistically / something
 Update link associated with puzzle
-Filter by has_answer
-Filter by tag
+X Filter by has_answer
+X Filter by tag
 
 ## Other
 Account generation/login/auth
