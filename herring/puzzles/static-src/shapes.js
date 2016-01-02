@@ -4,7 +4,7 @@ var React = require('react');
 
 var PuzzleShape = React.PropTypes.shape({
   id: React.PropTypes.number.isRequired,
-  number: React.PropTypes.number.isRequired,
+  number: React.PropTypes.number,
   answer: React.PropTypes.string.isRequired,
   is_meta: React.PropTypes.bool.isRequired,
   tags: React.PropTypes.string.isRequired,
@@ -14,7 +14,7 @@ var PuzzleShape = React.PropTypes.shape({
 
 var RoundShape = React.PropTypes.shape({
   id: React.PropTypes.number.isRequired,
-  number: React.PropTypes.number.isRequired,
+  number: React.PropTypes.number,
   name: React.PropTypes.string.isRequired,
   puzzle_set: React.PropTypes.arrayOf(PuzzleShape).isRequired,
 });
