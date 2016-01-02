@@ -36,7 +36,7 @@ var RoundInfoComponent = React.createClass({
             );
         } else {
             contents = (
-                <span>
+                <span title={ this.props.val }>
                     { this.props.val }&nbsp;
                 </span>
             );

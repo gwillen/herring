@@ -60,6 +60,20 @@ a {
 	text-decoration: underline;
 }
 
+button, input[type=submit] {
+	background: @mainColor;
+	color: lighten(@backgroundColor, 3%);
+	border-color: lighten(@mainColor, 10%);
+	border-width: 1px;
+	line-height: 1;
+	border-radius: 4px;
+
+	&:hover {
+		background: lighten(@mainColor, 5%);
+		color: white;
+	}
+}
+
 .dropdown {
 	button.dropdown-toggle, &.open button.dropdown-toggle {
 		background: @mainColor;
@@ -142,12 +156,27 @@ a {
 		background-color: @puzzleBackgroundColor;
 	}
 
-	.name a {
-		color: black;
-		font-weight: 900;
+	.name {
+		position: relative;
 
-		&:hover {
-			color: @mainColor;
+		a {
+			color: black;
+			font-weight: 900;
+
+			&:hover {
+				color: @mainColor;
+			}
+		}
+		button {
+			position: absolute;
+			top: 0;
+			right: 0;
+			display: none;
+			outline: none;
+		}
+
+		&:hover button {
+			display: inline;
 		}
 	}
 
@@ -203,4 +232,38 @@ a {
 			color: white;
 		}
 	}
+}
+
+.celebration {
+	position: fixed;
+	top: 0;
+	left: 0;
+	height: 100vh;
+	width: 100vw;
+	background-color: rgba(255,255,255,.5);
+
+	display: flex;
+	align-items: center;
+	justify-content: center;
+
+	> div {
+		width: 50%;
+		border: 2px solid @mainColor;
+		background-color: white;
+		color: @mainColor;
+		padding: @stdpadding;
+		text-align: center;
+		position: relative;
+	}
+
+	.answer {
+		font-weight: 900;
+		text-transform: uppercase;
+	}
+}
+
+.close-button {
+	position: absolute;
+	top: @stdpadding/2;
+	right: @stdpadding/2;
 }

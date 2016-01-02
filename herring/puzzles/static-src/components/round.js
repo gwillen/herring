@@ -27,6 +27,7 @@ var RoundComponent = React.createClass({
         var puzzles = _.map(filteredPuzzles, function(puzzle) {
             return <PuzzleComponent key={ puzzle.id }
                                     puzzle={ puzzle }
+                                    parent={ round }
                                     changeMade={ self.changeMade} />;
         });
         return (
