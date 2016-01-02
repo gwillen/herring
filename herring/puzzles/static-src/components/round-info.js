@@ -2,7 +2,7 @@
 
 var React = require('react');
 var ReactDOM = require('react-dom');
-var DefaultInputComponent = require('./default-input');
+var DefaultInputComponent = require('./utils/default-input');
 
 
 var RoundInfoComponent = React.createClass({

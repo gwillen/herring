@@ -1,2 +1,3 @@
 henv/
 *.pyc
+*.DS_Store

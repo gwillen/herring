@@ -5,6 +5,7 @@ var cx = require('classnames');
 var request = require('then-request');
 var RoundInfoComponent = require('./round-info');
 var CelebrationModal = require('./celebration');
+var UrlChangeModal = require('./url-editor');
 
 
 var PuzzleComponent = React.createClass({
@@ -16,6 +17,7 @@ var PuzzleComponent = React.createClass({
     getInitialState: function () {
         return {
             celebrating: false,
+            changingUrl: false
         };
     },
     componentWillReceiveProps(nextProps) {
@@ -37,6 +39,7 @@ var PuzzleComponent = React.createClass({
           'solved': puzzle.answer
         });
         var celebrationModal;
+        var urlChangeModal;
 
         if (this.state.celebrating) {
             celebrationModal = <CelebrationModal puzzle={ puzzle }
@@ -44,16 +47,22 @@ var PuzzleComponent = React.createClass({
                                                  roundName={ this.props.parent.name }
                                                  closeCallback={ this.stopCelebrating } />;
         }
+        if (this.state.changingUrl) {
+            urlChangeModal = <UrlChangeModal puzzle={ puzzle }
+                                             actionCallback={ this.updateUrl }
+                                             closeCallback={ this.closeUrlModal } />
+        }
         return (
             <div key={ puzzle.id } className="row">
               <div className="col-lg-12">
                 { celebrationModal }
+                { urlChangeModal }
                 <div className={ classes }>
 
                   <div className="row">
                     <div className="col-xs-6 col-sm-6 col-md-4 col-lg-4 name">
                         <a title={ puzzle.name } href={ `/puzzles/${puzzle.id}/` }>{ puzzle.name }</a>
-                        <button title="Reset puzzle URL"
+                        <button title="Set puzzle workspace URL"
                                 onClick={ this.showPuzzleUrlModal }>
                             <span className="glyphicon glyphicon-pencil"></span>
                         </button>
@@ -79,9 +88,13 @@ var PuzzleComponent = React.createClass({
             </div>
         );
     },
-    showPuzzleUrlModal(){
-        // TODO: actually do a thing
-        console.log('gonna change the URL for puzzle ' + this.props.puzzle.id);
+    showPuzzleUrlModal() {
+        this.setState({
+            changingUrl: true
+        });
+    },
+    updateUrl(val) {
+        this.updateData('url', val);
     },
     updateAnswer(val) {
         this.updateData('answer', val);
@@ -92,10 +105,9 @@ var PuzzleComponent = React.createClass({
     updateTags(val) {
         this.updateData('tags', val);
     },
-    updateData(key, val){
+    updateData(key, val) {
         // TODO
         var update = {};
-        var puzzleID = this.props.puzzle.id;
 
         update[key] = val;
         request('POST', '/puzzles/' + this.props.puzzle.id.toString() + '/',
@@ -112,6 +124,11 @@ var PuzzleComponent = React.createClass({
     stopCelebrating() {
         this.setState({
             celebrating: false
+        });
+    },
+    closeUrlModal() {
+        this.setState({
+            changingUrl: false
         });
     }
 });

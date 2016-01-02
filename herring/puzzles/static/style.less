@@ -261,7 +261,7 @@ button, input[type=submit] {
 	}
 }
 
-.celebration {
+.modal {
 	position: fixed;
 	top: 0;
 	left: 0;
@@ -273,15 +273,24 @@ button, input[type=submit] {
 	align-items: center;
 	justify-content: center;
 
+	.close-button {
+		position: absolute;
+		top: @stdpadding/2;
+		right: @stdpadding/2;
+	}
+
 	> div {
 		width: 50%;
 		border: 2px solid @mainColor;
 		background-color: white;
 		color: @mainColor;
 		padding: @stdpadding;
-		text-align: center;
 		position: relative;
 	}
+}
+
+.celebration {
+	text-align: center;
 
 	.answer {
 		font-weight: 900;
@@ -289,8 +298,11 @@ button, input[type=submit] {
 	}
 }
 
-.close-button {
-	position: absolute;
-	top: @stdpadding/2;
-	right: @stdpadding/2;
+.url-editor {
+	form {
+		padding: @stdpadding 0;
+	}
+	input {
+		margin-right: @stdpadding;
+	}
 }
