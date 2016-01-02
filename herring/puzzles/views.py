@@ -1,11 +1,17 @@
 import json
 
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse, JsonResponse
+import django.contrib.auth
 from django.contrib.auth.decorators import login_required
 
 from .models import Round, Puzzle, to_json_value
 
+@login_required
+def logout(request):
+    if request.method == "POST":
+        django.contrib.auth.logout(request)
+    return redirect('/')
 
 @login_required
 def index(request):

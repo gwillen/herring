@@ -25,8 +25,8 @@ X Filter by tag
 ## Other
 Account generation/login/auth
   * People can create accounts (oauth?)
-  * People must login to see website
-  * Can log out via menu
+  X People must login to see website
+  X Can log out via menu
   * Accounts created by admin?
   * People have their accounts be approved by admin in admin interface in order to see website?
 Link generation for puzzles --> GDocs/Etherpad

@@ -93,6 +93,33 @@ button, input[type=submit] {
 			text-align: right;
 			color: @mainColor;
 		}
+		form {
+			width: 100%;
+			clear: both;
+			float: right;
+			&:hover {
+				color: #262626;
+				background-color: #F5F5F5;
+			}
+		}
+		button#logout {
+			display: block;
+			border: none;
+			float: right;
+			font-size: inherit;
+			font-family: inherit;
+			font-weight: inherit;
+			text-decoration: none;
+			color: @mainColor;
+			line-height: inherit;
+			background-color: transparent;
+			text-align: right;
+			padding: 3px 20px;
+			cursor: pointer;
+			&:hover {
+				color: #262626;
+			}
+		}
 	}
 }
 
