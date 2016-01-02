@@ -6,7 +6,7 @@ var Shapes = require('../shapes');
 
 var RoundsComponent = React.createClass({
   propTypes: {
-    rounds: Shapes.RoundShape.isRequired,
+    rounds: React.PropTypes.arrayOf(Shapes.RoundShape.isRequired).isRequired,
     changeMade: React.PropTypes.func,
   },
   changeMade() {
