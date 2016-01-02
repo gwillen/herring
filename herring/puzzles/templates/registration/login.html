@@ -1,0 +1,15 @@
+<!doctype html>
+<html>
+  <head>
+    <title></title>
+  </head>
+  <body>
+    <h1>Login</h1>
+    <form role="form" method="post">
+      <legend>Please sign in</legend>
+        {% csrf_token %}
+        {{ form }}
+        <button type="submit" name="submit">Sign in</button>
+    </form>
+  </body>
+</html>
