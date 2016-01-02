@@ -22,7 +22,7 @@ var Page = React.createClass({
     return (
       <div>
         <NavHeaderComponent rounds={ this.state.rounds } />
-        <RoundsComponent rounds={ this.state.rounds } />
+        <RoundsComponent rounds={ this.state.rounds } changeMade={this.loadDataFromServer} />
       </div>);
   },
   loadDataFromServer: function() {
@@ -32,5 +32,5 @@ var Page = React.createClass({
   }
 });
 
-var page = <Page pollInterval={ 2000 } />;
+var page = <Page pollInterval={ 10000 } />;
 var renderedPage = ReactDOM.render(page, document.getElementById('react-root'));

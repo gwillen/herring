@@ -2,13 +2,23 @@
 
 var React = require('react');
 var RoundComponent = require('./round');
+var Shapes = require('../shapes');
 
 var RoundsComponent = React.createClass({
+  propTypes: {
+    rounds: Shapes.RoundShape.isRequired,
+    changeMade: React.PropTypes.func,
+  },
+  changeMade() {
+    this.props.changeMade && this.props.changeMade();
+  },
   render: function() {
+    var self = this;
     var rs = this.props.rounds.map(function(round) {
       return (
         <RoundComponent key={ round.id }
-                        round={ round } />
+                        round={ round }
+                        changeMade={ self.changeMade }/>
       );
     });
     return (

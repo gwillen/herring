@@ -7,7 +7,8 @@ var RoundInfoComponent = require('./round-info');
 
 var PuzzleComponent = React.createClass({
     propTypes: {
-        puzzle: React.PropTypes.object.isRequired
+        puzzle: React.PropTypes.object.isRequired,
+        changeMade: React.PropTypes.func,
     },
     render: function() {
         var puzzle = this.props.puzzle;
@@ -69,7 +70,7 @@ var PuzzleComponent = React.createClass({
             }
           }
         ).done(function (res) {
-            console.log('I am totally updating puzzle ' + puzzleID + ' now', update);
+            this.props.changeMade && this.props.changeMade();
           }.bind(this));
     }
 });

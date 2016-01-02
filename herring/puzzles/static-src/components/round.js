@@ -3,14 +3,24 @@
 var React = require('react');
 var PuzzleComponent = require('./puzzle');
 var targetifyRound = require('../utils').targetifyRound;
+var Shapes = require('../shapes');
 
 var RoundComponent = React.createClass({
+  propTypes: {
+    round: Shapes.RoundShape.isRequired,
+    changeMade: React.PropTypes.func,
+  },
+  changeMade() {
+    this.props.changeMade && this.props.changeMade();
+  },
   render: function() {
     var round = this.props.round;
     var target = targetifyRound(round);
+    var self = this;
     var puzzles = round.puzzle_set.map(function(puzzle) {
       return <PuzzleComponent key={ puzzle.id }
-                              puzzle={ puzzle } />;
+                              puzzle={ puzzle }
+                              changeMade={ self.changeMade} />;
     });
     return (
       <div key={round.id} className="row">
