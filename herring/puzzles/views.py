@@ -16,6 +16,11 @@ def index(request):
 
 
 @login_required
+def get_resources(request):
+    return render(request, 'puzzles/resources.html', {})
+
+
+@login_required
 def get_puzzles(request):
     data = {
         'rounds': Round.objects.all()
