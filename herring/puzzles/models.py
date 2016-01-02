@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 # **optional shortcut for optional fields
@@ -68,3 +69,13 @@ class Puzzle(models.Model,JSONMixin):
 
     def is_answered(self):
         return bool(self.answer)
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(
+            settings.AUTH_USER_MODEL,
+            on_delete=models.CASCADE,
+            related_name='profile',
+    )
+    avatar_url = models.CharField(max_length=200)
+    def __str__(self):
+        return "profile for " + self.user.__str__()

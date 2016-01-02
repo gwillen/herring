@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Round, Puzzle
+from .models import Round, Puzzle, UserProfile
 
 
 class PuzzleInline(admin.TabularInline):
@@ -19,5 +19,9 @@ class PuzzleAdmin(admin.ModelAdmin):
     exclude = ('answer', 'note', 'tags',)
     search_fields = ['name']
 
+class UserProfileAdmin(admin.ModelAdmin):
+    pass
+
 admin.site.register(Round, RoundAdmin)
 admin.site.register(Puzzle, PuzzleAdmin)
+admin.site.register(UserProfile, UserProfileAdmin)
