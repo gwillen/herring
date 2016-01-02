@@ -19,7 +19,6 @@ X Update notes on puzzle
 X Update tags on puzzle
 X Make not laggy / update optimistically / something
 Update link associated with puzzle
-X Put up a celebratory notice when a puzzle answer is set to not-the-empty-string
 X Filter by has_answer
 X Filter by tag
 
@@ -31,8 +30,8 @@ Account generation/login/auth
   * Accounts created by admin?
   * People have their accounts be approved by admin in admin interface in order to see website?
 Link generation for puzzles --> GDocs/Etherpad
-Announcement for correct answers
-Ability to make other announcments
+X Announcement for correct answers
+Ability to make other announcements
 Chat integration
 Add list of admin users to /admin login page to make it useful for nonadmins who want to know who to bother
 
