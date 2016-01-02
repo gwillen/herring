@@ -3,6 +3,8 @@
 @puzzleBackgroundColor: lighten(@backgroundColor, 5%);
 @textColor: #333;
 
+@shoalieWidth: 300px;
+
 @stdpadding: 12px;
 @textSize: 16px;
 @lineHeight: 1.5;
@@ -20,6 +22,22 @@ body {
 	font-size: @textSize;
 	line-height: @lineHeight;
 	font-family: 'Consolas', 'Courier Prime Sans', monospace;
+
+	display: flex;
+	flex-direction: row;
+}
+
+#shoalie {
+	width: @shoalieWidth;
+	height: 100vh;
+	position: fixed;
+	top: 0;
+	left: 0;
+	background-color: @mainColor;
+}
+
+#herring {
+	margin-left: @shoalieWidth;
 }
 
 h1, h2 {
