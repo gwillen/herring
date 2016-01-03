@@ -18,7 +18,7 @@ X Update answer to puzzle
 X Update notes on puzzle
 X Update tags on puzzle
 X Make not laggy / update optimistically / something
-Update link associated with puzzle
+X Update link associated with puzzle
 X Filter by has_answer
 X Filter by tag
 

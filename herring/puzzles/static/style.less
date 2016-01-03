@@ -40,11 +40,25 @@ body {
 
 #herring {
 	margin-left: @shoalieWidth;
+	display: flex;
+	flex-direction: column;
+	min-height: 100vh;
 }
 
 #id_username, #id_password {
 	display: block;
 	margin-bottom: 12px;
+}
+
+.header {
+	flex: 0 0 auto;
+}
+
+.content {
+	flex: 1 1 auto;
+
+	display: flex;
+	flex-direction: column;
 }
 
 h1, h2 {
@@ -75,6 +89,8 @@ button, input[type=submit] {
 }
 
 .dropdown {
+	margin-top: @stdpadding;
+
 	button.dropdown-toggle, &.open button.dropdown-toggle {
 		background: @mainColor;
 		color: lighten(@backgroundColor, 3%);
