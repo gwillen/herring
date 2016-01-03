@@ -3,7 +3,8 @@
 @puzzleBackgroundColor: lighten(@backgroundColor, 5%);
 @textColor: #333;
 
-@shoalieWidth: 300px;
+@defaultChatWidth: 300px;
+@defaultChatHeight: 200px;
 
 @stdpadding: 12px;
 @textSize: 16px;
@@ -27,22 +28,53 @@ body {
 #herring-wrapper {
 	display: flex;
 	flex-direction: row;
-}
 
-#shoalie {
-	width: @shoalieWidth;
-	height: 100vh;
-	position: fixed;
-	top: 0;
-	left: 0;
-	background-color: @mainColor;
-}
+	#shoalie {
+		flex: 0 0 auto;
+		width: @defaultChatWidth;
+		position: relative;
 
-#herring {
-	margin-left: @shoalieWidth;
-	display: flex;
-	flex-direction: column;
-	min-height: 100vh;
+		#layout-toggle {
+			position: absolute;
+			top: 0;
+			right: 0;
+			z-index: 100;
+		}
+
+		#chat-wrapper {
+			position: fixed;
+			top: 0;
+			left: 0;
+			background: @mainColor;
+			width: @defaultChatWidth;
+			height: 100vh;
+		}
+	}
+
+	#herring {
+		flex: 1 1 auto;
+		display: flex;
+		flex-direction: column;
+		min-height: 100vh;
+	}
+
+	&.chat-layout-top {
+		flex-direction: column;
+
+		#shoalie {
+			height: @defaultChatHeight;
+			width: 100%;
+
+			#chat-wrapper {
+				width: 100vw;
+				height: @defaultChatHeight;
+				position: inherit;
+			}
+		}
+		#herring {
+			min-height: inherit;
+		}
+	}
 }
 
 #id_username, #id_password {
@@ -148,7 +180,7 @@ button, input[type=submit] {
 
 .filters {
 	color: @backgroundColor;
-	background-color: @mainColor;
+	background: @mainColor;
 	border-color: lighten(@mainColor, 10%);
 
 	display: flex;
