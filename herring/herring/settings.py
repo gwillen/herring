@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
+import urllib
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -75,15 +76,30 @@ WSGI_APPLICATION = 'herring.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'herringdb',
-        # 'USER': 'herringmaster',
-        # 'PASSWORD': 'testingpassword',
-        'HOST': '',
+if os.environ.get("DATABASE_URL"):
+    urllib.parse.uses_netloc.append("postgres")
+    url = urllib.parse.urlparse(os.environ["DATABASE_URL"])
+
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql_psycopg2',
+            'NAME': url.path[1:],
+            'USER': url.username,
+            'PASSWORD': url.password,
+            'HOST': url.hostname,
+            'PORT': url.port,
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql_psycopg2',
+            'NAME': 'herringdb',
+            # 'USER': 'herringmaster',
+            # 'PASSWORD': 'testingpassword',
+            'HOST': '',
+        }
+    }
 
 
 # Internationalization

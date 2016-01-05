@@ -1,3 +1,4 @@
 henv/
 *.pyc
 *.DS_Store
+staticfiles
