@@ -1,0 +1,356 @@
+@mainColor: #87104a;
+@backgroundColor: #e9e9e9;
+@puzzleBackgroundColor: lighten(@backgroundColor, 5%);
+@textColor: #333;
+
+@defaultChatWidth: 300px;
+@defaultChatHeight: 200px;
+
+@stdpadding: 12px;
+@textSize: 16px;
+@lineHeight: 1.5;
+
+.dotdotdot() {
+	word-wrap: break-word;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+body {
+	background: @backgroundColor;
+	color: @textColor;
+	font-size: @textSize;
+	line-height: @lineHeight;
+	font-family: 'Consolas', 'Courier Prime Sans', monospace;
+}
+
+#herring-wrapper {
+	display: flex;
+	flex-direction: row;
+
+	#shoalie {
+		flex: 0 0 auto;
+		width: @defaultChatWidth;
+		position: relative;
+
+		#layout-toggle {
+			position: absolute;
+			top: 0;
+			right: 0;
+			z-index: 100;
+		}
+
+		#chat-wrapper {
+			position: fixed;
+			top: 0;
+			left: 0;
+			background: @mainColor;
+			width: @defaultChatWidth;
+			height: 100vh;
+		}
+	}
+
+	#herring {
+		flex: 1 1 auto;
+		display: flex;
+		flex-direction: column;
+		min-height: 100vh;
+	}
+
+	&.chat-layout-top {
+		flex-direction: column;
+
+		#shoalie {
+			height: @defaultChatHeight;
+			width: 100%;
+
+			#chat-wrapper {
+				width: 100vw;
+				height: @defaultChatHeight;
+				position: inherit;
+			}
+		}
+		#herring {
+			min-height: inherit;
+		}
+	}
+}
+
+#id_username, #id_password {
+	display: block;
+	margin-bottom: 12px;
+}
+
+.header {
+	flex: 0 0 auto;
+}
+
+.content {
+	flex: 1 1 auto;
+
+	display: flex;
+	flex-direction: column;
+}
+
+h1, h2 {
+	color: @mainColor;
+}
+
+h3, h4, h5 {
+	color: black;
+}
+
+a {
+	color: @mainColor;
+	text-decoration: underline;
+}
+
+button, input[type=submit] {
+	background: @mainColor;
+	color: lighten(@backgroundColor, 3%);
+	border-color: lighten(@mainColor, 10%);
+	border-width: 1px;
+	line-height: 1;
+	border-radius: 4px;
+
+	&:hover {
+		background: lighten(@mainColor, 5%);
+		color: white;
+	}
+}
+
+.dropdown {
+	margin-top: @stdpadding;
+
+	button.dropdown-toggle, &.open button.dropdown-toggle {
+		background: @mainColor;
+		color: lighten(@backgroundColor, 3%);
+		border-color: darken(@mainColor, 5%);
+
+		&:hover {
+			background: lighten(@mainColor, 5%);
+			color: white;
+		}
+	}
+
+	.dropdown-menu {
+		border-color: lighten(@mainColor, 5%); // darken(@backgroundColor, 10%);
+		a {
+			text-decoration: none;
+			text-align: right;
+			color: @mainColor;
+		}
+		form {
+			width: 100%;
+			clear: both;
+			float: right;
+			&:hover {
+				color: #262626;
+				background-color: #F5F5F5;
+			}
+		}
+		button#logout {
+			display: block;
+			border: none;
+			float: right;
+			font-size: inherit;
+			font-family: inherit;
+			font-weight: inherit;
+			text-decoration: none;
+			color: @mainColor;
+			line-height: inherit;
+			background-color: transparent;
+			text-align: right;
+			padding: 3px 20px;
+			cursor: pointer;
+			&:hover {
+				color: #262626;
+			}
+		}
+	}
+}
+
+.shortcuts, .filters {
+	border: 1pt solid darken(@backgroundColor, 10%);
+	background-color: lighten(@backgroundColor, 3%);
+	padding: @stdpadding;
+	margin-bottom: @stdpadding;
+}
+
+.filters {
+	color: @backgroundColor;
+	background: @mainColor;
+	border-color: lighten(@mainColor, 10%);
+
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+
+	> div {
+		margin-left: @stdpadding * 2;
+	}
+
+	h4 {
+		color: white;
+		opacity: .5;
+		margin: 0;
+		margin-right: @stdpadding * 2;
+
+		flex: 1 1 auto;
+	}
+
+	input, label {
+		margin: 0;
+		margin-right: @stdpadding;
+		//height: @textSize * @lineHeight;
+	}
+
+	input {
+		margin-top: -2px;
+		color: @textColor;
+	}
+}
+
+.round {
+	margin-bottom: @stdpadding*3;
+}
+
+.puzzle {
+	line-height: 2;
+	background-color: @puzzleBackgroundColor;
+	padding-top: @stdpadding/2;
+	padding-bottom: @stdpadding/6;
+
+	.name, .note, .tags {
+		.dotdotdot();
+	}
+
+	.editable:hover {
+		cursor: pointer;
+		background-color: @puzzleBackgroundColor;
+	}
+
+	.name {
+		position: relative;
+
+		a {
+			color: black;
+			font-weight: 900;
+
+			&:hover {
+				color: @mainColor;
+			}
+		}
+		button {
+			position: absolute;
+			top: 0;
+			right: 0;
+			display: none;
+			outline: none;
+		}
+
+		&:hover button {
+			display: inline;
+		}
+	}
+
+	.answer {
+		color: black;
+		font-weight: 700;
+		text-transform: uppercase;
+	}
+
+	form input {
+		width: 100%;
+		line-height: 1;
+	}
+
+	&:hover {
+		background: white;
+	}
+
+	&.solved, &.solved a {
+		background: @backgroundColor;
+		color: lighten(@textColor, 15%);
+	}
+
+	&.meta {
+		color: lighten(@backgroundColor, 3%);
+		background-color: @mainColor;
+
+		.name a {
+			color: lighten(@backgroundColor, 3%);
+			&:hover {
+				color: white;
+			}
+		}
+
+		.answer {
+			color: white;
+		}
+
+		.editable input {
+			color: @textColor;
+		}
+
+		.editable:hover {
+			cursor: pointer;
+			background-color: @mainColor;
+		}
+
+		&:hover {
+			background: lighten(@mainColor, 5%);
+		}
+		&.solved, &.solved a {
+			background-color: @textColor; // darken(@mainColor, 10%);
+			color: white;
+		}
+	}
+}
+
+.modal {
+	position: fixed;
+	top: 0;
+	left: 0;
+	height: 100vh;
+	width: 100vw;
+	background-color: rgba(255,255,255,.5);
+
+	display: flex;
+	align-items: center;
+	justify-content: center;
+
+	.close-button {
+		position: absolute;
+		top: @stdpadding/2;
+		right: @stdpadding/2;
+	}
+
+	> div {
+		width: 50%;
+		border: 2px solid @mainColor;
+		background-color: white;
+		color: @mainColor;
+		padding: @stdpadding;
+		position: relative;
+	}
+}
+
+.celebration {
+	text-align: center;
+
+	.answer {
+		font-weight: 900;
+		text-transform: uppercase;
+	}
+}
+
+.url-editor {
+	form {
+		padding: @stdpadding 0;
+	}
+	input {
+		margin-right: @stdpadding;
+	}
+}
