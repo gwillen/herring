@@ -9,22 +9,23 @@ var RoundsComponent = require('./components/rounds');
 
 var Page = React.createClass({
   getInitialState() {
-    return {
-      // loaded with template renderer
-      rounds: rounds
-    };
+    return {};
   },
   componentDidMount: function() {
     this.loadDataFromServer();
     setInterval(this.loadDataFromServer, this.props.pollInterval);
   },
   render: function() {
-    return (
-      <div>
-        <NavHeaderComponent rounds={ this.state.rounds } />
-        <RoundsComponent rounds={ this.state.rounds }
-                         changeMade={ this.loadDataFromServer } />
-      </div>);
+    if (this.state.rounds) {
+        return (
+          <div>
+            <NavHeaderComponent rounds={ this.state.rounds } />
+            <RoundsComponent rounds={ this.state.rounds }
+                             changeMade={ this.loadDataFromServer } />
+          </div>);
+    } else {
+        return null;
+    }
   },
   loadDataFromServer: function() {
     request('GET', '/puzzles/').done(function (res) {
