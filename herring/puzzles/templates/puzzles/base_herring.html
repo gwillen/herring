@@ -40,8 +40,20 @@
 <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js" type="text/javascript"></script>
 
 <script>
+    $(document).ready(function(){
+        var orientation = localStorage.getItem('chatOrientation');
+        if (orientation && orientation === 'top') {
+            $('#herring-wrapper').addClass('chat-layout-top');
+        }
+    });
     $('#layout-toggle').on('click', function(evt){
-        $('#herring-wrapper').toggleClass('chat-layout-top');
+        if (localStorage.getItem('chatOrientation') === 'top') {
+            localStorage.setItem('chatOrientation', 'left');
+            $('#herring-wrapper').removeClass('chat-layout-top');
+        } else {
+            localStorage.setItem('chatOrientation', 'top');
+            $('#herring-wrapper').addClass('chat-layout-top');
+        }
     });
 </script>
 
