@@ -30,10 +30,14 @@ var RoundComponent = React.createClass({
                                     parent={ round }
                                     changeMade={ self.changeMade} />;
         });
+        var roundTitle = (<h2 id={target}>R{round.number} {round.name}</h2>);
+        if (round.hunt_url) {
+            roundTitle = (<a href={ round.hunt_url }>{ roundTitle }</a>);
+        }
         return (
             <div key={round.id} className="row">
                 <div className="col-lg-12 round">
-                  <h2 id={target}>R{round.number} {round.name}</h2>
+                  { roundTitle }
 
                   <div className="col-lg-12">
                     <div className="row legend">

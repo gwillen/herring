@@ -107,13 +107,15 @@ a {
 	text-decoration: underline;
 }
 
-button, input[type=submit] {
+button, a.button, input[type=submit] {
 	background: @mainColor;
 	color: lighten(@backgroundColor, 3%);
-	border-color: lighten(@mainColor, 10%);
-	border-width: 1px;
+	border: 1px solid lighten(@mainColor, 10%);
 	line-height: 1;
 	border-radius: 4px;
+	padding: 2px 6px 3px;
+	display: inline-block;
+	text-decoration: none;
 
 	&:hover {
 		background: lighten(@mainColor, 5%);
@@ -235,7 +237,11 @@ button, input[type=submit] {
 	.name {
 		position: relative;
 
-		a {
+		.button {
+			margin-right: @stdpadding/2;
+		}
+
+		a:not(.button) {
 			color: black;
 			font-weight: 900;
 
@@ -243,7 +249,7 @@ button, input[type=submit] {
 				color: @mainColor;
 			}
 		}
-		button {
+		.url-setter {
 			position: absolute;
 			top: 0;
 			right: 0;
@@ -251,7 +257,7 @@ button, input[type=submit] {
 			outline: none;
 		}
 
-		&:hover button {
+		&:hover .url-setter {
 			display: inline;
 		}
 	}
@@ -271,7 +277,7 @@ button, input[type=submit] {
 		background: white;
 	}
 
-	&.solved, &.solved a {
+	&.solved, &.solved a:not(.button) {
 		background: @backgroundColor;
 		color: lighten(@textColor, 15%);
 	}
@@ -280,7 +286,7 @@ button, input[type=submit] {
 		color: lighten(@backgroundColor, 3%);
 		background-color: @mainColor;
 
-		.name a {
+		.name a:not(.button) {
 			color: lighten(@backgroundColor, 3%);
 			&:hover {
 				color: white;

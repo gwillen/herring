@@ -40,6 +40,7 @@ var PuzzleComponent = React.createClass({
         });
         var celebrationModal;
         var urlChangeModal;
+        var puzzlePageButton;
 
         if (this.state.celebrating) {
             celebrationModal = <CelebrationModal puzzle={ puzzle }
@@ -52,6 +53,15 @@ var PuzzleComponent = React.createClass({
                                              actionCallback={ this.updateUrl }
                                              closeCallback={ this.closeUrlModal } />
         }
+        if (puzzle.hunt_url) {
+            puzzlePageButton = (
+                <a className="button"
+                   title="View puzzle on hunt website"
+                   href={ puzzle.hunt_url }>
+                    <span className="glyphicon glyphicon-share-alt"></span>
+                </a>
+            );
+        }
         return (
             <div key={ puzzle.id } className="row">
               <div className="col-lg-12">
@@ -61,8 +71,10 @@ var PuzzleComponent = React.createClass({
 
                   <div className="row">
                     <div className="col-xs-6 col-sm-6 col-md-4 col-lg-4 name">
+                        { puzzlePageButton }
                         <a title={ puzzle.name } href={ `/puzzles/${puzzle.id}/` }>{ puzzle.name }</a>
-                        <button title="Set puzzle workspace URL"
+                        <button className="url-setter"
+                                title="Set puzzle workspace URL"
                                 onClick={ this.showPuzzleUrlModal }>
                             <span className="glyphicon glyphicon-pencil"></span>
                         </button>

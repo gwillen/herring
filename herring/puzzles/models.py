@@ -35,6 +35,7 @@ class Round(models.Model,JSONMixin):
     # shell model for defining rounds
     number = models.IntegerField(default=1)
     name = models.CharField(max_length=200)
+    hunt_url = models.CharField(max_length=1000, default='', **optional)
 
     def __str__(self):
         return 'R' + str(self.number)
@@ -42,7 +43,7 @@ class Round(models.Model,JSONMixin):
     class Meta:
         ordering = ['number']
     class Json:
-        include_fields = ['id', 'name', 'number', 'puzzle_set']
+        include_fields = ['id', 'name', 'number', 'puzzle_set', 'hunt_url']
 
 
 class Puzzle(models.Model,JSONMixin):
@@ -55,11 +56,12 @@ class Puzzle(models.Model,JSONMixin):
     tags = models.CharField(max_length=200, default='', **optional)
     is_meta = models.BooleanField(default=False)
     url = models.CharField(max_length=1000, default='', **optional)
+    hunt_url = models.CharField(max_length=1000, default='', **optional)
 
     class Meta:
         ordering = ['parent', '-is_meta', 'number']
     class Json:
-        include_fields = ['id', 'name', 'number', 'answer', 'note', 'tags', 'is_meta', 'url']
+        include_fields = ['id', 'name', 'number', 'answer', 'note', 'tags', 'is_meta', 'url', 'hunt_url']
 
     def __str__(self):
         child_type = 'P'
