@@ -10,6 +10,7 @@
             </iframe>
         </div>
     </div>
+
     <div id="herring" class="container">
         <div class="header">
             <div class="dropdown pull-right">
@@ -46,4 +47,12 @@
         $('#herring-wrapper').toggleClass('chat-layout-top');
     });
 </script>
+
+<script>
+    window.config = { document_domain: "rotq.net", chat_domain: "x.rotq.net", username: "{{ username }}", channel: "{{ channel }}" };
+
+    // Load legacy chat script (this needs to be done in a more reasonable way!)
+    setTimeout(function() { $.getScript('http://scripts.x.rotq.net/static/loadstub.js?v=1'); }, 0);
+</script>
+<pre> {% filter force_escape %} {% debug %} {% endfilter %} </pre>
 {% endblock %}

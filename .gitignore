@@ -2,4 +2,3 @@ henv/
 *.pyc
 *.DS_Store
 staticfiles
-./herring/puzzles/static/bundle.js

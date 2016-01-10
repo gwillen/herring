@@ -1,4 +1,5 @@
 import json
+import re
 
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse, JsonResponse
@@ -16,7 +17,9 @@ def logout(request):
 @login_required
 def index(request):
     context = {
+        'username': request.user.username,
         'rounds': Round.objects.all(),
+        'channel': 'main_page'
     }
     return render(request, 'puzzles/index.html', context)
 
@@ -42,10 +45,15 @@ def one_puzzle(request, puzzle_id):
     else:
         return get_one_puzzle(request, puzzle_id)
 
+def to_channel(title):
+    return re.sub(r'\W+', '_', title.lower())
+
 def get_one_puzzle(request, puzzle_id):
     puzzle = get_object_or_404(Puzzle, pk=puzzle_id)
     context = {
-        'puzzle': puzzle
+        'username': request.user.username,
+        'puzzle': puzzle,
+        'channel': to_channel(puzzle.name)
     }
     return render(request, 'puzzles/one_puzzle.html', context)
 
