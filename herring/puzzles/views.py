@@ -19,7 +19,7 @@ def index(request):
     context = {
         'username': request.user.username,
         'rounds': Round.objects.all(),
-        'channel': 'main_page'
+        'channel': 'general_chat'
     }
     return render(request, 'puzzles/index.html', context)
 
