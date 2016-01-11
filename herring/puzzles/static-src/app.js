@@ -14,6 +14,12 @@ var Page = React.createClass({
   componentDidMount: function() {
     this.loadDataFromServer();
     setInterval(this.loadDataFromServer, this.props.pollInterval);
+    Notification.requestPermission(function (permission) {
+      // If the user accepts, let's create a notification
+      if (permission === 'granted') {
+        console.log('Browser notifications are active.');
+      }
+    });
   },
   render: function() {
     if (this.state.rounds) {
