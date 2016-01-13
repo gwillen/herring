@@ -7,7 +7,8 @@ django-toolbelt==0.0.1
 gunicorn==19.4.5
 natsort==3.5.2
 psycopg2==2.6.1
-pyOpenSSL==0.13
+pyOpenSSL==0.15
 requests==2.8.1
 static3==0.6.1
 urllib3==1.12
+django-autoslug
