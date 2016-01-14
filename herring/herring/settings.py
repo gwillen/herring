@@ -14,6 +14,10 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 import os
 import urllib
 
+import environ
+env = environ.Env()
+environ.Env.read_env()
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -77,7 +81,7 @@ WSGI_APPLICATION = 'herring.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
 
-if os.environ.get("DATABASE_URL"):
+if env.get_value("DATABASE_URL", default=""):
     urllib.parse.uses_netloc.append("postgres")
     url = urllib.parse.urlparse(os.environ["DATABASE_URL"])
 
@@ -129,6 +133,6 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = []
 
 # Celery queue
-BROKER_URL = os.environ.get('BROKER_URL', 'redis://localhost:6379/0')
+BROKER_URL = env.get_value('BROKER_URL', default='redis://localhost:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'

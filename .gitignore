@@ -2,3 +2,5 @@ henv/
 *.pyc
 *.DS_Store
 staticfiles
+.env
+*.swp

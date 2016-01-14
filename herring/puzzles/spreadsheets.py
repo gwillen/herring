@@ -13,7 +13,7 @@ try:
         'https://www.googleapis.com/auth/drive'
     )
     http = credentials.authorize(httplib2.Http())
-except ImportError:
+except KeyError:
     http = None
 
 

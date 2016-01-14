@@ -17,3 +17,4 @@ django-celery
 slacker
 google-api-python-client
 django-model-utils
+django-environ

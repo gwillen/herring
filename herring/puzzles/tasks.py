@@ -8,9 +8,9 @@ try:
     # A token logged in as a legitimate user. Turns out that "bots" can't
     # do the things we want to automate!
     SLACK = slacker.Slacker(SECRETS['slack-user-token'])
-except ImportError:
+except KeyError:
     print(
-        "Couldn't find herring/herring/secrets.py. This server won't be able "
+        "Couldn't find the SECRETS environment variable. This server won't be able "
         "to use Slack and Google Drive integrations."
     )
     SLACK = None
