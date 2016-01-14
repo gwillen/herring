@@ -19,7 +19,7 @@ except ImportError:
 def create_puzzle_sheet_and_channel(slug):
     puzzle = Puzzle.objects.get(slug=slug)
     sheet_title = '{} {}'.format(puzzle.identifier(), puzzle.name)
-    sheet_url = make_sheet(sheet_title)
+    sheet_url = make_sheet(sheet_title).rsplit('?', 1)[0]
 
     puzzle.url = sheet_url
     puzzle.save()
@@ -31,11 +31,18 @@ def create_puzzle_sheet_and_channel(slug):
         created = SLACK.channels.join(channel_name)
 
     channel_id = created.body['channel']['id']
-    SLACK.channels.set_topic(channel_id, puzzle.name)
-    SLACK.channels.set_purpose(channel_id, 'solving "{}", at {}'.format(puzzle.name, puzzle.hunt_url))
+    topic = "{name} - {url} - Spreadsheet: {sheet}".format(
+        name=puzzle.name,
+        url=puzzle.hunt_url,
+        sheet=sheet_url
+    )
+    SLACK.channels.set_topic(channel_id, topic)
     
-    sheet_link = 'Spreadsheet: {}'.format(sheet_url)
-    posted = SLACK.chat.post_message(channel_id, sheet_link)
-    msg_timestamp = posted.body['ts']
-    SLACK.pins.add(channel_id, timestamp=msg_timestamp)
+    response = SLACK.channels.join('puzzle-status')
+    status_channel_id = response.body['channel']['id']
 
+    new_channel_msg = "New puzzle created: #{slug} {name}".format(
+        slug=slug, name=puzzle.name
+    )
+
+    SLACK.chat.post_message(status_channel_id, new_channel_msg, link_names=True)
