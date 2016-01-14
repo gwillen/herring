@@ -16,3 +16,4 @@ django-autoslug
 django-celery
 slacker
 google-api-python-client
+django-model-utils

@@ -60,7 +60,7 @@ def create_puzzle_sheet_and_channel(slug):
     response = SLACK.channels.join('puzzle-status')
     status_channel_id = response.body['channel']['id']
 
-    new_channel_msg = "New puzzle created: #{slug} {name}".format(
+    new_channel_msg = 'New puzzle created: "{name}" (#{slug})'.format(
         slug=slug, name=puzzle.name
     )
 
