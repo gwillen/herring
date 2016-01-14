@@ -15,4 +15,4 @@ celery[redis]
 django-autoslug
 django-celery
 slacker
-gspread
+google-api-python-client
