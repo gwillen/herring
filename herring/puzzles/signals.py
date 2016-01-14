@@ -14,10 +14,10 @@ def on_puzzle_save(sender, instance, created, **kwargs):
 def before_puzzle_save(sender, instance, **kwargs):
     if instance.answer:
         if instance.answer != instance.tracker.previous('answer'):
-            post_answer(instance.slug, instance.answer)
+            post_answer.delay(instance.slug, instance.answer)
 
     if instance.tags != instance.tracker.previous('tags'):
-        post_update(instance.slug, 'tags', instance.tags)
+        post_update.delay(instance.slug, 'tags', instance.tags)
 
     if instance.note != instance.tracker.previous('note'):
-        post_update(instance.slug, 'notes', instance.note)
+        post_update.delay(instance.slug, 'notes', instance.note)
