@@ -19,11 +19,11 @@ except ImportError:
 def post_local_and_global(local_channel, local_message, global_message):
     response = SLACK.channels.join(local_channel)
     channel_id = response.body['channel']['id']
-    SLACK.chat.post_message(channel_id, local_message, link_names=True)
+    SLACK.chat.post_message(channel_id, local_message, link_names=True, as_user=True)
 
     response = SLACK.channels.join('puzzle-status')
     global_channel_id = response.body['channel']['id']
-    SLACK.chat.post_message(global_channel_id, global_message, link_names=True)
+    SLACK.chat.post_message(global_channel_id, global_message, link_names=True, as_user=True)
     time.sleep(4)
 
 
@@ -83,5 +83,5 @@ def create_puzzle_sheet_and_channel(slug):
         slug=slug, name=puzzle.name
     )
 
-    SLACK.chat.post_message(status_channel_id, new_channel_msg, link_names=True)
+    SLACK.chat.post_message(status_channel_id, new_channel_msg, link_names=True, as_user=True)
     time.sleep(4)
