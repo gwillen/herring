@@ -16,6 +16,26 @@ except ImportError:
 
 
 @shared_task
+def post_answer(slug, answer):
+    puzzle = Puzzle.objects.get(slug=slug)
+    answer = answer.upper()
+    local_message = ":tada: Someone entered an answer for this puzzle: {}".format(answer)
+    
+    response = SLACK.channels.join(slug)
+    channel_id = response.body['channel']['id']
+    SLACK.chat.post_message(channel_id, local_message)
+
+    global_message = ':tada: Puzzle "{name}" (#{slug}) was solved! The answer is: {answer}'.format(
+        answer=answer,
+        slug=slug,
+        name=puzzle.name
+    )
+    response = SLACK.channels.join('puzzle-status')
+    channel_id = response.body['channel']['id']
+    SLACK.chat.post_message(channel_id, global_message, link_names=True)
+
+
+@shared_task
 def create_puzzle_sheet_and_channel(slug):
     puzzle = Puzzle.objects.get(slug=slug)
     sheet_title = '{} {}'.format(puzzle.identifier(), puzzle.name)
@@ -24,11 +44,10 @@ def create_puzzle_sheet_and_channel(slug):
     puzzle.url = sheet_url
     puzzle.save()
 
-    channel_name = '#' + slug
     try:
-        created = SLACK.channels.create(channel_name)
+        created = SLACK.channels.create(slug)
     except slacker.Error:
-        created = SLACK.channels.join(channel_name)
+        created = SLACK.channels.join(slug)
 
     channel_id = created.body['channel']['id']
     topic = "{name} - {url} - Spreadsheet: {sheet}".format(

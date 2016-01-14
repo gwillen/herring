@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import models
 from autoslug import AutoSlugField
 from puzzles.slugtools import puzzle_to_slug
+from model_utils import FieldTracker
 
 
 # **optional shortcut for optional fields
@@ -68,6 +69,8 @@ class Puzzle(models.Model,JSONMixin):
     is_meta = models.BooleanField(default=False)
     url = models.CharField(max_length=1000, default='', **optional)
     hunt_url = models.CharField(max_length=1000, default='', **optional)
+
+    tracker = FieldTracker()
 
     class Meta:
         ordering = ['parent', '-is_meta', 'number']
