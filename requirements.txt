@@ -11,4 +11,8 @@ pyOpenSSL==0.15
 requests==2.8.1
 static3==0.6.1
 urllib3==1.12
+celery[redis]
 django-autoslug
+django-celery
+slacker
+gspread

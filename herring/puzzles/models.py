@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.db import models
 from autoslug import AutoSlugField
-from puzzles.slugtools import puzzle_to_slug, arbitrary_slug
+from puzzles.slugtools import puzzle_to_slug
 
 
 # **optional shortcut for optional fields
