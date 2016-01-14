@@ -1,12 +1,18 @@
 from celery import shared_task
 from puzzles.models import Puzzle
 from puzzles.spreadsheets import make_sheet
-from herring.secrets import SECRETS
 import slacker
-
-# A token logged in as a legitimate user. Turns out that "bots" can't
-# do the things we want to automate!
-SLACK = slacker.Slacker(SECRETS['slack-user-token'])
+try:
+    from herring.secrets import SECRETS
+    # A token logged in as a legitimate user. Turns out that "bots" can't
+    # do the things we want to automate!
+    SLACK = slacker.Slacker(SECRETS['slack-user-token'])
+except ImportError:
+    print(
+        "Couldn't find herring/herring/secrets.py. This server won't be able "
+        "to use Slack and Google Drive integrations."
+    )
+    SLACK = None
 
 
 @shared_task

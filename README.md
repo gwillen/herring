@@ -8,6 +8,8 @@ Members of teams Metropolitan Rage Warehouse and Death and Mayhem have contribut
 
 `brew install python3 postgres npm`
 
+Install Redis, which is `apt-get install redis-server` or `brew install redis` for all I know.
+
 Install node/JS dependencies:
 
 `cd herring/puzzles/static-src && npm install && cd ../../../`
@@ -32,6 +34,8 @@ Set up your database:
 
 `createdb herringdb`
 
+When running as Metropolitan Rage Warehouse, get the Python module of stuff we can't commit to GitHub by downloading it from the pinned entry in https://ireproof.slack.com/messages/tech/. Save it as `herring/herring/secrets.py` (that is, in the same directory that settings.py is in).
+
 Run:
 
 `cd herring && python3 manage.py migrate`
@@ -49,6 +53,10 @@ You can then view the website at `localhost:8000`.
 Create a superuser so you can log into `localhost:8000/admin/` and make rounds and puzzles:
 
 `python3 manage.py createsuperuser`
+
+To use the Slack and Google Drive integrations, you need to be running a worker process, so run this in yet another shell:
+
+`python3 manage.py celery worker`
 
 ## License
 

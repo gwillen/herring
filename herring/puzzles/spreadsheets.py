@@ -1,16 +1,20 @@
 from googleapiclient.discovery import build
 from oauth2client.client import SignedJwtAssertionCredentials
-from herring.secrets import SECRETS, FUCK_OAUTH
+import httplib2
 
 service = build('drive', 'v2')
 
-import httplib2
-credentials = SignedJwtAssertionCredentials(
-    FUCK_OAUTH['client_email'],
-    FUCK_OAUTH['private_key'],
-    'https://www.googleapis.com/auth/drive'
-)
-http = credentials.authorize(httplib2.Http())
+try:
+    from herring.secrets import SECRETS, FUCK_OAUTH
+
+    credentials = SignedJwtAssertionCredentials(
+        FUCK_OAUTH['client_email'],
+        FUCK_OAUTH['private_key'],
+        'https://www.googleapis.com/auth/drive'
+    )
+    http = credentials.authorize(httplib2.Http())
+except ImportError:
+    http = None
 
 
 def make_sheet(title):
