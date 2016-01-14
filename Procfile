@@ -1,2 +1,2 @@
 web: gunicorn --pythonpath=herring herring.wsgi --log-file -
-worker: celery worker
+worker: herring/manage.py celery worker
