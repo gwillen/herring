@@ -73,7 +73,7 @@ class Puzzle(models.Model,JSONMixin):
         ordering = ['parent', '-is_meta', 'number']
 
     class Json:
-        include_fields = ['id', 'name', 'number', 'answer', 'note', 'tags', 'is_meta', 'url', 'hunt_url']
+        include_fields = ['id', 'name', 'number', 'answer', 'note', 'tags', 'is_meta', 'url', 'hunt_url', 'slug']
 
     def identifier(self):
         child_type = 'P'

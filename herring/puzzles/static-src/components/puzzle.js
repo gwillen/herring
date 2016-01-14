@@ -72,12 +72,7 @@ var PuzzleComponent = React.createClass({
                   <div className="row">
                     <div className="col-xs-6 col-sm-6 col-md-4 col-lg-4 name">
                         { puzzlePageButton }
-                        <a title={ puzzle.name } href={ `/puzzles/${puzzle.id}/` }>{ puzzle.name }</a>
-                        <button className="url-setter"
-                                title="Set puzzle workspace URL"
-                                onClick={ this.showPuzzleUrlModal }>
-                            <span className="glyphicon glyphicon-pencil"></span>
-                        </button>
+                        <a title={ `#${puzzle.slug}` } href={ `http://ireproof.slack.com/messages/${puzzle.slug}/` }>{ puzzle.name }</a>
                     </div>
                     <RoundInfoComponent
                         className="col-xs-6 col-sm-3 col-md-3 col-lg-2 answer editable"
