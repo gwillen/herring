@@ -39,28 +39,4 @@
 <script src="//code.jquery.com/jquery-1.11.2.min.js" type="text/javascript"></script>
 <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js" type="text/javascript"></script>
 
-<script>
-    $(document).ready(function(){
-        var orientation = localStorage.getItem('chatOrientation');
-        if (orientation && orientation === 'top') {
-            $('#herring-wrapper').addClass('chat-layout-top');
-        }
-    });
-    $('#layout-toggle').on('click', function(evt){
-        if (localStorage.getItem('chatOrientation') === 'top') {
-            localStorage.setItem('chatOrientation', 'left');
-            $('#herring-wrapper').removeClass('chat-layout-top');
-        } else {
-            localStorage.setItem('chatOrientation', 'top');
-            $('#herring-wrapper').addClass('chat-layout-top');
-        }
-    });
-</script>
-
-<script>
-    window.config = { document_domain: "rotq.net", chat_domain: "x.rotq.net", username: "{{ username }}", channel: "{{ channel }}" };
-
-    // Load legacy chat script (this needs to be done in a more reasonable way!)
-    setTimeout(function() { $.getScript('http://scripts.x.rotq.net/static/loadstub.js?v=1'); }, 0);
-</script>
 {% endblock %}
