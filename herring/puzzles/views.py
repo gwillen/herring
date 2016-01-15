@@ -81,7 +81,7 @@ def update_puzzle_hook(request):
     if command == '/notes':
         puzzle.note = value
     elif command == '/tag':
-        tags = puzzle.tags.split(',')
+        tags = [t for t in puzzle.tags.split(',') if t]
         if value not in tags:
             tags.append(value)
         puzzle.tags = ','.join(tags)
