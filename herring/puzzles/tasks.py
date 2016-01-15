@@ -71,8 +71,12 @@ def create_puzzle_sheet_and_channel(slug):
         created = SLACK.channels.join(slug)
 
     channel_id = created.body['channel']['id']
-    topic = "{name} - {url} - Spreadsheet: {sheet}".format(
-        name=puzzle.name,
+    puzzle_name = puzzle.name
+    if len(puzzle_name) >= 30:
+        puzzle_name = puzzle_name[:29] + '\N{HORIZONTAL ELLIPSIS}'
+
+    topic = "{name} - Sheet: {sheet} - Puzzle: {url}".format(
+        name=puzzle_name,
         url=puzzle.hunt_url,
         sheet=sheet_url
     )
