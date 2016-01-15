@@ -74,7 +74,7 @@ def update_puzzle_hook(request):
     """
     Take a request from Slack to alter puzzle information.
     """
-    puzzle = get_object_or_404(Puzzle, slug=request.POST.get('channel-name'))
+    puzzle = get_object_or_404(Puzzle, slug=request.POST.get('channel_name'))
     command = request.POST.get('command')
     value = request.POST.get('text')
 
