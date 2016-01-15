@@ -2,6 +2,7 @@ import json
 import re
 
 from django.shortcuts import render, get_object_or_404, redirect
+from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, JsonResponse
 import django.contrib.auth
 from django.contrib.auth.decorators import login_required
@@ -68,6 +69,7 @@ def update_puzzle(request, puzzle_id):
     puzzle.save()
     return HttpResponse("Updated puzzle " + str(puzzle.slug))
 
+@csrf_exempt
 def update_puzzle_hook(request):
     """
     Take a request from Slack to alter puzzle information.
