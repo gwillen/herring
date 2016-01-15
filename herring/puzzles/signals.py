@@ -16,8 +16,8 @@ def before_puzzle_save(sender, instance, **kwargs):
         if instance.answer != instance.tracker.previous('answer'):
             post_answer.delay(instance.slug, instance.answer)
 
-    if instance.tags != instance.tracker.previous('tags'):
+    if instance.tags != instance.tracker.previous('tags') and instance.tracker.previous('tags') is not None:
         post_update.delay(instance.slug, 'tags', instance.tags)
 
-    if instance.note != instance.tracker.previous('note'):
+    if instance.note != instance.tracker.previous('note') and instance.tracker.previous('note') is not None:
         post_update.delay(instance.slug, 'notes', instance.note)

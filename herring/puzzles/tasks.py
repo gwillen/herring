@@ -42,7 +42,10 @@ def post_answer(slug, answer):
 
 @shared_task
 def post_update(slug, updated_field, value):
-    puzzle = Puzzle.objects.get(slug=slug)
+    try:
+        puzzle = Puzzle.objects.get(slug=slug)
+    except Puzzle.DoesNotExist:
+        return
     local_message = 'Someone updated the {} for this puzzle to: {}'.format(updated_field, value)
     global_message = '"{name}" (#{slug}) now has these {field}: {value}'.format(
         field=updated_field,
@@ -51,7 +54,6 @@ def post_update(slug, updated_field, value):
         name=puzzle.name
     )
     post_local_and_global(slug, local_message, global_message)
-
 
 
 @shared_task
