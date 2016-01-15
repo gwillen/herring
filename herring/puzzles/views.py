@@ -81,13 +81,13 @@ def update_puzzle_hook(request):
     if command == '/notes':
         puzzle.note = value
     elif command == '/tag':
-        tags = [t for t in puzzle.tags.split(',') if t]
+        tags = [t.strip() for t in puzzle.tags.split(',') if t.strip()]
         if value not in tags:
             tags.append(value)
-        puzzle.tags = ','.join(tags)
+        puzzle.tags = ', '.join(tags)
     elif command == '/untag':
-        tags = [tag for tag in puzzle.tags.split(',') if tag.lower() != value.lower()]
-        puzzle.tags = ','.join(tags)
+        tags = [tag.strip() for tag in puzzle.tags.split(',') if tag.strip() and tag.lower() != value.lower()]
+        puzzle.tags = ', '.join(tags)
     elif command == '/answer':
         puzzle.answer = value
     else:
