@@ -16,10 +16,12 @@ def logout(request):
 
 @login_required
 def index(request):
+    admins = django.contrib.auth.models.User.objects.filter(is_staff=True)
     context = {
         'username': request.user.username,
         'rounds': Round.objects.all(),
-        'channel': 'general_chat'
+        'channel': 'general_chat',
+        'admins': admins,
     }
     return render(request, 'puzzles/index.html', context)
 
