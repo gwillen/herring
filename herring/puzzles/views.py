@@ -66,4 +66,28 @@ def update_puzzle(request, puzzle_id):
     for key in data.keys():
         setattr(puzzle, key, data[key])
     puzzle.save()
-    return HttpResponse("Updated puzzle " + str(puzzle_id))
+    return HttpResponse("Updated puzzle " + str(puzzle.slug))
+
+def update_puzzle_hook(request):
+    """
+    Take a request from Slack to alter puzzle information.
+    """
+    puzzle = get_object_or_404(Puzzle, slug=request.POST.get('channel-name'))
+    command = request.POST.get('command')
+    value = request.POST.get('text')
+
+    if command == 'notes':
+        puzzle.note = value
+    elif command == 'tag':
+        tags = puzzle.tags.split(',')
+        if value not in tags:
+            tags.append(value)
+        puzzle.tags = ','.join(tags)
+    elif command == 'untag':
+        tags = [tag for tag in puzzle.tags.split(',') if tag.lower() != value.lower()]
+        puzzle.tags = ','.join(tags)
+    elif command == 'answer':
+        puzzle.answer = value
+    puzzle.save()
+    return HttpResponse("Updated puzzle " + str(puzzle.slug))
+

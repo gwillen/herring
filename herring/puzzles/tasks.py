@@ -31,7 +31,7 @@ def post_local_and_global(local_channel, local_message, global_message):
 def post_answer(slug, answer):
     puzzle = Puzzle.objects.get(slug=slug)
     answer = answer.upper()
-    local_message = ":tada: Someone entered an answer for this puzzle: {}".format(answer)
+    local_message = ":tada: Confirmed answer: {}".format(answer)
     global_message = ':tada: Puzzle "{name}" (#{slug}) was solved! The answer is: {answer}'.format(
         answer=answer,
         slug=slug,
@@ -46,7 +46,7 @@ def post_update(slug, updated_field, value):
         puzzle = Puzzle.objects.get(slug=slug)
     except Puzzle.DoesNotExist:
         return
-    local_message = 'Someone updated the {} for this puzzle to: {}'.format(updated_field, value)
+    local_message = '{} set to: {}'.format(updated_field, value)
     global_message = '"{name}" (#{slug}) now has these {field}: {value}'.format(
         field=updated_field,
         value=value,
