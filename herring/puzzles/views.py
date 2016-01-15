@@ -78,18 +78,20 @@ def update_puzzle_hook(request):
     command = request.POST.get('command')
     value = request.POST.get('text')
 
-    if command == 'notes':
+    if command == '/notes':
         puzzle.note = value
-    elif command == 'tag':
+    elif command == '/tag':
         tags = puzzle.tags.split(',')
         if value not in tags:
             tags.append(value)
         puzzle.tags = ','.join(tags)
-    elif command == 'untag':
+    elif command == '/untag':
         tags = [tag for tag in puzzle.tags.split(',') if tag.lower() != value.lower()]
         puzzle.tags = ','.join(tags)
-    elif command == 'answer':
+    elif command == '/answer':
         puzzle.answer = value
+    else:
+        return HttpResponse("Don't know the command %r" % command)
     puzzle.save()
     return HttpResponse("Updated puzzle " + str(puzzle.slug))
 
