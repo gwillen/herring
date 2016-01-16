@@ -11,7 +11,26 @@ var RoundComponent = React.createClass({
         round: Shapes.RoundShape.isRequired,
         changeMade: React.PropTypes.func,
         filter: React.PropTypes.string.isRequired,
-        showAnswered: React.PropTypes.bool.isRequired
+        showAnswered: React.PropTypes.bool.isRequired,
+    },
+    getInitialState: function (){
+        return {
+            show: true
+        };
+    },
+    componentDidMount: function (){
+        if (this.allSolved()) {
+            this.setState({
+                show: false
+            });
+        }
+    },
+    componentWillReceiveProps: function(nextProps) {
+        if (!this.allSolved() && this.allSolved(nextProps.round.puzzle_set)) {
+            this.setState({
+                show: false
+            });
+        }
     },
     changeMade() {
         this.props.changeMade && this.props.changeMade();
@@ -30,16 +49,24 @@ var RoundComponent = React.createClass({
                                     parent={ round }
                                     changeMade={ self.changeMade} />;
         });
-        var roundTitle = (<h2 id={target}>R{round.number} {round.name}</h2>);
+        var caret = (
+            <button onClick={ this.onCaretClick }>
+                { this.state.show ? 'v' : '^' }
+            </button>
+        );
+        var roundTitle = (<h2 id={target}>R{ round.number } { round.name } { caret }</h2>);
         if (round.hunt_url) {
-            roundTitle = (<a href={ round.hunt_url }>{ roundTitle }</a>);
+            roundTitle = (<h2 id={target}><a href={ round.hunt_url }>R{ round.number } { round.name }</a> { caret }</h2>);
+        }
+        var contentsStyle = {};
+        if (!this.state.show) {
+            contentsStyle.display = 'none';
         }
         return (
-            <div key={round.id} className="row">
+            <div key={ round.id } className="row">
                 <div className="col-lg-12 round">
                   { roundTitle }
-
-                  <div className="col-lg-12">
+                  <div className="col-lg-12" style={ contentsStyle }>
                     <div className="row legend">
                       <div className="col-xs-6 col-sm-6 col-md-4 col-lg-4">
                         Name
@@ -49,11 +76,26 @@ var RoundComponent = React.createClass({
                       <div className="hidden-xs col-sm-3 col-md-2 col-lg-2">Tags</div>
                     </div>
                   </div>
-                  { puzzles }
+                  <div style={ contentsStyle }>
+                    { puzzles }
+                  </div>
                 </div>
             </div>
         );
     },
+    onCaretClick: function (evt) {
+        evt.preventDefault();
+        this.setState({
+            show: !this.state.show || false
+        });
+    },
+    allSolved: function (puzzleList) {
+        puzzleList = puzzleList ? puzzleList : this.props.round.puzzle_set;
+        return _.filter(puzzleList, function (puzzle) {
+            return !puzzle.answer;
+        }).length === 0;
+    },
+
     getFilteredPuzzles: function () {
         return _.filter(this.props.round.puzzle_set, function(puzzle) {
             if (this.props.showAnswered && !this.props.filter) {
