@@ -6,6 +6,8 @@ import time
 import sys
 import logging
 
+MAX_CREATION_RETRIES = 15  # More than plenty
+
 try:
     from herring.secrets import SECRETS
     # A token logged in as a legitimate user. Turns out that "bots" can't
@@ -20,6 +22,8 @@ except KeyError:
 
 
 def post_local_and_global(local_channel, local_message, global_message):
+    logging.warning("tasks: post_local_and_global(%s, %s, %s)", local_channel, local_message, global_message)
+
     response = SLACK.channels.join(local_channel)
     channel_id = response.body['channel']['id']
     SLACK.chat.post_message(channel_id, local_message, link_names=True, as_user=True)
@@ -32,6 +36,8 @@ def post_local_and_global(local_channel, local_message, global_message):
 
 @shared_task
 def post_answer(slug, answer):
+    logging.warning("tasks: post_answer(%s, %s)", slug, answer)
+
     puzzle = Puzzle.objects.get(slug=slug)
     answer = answer.upper()
     local_message = ":tada: Confirmed answer: {}".format(answer)
@@ -45,11 +51,7 @@ def post_answer(slug, answer):
 
 @shared_task
 def post_update(slug, updated_field, value):
-    print("MESSAGE TO STANDARD OUTPUT")
-    logging.warning("LOG TO LEVEL WARN")
-    logging.info("LOG TO LEVEL INFO")
-    logging.debug("LOG TO LEVEL DEBUG")
-
+    logging.warning("tasks: post_update(%s, %s, %s)", slug, updated_field, value)
 
     try:
         puzzle = Puzzle.objects.get(slug=slug)
@@ -66,8 +68,19 @@ def post_update(slug, updated_field, value):
 
 
 @shared_task
-def create_puzzle_sheet_and_channel(slug):
-    puzzle = Puzzle.objects.get(slug=slug)
+def create_puzzle_sheet_and_channel(slug, retries=0):
+    logging.warning("tasks: create_puzzle_sheet_and_channel(%s)", slug)
+
+    try:
+        puzzle = Puzzle.objects.get(slug=slug)
+    except Exception:
+        if retries > MAX_CREATION_RETRIES:
+            raise
+        else:
+            # Try again "later".
+            create_puzzle_sheet_and_channel.delay(slug, retries + 1)
+            return
+
     sheet_title = '{} {}'.format(puzzle.identifier(), puzzle.name)
     sheet_url = make_sheet(sheet_title).rsplit('?', 1)[0]
 
