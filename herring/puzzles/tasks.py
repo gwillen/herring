@@ -46,8 +46,10 @@ def post_answer(slug, answer):
 @shared_task
 def post_update(slug, updated_field, value):
     print("MESSAGE TO STANDARD OUTPUT")
-    print("MESSAGE TO STANDARD ERROR", file=sys.stderr)
     logging.warning("LOG TO LEVEL WARN")
+    logging.info("LOG TO LEVEL INFO")
+    logging.debug("LOG TO LEVEL DEBUG")
+
 
     try:
         puzzle = Puzzle.objects.get(slug=slug)
