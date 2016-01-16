@@ -3,6 +3,10 @@ from puzzles.models import Puzzle
 from puzzles.spreadsheets import make_sheet
 import slacker
 import time
+import sys
+import logging
+logger = logging.basicConfig()
+
 try:
     from herring.secrets import SECRETS
     # A token logged in as a legitimate user. Turns out that "bots" can't
@@ -42,6 +46,10 @@ def post_answer(slug, answer):
 
 @shared_task
 def post_update(slug, updated_field, value):
+    print("MESSAGE TO STANDARD OUTPUT")
+    print("MESSAGE TO STANDARD ERROR", file=sys.stderr)
+    logger.warn("LOG TO LEVEL WARN")
+
     try:
         puzzle = Puzzle.objects.get(slug=slug)
     except Puzzle.DoesNotExist:
