@@ -5,7 +5,6 @@ import slacker
 import time
 import sys
 import logging
-logger = logging.basicConfig()
 
 try:
     from herring.secrets import SECRETS
@@ -48,7 +47,7 @@ def post_answer(slug, answer):
 def post_update(slug, updated_field, value):
     print("MESSAGE TO STANDARD OUTPUT")
     print("MESSAGE TO STANDARD ERROR", file=sys.stderr)
-    logger.warn("LOG TO LEVEL WARN")
+    logging.warning("LOG TO LEVEL WARN")
 
     try:
         puzzle = Puzzle.objects.get(slug=slug)
