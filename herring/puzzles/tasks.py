@@ -69,8 +69,8 @@ def post_update(slug, updated_field, value):
     post_local_and_global(slug, local_message, global_message)
 
 
-@shared_task(max_retries=10, default_retry_delay=5, rate_limit=0.25)  # rate_limit is in tasks/sec
-def create_puzzle_sheet_and_channel(slug):
+@shared_task(bind=True, max_retries=10, default_retry_delay=5, rate_limit=0.25)  # rate_limit is in tasks/sec
+def create_puzzle_sheet_and_channel(self, slug):
     logging.warning("tasks: create_puzzle_sheet_and_channel(%s)", slug)
 
     try:
