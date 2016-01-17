@@ -83,6 +83,7 @@ def create_puzzle_sheet_and_channel(slug, retries=0):
             raise
         else:
             # Try again "later".
+            time.sleep(4)  # I am filled with regret
             create_puzzle_sheet_and_channel.delay(slug, retries + 1)
             return
 
