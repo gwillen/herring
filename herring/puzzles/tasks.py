@@ -24,9 +24,13 @@ except KeyError:
 def post_local_and_global(local_channel, local_message, global_message):
     logging.warning("tasks: post_local_and_global(%s, %s, %s)", local_channel, local_message, global_message)
 
-    response = SLACK.channels.join(local_channel)
-    channel_id = response.body['channel']['id']
-    SLACK.chat.post_message(channel_id, local_message, link_names=True, as_user=True)
+    try:
+        response = SLACK.channels.join(local_channel)
+        channel_id = response.body['channel']['id']
+        SLACK.chat.post_message(channel_id, local_message, link_names=True, as_user=True)
+    except Exception:
+        # Probably the channel's already archived. Don't worry too much about it.
+        logging.warning("tasks: failed to post to local channel (probably archived)", exc_info=True)
 
     response = SLACK.channels.join('puzzle-status')
     global_channel_id = response.body['channel']['id']
@@ -74,6 +78,7 @@ def create_puzzle_sheet_and_channel(slug, retries=0):
     try:
         puzzle = Puzzle.objects.get(slug=slug)
     except Exception:
+        logging.error("tasks: Failed to retrieve puzzle when creating sheet and channel (try #%d)", (retries + 1), exc_info=True)
         if retries > MAX_CREATION_RETRIES:
             raise
         else:
