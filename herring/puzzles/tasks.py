@@ -1,3 +1,4 @@
+import celery
 from celery import shared_task
 from puzzles.models import Puzzle
 from puzzles.spreadsheets import make_sheet
@@ -5,8 +6,6 @@ import slacker
 import time
 import sys
 import logging
-
-MAX_CREATION_RETRIES = 15  # More than plenty
 
 try:
     from herring.secrets import SECRETS
@@ -35,10 +34,9 @@ def post_local_and_global(local_channel, local_message, global_message):
     response = SLACK.channels.join('puzzle-status')
     global_channel_id = response.body['channel']['id']
     SLACK.chat.post_message(global_channel_id, global_message, link_names=True, as_user=True)
-    time.sleep(4)
 
 
-@shared_task
+@shared_task(rate_limit=0.5)
 def post_answer(slug, answer):
     logging.warning("tasks: post_answer(%s, %s)", slug, answer)
 
@@ -53,7 +51,7 @@ def post_answer(slug, answer):
     post_local_and_global(slug, local_message, global_message)
 
 
-@shared_task
+@shared_task(rate_limit=0.5)
 def post_update(slug, updated_field, value):
     logging.warning("tasks: post_update(%s, %s, %s)", slug, updated_field, value)
 
@@ -71,21 +69,15 @@ def post_update(slug, updated_field, value):
     post_local_and_global(slug, local_message, global_message)
 
 
-@shared_task
-def create_puzzle_sheet_and_channel(slug, retries=0):
+@shared_task(max_retries=10, default_retry_delay=5, rate_limit=0.25)  # rate_limit is in tasks/sec
+def create_puzzle_sheet_and_channel(slug):
     logging.warning("tasks: create_puzzle_sheet_and_channel(%s)", slug)
 
     try:
         puzzle = Puzzle.objects.get(slug=slug)
-    except Exception:
-        logging.error("tasks: Failed to retrieve puzzle when creating sheet and channel (try #%d)", (retries + 1), exc_info=True)
-        if retries > MAX_CREATION_RETRIES:
-            raise
-        else:
-            # Try again "later".
-            time.sleep(4)  # I am filled with regret
-            create_puzzle_sheet_and_channel.delay(slug, retries + 1)
-            return
+    except Exception as e:
+        logging.error("tasks: Failed to retrieve puzzle when creating sheet and channel (may be retried) - %s", slug, exc_info=True)
+        raise self.retry(exc=e)
 
     sheet_title = '{} {}'.format(puzzle.identifier(), puzzle.name)
     sheet_url = make_sheet(sheet_title).rsplit('?', 1)[0]
@@ -118,4 +110,3 @@ def create_puzzle_sheet_and_channel(slug, retries=0):
     )
 
     SLACK.chat.post_message(status_channel_id, new_channel_msg, link_names=True, as_user=True)
-    time.sleep(4)
