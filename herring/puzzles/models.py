@@ -48,7 +48,7 @@ class Round(models.Model,JSONMixin):
         return 'R' + str(self.number)
 
     class Meta:
-        ordering = ['number']
+        ordering = ['number', 'id']
     class Json:
         include_fields = ['id', 'name', 'number', 'puzzle_set', 'hunt_url']
 
