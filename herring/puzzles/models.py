@@ -73,7 +73,7 @@ class Puzzle(models.Model,JSONMixin):
     tracker = FieldTracker()
 
     class Meta:
-        ordering = ['parent', '-is_meta', 'number']
+        ordering = ['parent', '-is_meta', 'number', 'id']
 
     class Json:
         include_fields = ['id', 'name', 'number', 'answer', 'note', 'tags', 'is_meta', 'url', 'hunt_url', 'slug']
