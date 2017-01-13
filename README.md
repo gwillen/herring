@@ -1,4 +1,4 @@
-# Herring
+# Herring 
 
 Herring is a web application for a puzzlehunt team's progress tracking and task management. It uses Django (with Python 3!) and ReactJS. It is inspired by the older puzzlehunt management tool `tsar`. 
 
