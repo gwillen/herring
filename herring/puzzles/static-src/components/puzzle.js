@@ -55,10 +55,12 @@ var PuzzleComponent = React.createClass({
         }
         if (puzzle.hunt_url) {
             puzzlePageButton = (
-                <a className="button"
-                   title="View puzzle on hunt website"
-                   href={ puzzle.hunt_url }>
-                    <span className="glyphicon glyphicon-share-alt"></span>
+                <a
+                    className="button"
+                    title="View puzzle on hunt website"
+                    href={ puzzle.hunt_url }
+                    target="_blank">
+                  <span className="glyphicon glyphicon-share-alt"></span>
                 </a>
             );
         }
@@ -71,8 +73,13 @@ var PuzzleComponent = React.createClass({
 
                   <div className="row">
                     <div className="col-xs-6 col-sm-6 col-md-4 col-lg-4 name">
-                        { puzzlePageButton }
-                        <a title={ `#${puzzle.slug}` } href={ `http://ireproof.slack.com/messages/${puzzle.slug}/` }>{ puzzle.name }</a>
+                      { puzzlePageButton }
+                      <a
+                          title={ `#${puzzle.slug}` }
+                          href={ `https://ireproof.slack.com/messages/${puzzle.slug}/` }
+                          target="_blank">
+                        { puzzle.name }
+                      </a>
                     </div>
                     <RoundInfoComponent
                         className="col-xs-6 col-sm-3 col-md-3 col-lg-2 answer editable"
