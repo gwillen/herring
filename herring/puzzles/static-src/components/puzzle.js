@@ -59,7 +59,7 @@ var PuzzleComponent = React.createClass({
                     className="button"
                     title="View puzzle on hunt website"
                     href={ puzzle.hunt_url }
-                    target="_blank">
+                    target="_blank" rel="noopener">
                   <span className="glyphicon glyphicon-share-alt"></span>
                 </a>
             );
@@ -77,7 +77,7 @@ var PuzzleComponent = React.createClass({
                       <a
                           title={ `#${puzzle.slug}` }
                           href={ `https://ireproof.slack.com/messages/${puzzle.slug}/` }
-                          target="_blank">
+                          target="_blank" rel="noopener">
                         { puzzle.name }
                       </a>
                     </div>
