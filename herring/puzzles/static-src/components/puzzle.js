@@ -76,7 +76,7 @@ var PuzzleComponent = React.createClass({
                       { puzzlePageButton }
                       <a
                           title={ `#${puzzle.slug}` }
-                          href={ `https://ireproof.slack.com/messages/${puzzle.slug}/` }
+                          href={ `https://ireproof.slack.com/app_redirect?channel=${puzzle.slug}` }
                           target="_blank" rel="noopener">
                         { puzzle.name }
                       </a>
