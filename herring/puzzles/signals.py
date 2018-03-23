@@ -3,12 +3,14 @@ from django.dispatch import receiver
 from puzzles.models import Puzzle
 from django.conf import settings
 
-if settings.TESTING:
+if not settings.DEBUG:
     # because from oauth2client.client import SignedJwtAssertionCredentials is out of date and I don't know how to fix it.
-    from puzzles.tasks import create_puzzle_sheet_and_channel, post_answer, post_update
+    from puzzles.tasks import create_puzzle_sheet_and_channel
+
+from puzzles.tasks import post_answer, post_update
 
 
-if not settings.TESTING:
+if not settings.DEBUG:
     @receiver(post_save, sender=Puzzle)
     def on_puzzle_save(sender, instance, created, **kwargs):
         if created :

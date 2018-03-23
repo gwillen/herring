@@ -3,7 +3,6 @@
 @puzzleBackgroundColor: lighten(@backgroundColor, 5%);
 @textColor: #333;
 
-@defaultChatWidth: 300px;
 @defaultChatHeight: 200px;
 
 @stdpadding: 12px;
@@ -30,51 +29,11 @@ body {
 	flex-direction: row;
 	height: 100vh;
 
-	#shoalie {
-		display: none;
-		width: @defaultChatWidth;
-		position: relative;
-
-		#layout-toggle {
-			position: absolute;
-			top: 0;
-			right: 0;
-			z-index: 100;
-		}
-
-		#chat-wrapper {
-			position: fixed;
-			top: 0;
-			left: 0;
-			background: @mainColor;
-			width: @defaultChatWidth;
-			height: 100%;
-		}
-	}
-
 	#herring {
 		flex: 1 1 auto;
 		display: flex;
 		flex-direction: column;
 		min-height: 100vh;
-	}
-
-	&.chat-layout-top {
-		flex-direction: column;
-
-		#shoalie {
-			height: @defaultChatHeight;
-			width: 100%;
-
-			#chat-wrapper {
-				width: 100%;
-				height: @defaultChatHeight;
-				position: inherit;
-			}
-		}
-		#herring {
-			min-height: inherit;
-		}
 	}
 }
 

@@ -1,13 +1,13 @@
 'use strict';
 
-var React = require('react');
-var ReactDOM = require('react-dom');
-var request = require('then-request');
-var NavHeaderComponent = require('./components/nav-header');
-var RoundsComponent = require('./components/rounds');
+const React = require('react');
+const ReactDOM = require('react-dom');
+const request = require('then-request');
 
+const NavHeaderComponent = require('./components/nav-header');
+const RoundsComponent = require('./components/rounds');
 
-var Page = React.createClass({
+const Page = React.createClass({
   getInitialState() {
     return {};
   },
@@ -40,5 +40,5 @@ var Page = React.createClass({
   }
 });
 
-var page = <Page pollInterval={ 10000 } />;
-var renderedPage = ReactDOM.render(page, document.getElementById('react-root'));
+const page = <Page pollInterval={ 10000 } />;
+const renderedPage = ReactDOM.render(page, document.getElementById('react-root'));
