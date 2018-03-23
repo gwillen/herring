@@ -8,9 +8,11 @@ Members of teams Metropolitan Rage Warehouse and Death and Mayhem have contribut
 
 `brew install python3 postgres npm`
 
-Install Redis, which is `apt-get install redis-server` or `brew install redis` for all I know.
+`brew upgrade python` to bump it to python 3, which has been mapped to `python` by homebrew but doesn't install by default.
 
-Install node/JS dependencies:
+Install Redis, which might be `apt-get install redis-server` or maybe `brew install redis`.
+
+Install JS dependencies:
 
 `cd herring/puzzles/static-src && npm install && cd ../../../`
 
@@ -20,7 +22,7 @@ Make sure you have `virtualenv` installed. Then:
 
 `source henv/bin/activate`
 
-You'll see `(henv)` in front of your command line after doing this. If you open more terminals, you'll have to do the above step again for them.
+You'll see `(henv)` in front of your command line after doing this. If you open more terminal windows, you'll have to do the above step again for them.
 
 Install Django and other Pythonic dependencies:
 
@@ -34,7 +36,7 @@ Set up your database:
 
 `createdb herringdb`
 
-When running as Metropolitan Rage Warehouse, get the Python module of stuff we can't commit to GitHub by downloading it from the pinned entry in https://ireproof.slack.com/messages/tech/. Save it as `herring/herring/secrets.py` (that is, in the same directory that settings.py is in).
+When running as Rage for the Galaxy, get the Python module of stuff we can't commit to GitHub by downloading it from the pinned entry in https://ireproof.slack.com/messages/tech/. Save it as `herring/herring/secrets.py` (that is, in the same directory that settings.py is in).
 
 Run:
 

@@ -1,7 +1,5 @@
 from django.conf import settings
 from django.db import models
-from autoslug import AutoSlugField
-from puzzles.slugtools import puzzle_to_slug
 from model_utils import FieldTracker
 
 
@@ -55,12 +53,12 @@ class Round(models.Model,JSONMixin):
 
 class Puzzle(models.Model,JSONMixin):
     # class for all puzzles, including metas
-    parent = models.ForeignKey(Round)
+    parent = models.ForeignKey(Round, on_delete=models.CASCADE)
     name = models.CharField(max_length=200)
-    slug = AutoSlugField(
-        populate_from=puzzle_to_slug,
+    slug = models.SlugField(
         unique=True,
-        db_index=True
+        db_index=True,
+        max_length=20
     )
     number = models.IntegerField(**optional)
     answer = models.CharField(max_length=200, default='', **optional)
@@ -71,6 +69,7 @@ class Puzzle(models.Model,JSONMixin):
     hunt_url = models.CharField(max_length=1000, default='', **optional)
 
     tracker = FieldTracker()
+    prepopulated_fields = {"slug": ("identifier", "name",)}
 
     class Meta:
         ordering = ['parent', '-is_meta', 'number', 'id']
