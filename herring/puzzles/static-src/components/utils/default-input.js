@@ -1,30 +1,33 @@
 'use strict';
 
-var React = require('react');
+const React = require('react');
+const PropTypes = require('prop-types');
 
-var DefaultInputComponent = React.createClass({
-    propTypes: {
-        defaultValue: React.PropTypes.string.isRequired,
-    },
-    getInitialState: function() {
-        return {};
-    },
-    componentDidMount: function () {
-        this.setState({
-            val: this.props.defaultValue
-        });
-    },
-    render: function(){
-        return (
-            <input ref="editInput"
-                   type="text"
-                   value={ this.state.val }
-                   onChange={ this.handleChange } />
-        );
-    },
-    handleChange: function(evt){
-        this.setState({val: evt.target.value});
-    },
+const DefaultInputComponent = React.createClass({
+  propTypes: {
+    defaultValue: PropTypes.string.isRequired,
+    disabled: PropTypes.bool,
+  },
+
+  getInitialState: function() {
+    return { val: this.props.defaultValue };
+  },
+
+  render: function(){
+    return (
+      <input
+        ref="editInput"
+        type="text"
+        value={ this.state.val }
+        onChange={ this.handleChange }
+        disabled={ this.props.disabled }
+      />
+    );
+  },
+
+  handleChange: function(evt){
+    this.setState({ val: evt.target.value });
+  },
 });
 
 module.exports = DefaultInputComponent;

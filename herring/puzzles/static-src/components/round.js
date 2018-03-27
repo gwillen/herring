@@ -1,111 +1,141 @@
 'use strict';
 
-var React = require('react');
-var PuzzleComponent = require('./puzzle');
-var targetifyRound = require('../utils').targetifyRound;
-var Shapes = require('../shapes');
-var _ = require('lodash');
+const React = require('react');
+const PropTypes = require('prop-types');
+const _ = require('lodash');
 
-var RoundComponent = React.createClass({
-    propTypes: {
-        round: Shapes.RoundShape.isRequired,
-        changeMade: React.PropTypes.func,
-        filter: React.PropTypes.string.isRequired,
-        showAnswered: React.PropTypes.bool.isRequired,
-    },
-    getInitialState: function (){
-        return {
-            show: true
-        };
-    },
-    componentDidMount: function (){
-        if (this.allSolved()) {
-            this.setState({
-                show: false
-            });
-        }
-    },
-    componentWillReceiveProps: function(nextProps) {
-        if (!this.allSolved() && this.allSolved(nextProps.round.puzzle_set)) {
-            this.setState({
-                show: false
-            });
-        }
-    },
-    changeMade() {
-        this.props.changeMade && this.props.changeMade();
-    },
-    render: function() {
-        var round = this.props.round;
-        var target = targetifyRound(round);
-        var self = this;
-        var filteredPuzzles = this.getFilteredPuzzles();
-        if (filteredPuzzles.length <= 0 ) {
-            return <div key={round.id} className="row"></div>;
-        }
-        var puzzles = _.map(filteredPuzzles, function(puzzle) {
-            return <PuzzleComponent key={ puzzle.id }
-                                    puzzle={ puzzle }
-                                    parent={ round }
-                                    changeMade={ self.changeMade} />;
-        });
-        var caret = (
-            <button onClick={ this.onCaretClick }>
-                { this.state.show ? 'v' : '^' }
-            </button>
-        );
-        var roundTitle = (<h2 id={target}>R{ round.number } { round.name } { caret }</h2>);
-        if (round.hunt_url) {
-            roundTitle = (<h2 id={target}><a href={ round.hunt_url }>R{ round.number } { round.name }</a> { caret }</h2>);
-        }
-        var contentsStyle = {};
-        if (!this.state.show) {
-            contentsStyle.display = 'none';
-        }
-        return (
-            <div key={ round.id } className="row">
-                <div className="col-lg-12 round">
-                  { roundTitle }
-                  <div className="col-lg-12" style={ contentsStyle }>
-                    <div className="row legend">
-                      <div className="col-xs-6 col-sm-6 col-md-4 col-lg-4">
-                        Name
-                      </div>
-                      <div className="col-xs-6 col-sm-3 col-md-3 col-lg-2">Answer</div>
-                      <div className="visible-md visible-lg col-md-3 col-lg-4">Notes</div>
-                      <div className="hidden-xs col-sm-3 col-md-2 col-lg-2">Tags</div>
-                    </div>
-                  </div>
-                  <div style={ contentsStyle }>
-                    { puzzles }
-                  </div>
-                </div>
-            </div>
-        );
-    },
-    onCaretClick: function (evt) {
-        evt.preventDefault();
-        this.setState({
-            show: !this.state.show || false
-        });
-    },
-    allSolved: function (puzzleList) {
-        puzzleList = puzzleList ? puzzleList : this.props.round.puzzle_set;
-        return _.filter(puzzleList, function (puzzle) {
-            return !puzzle.answer;
-        }).length === 0;
-    },
+const PuzzleComponent = require('./puzzle');
+const targetifyRound = require('../utils').targetifyRound;
+const Shapes = require('../shapes');
 
-    getFilteredPuzzles: function () {
-        return _.filter(this.props.round.puzzle_set, function(puzzle) {
-            if (this.props.showAnswered && !this.props.filter) {
-                return true;
-            }
-            var tagsAndName = puzzle.tags.toLowerCase() + ' ' + puzzle.name.toLowerCase();
-            return (this.props.showAnswered || !puzzle.answer) &&
-                _.contains(tagsAndName, this.props.filter.toLowerCase());
-        }, this);
+class RoundComponent extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      show: true
+    };
+  }
+
+  componentDidMount() {
+    if (this.allSolved()) {
+      this.setState({
+        show: false
+      });
     }
-});
+  }
+
+  componentWillReceiveProps(nextProps) {
+    /* If we just solved the last unsolved puzzle in this round, hide the round */
+    if (!this.allSolved() && this.allSolved(nextProps.round.puzzle_set)) {
+      this.setState({
+        show: false
+      });
+    }
+  }
+
+  render() {
+    const { round, onChange } = this.props;
+    const filteredPuzzles = this.getFilteredPuzzles();
+    if (filteredPuzzles.length <= 0 ) {
+      return <div key={round.id} className="row"></div>;
+    }
+
+    const puzzles = filteredPuzzles.map(function(puzzle) {
+      return (
+        <PuzzleComponent
+          key={ puzzle.id }
+          puzzle={ puzzle }
+          roundNumber={ round.number }
+          roundName={ round.name }
+          onChange={ onChange } />
+      );
+    });
+
+    let contentsStyle = {};
+    if (!this.state.show) {
+      contentsStyle.display = 'none';
+    }
+
+    return (
+      <div key={ round.id } className="row">
+        <div className="col-lg-12 round">
+          { this.getRoundTitle(round) }
+          <div className="col-lg-12" style={ contentsStyle }>
+          <div className="row legend">
+            <div className="col-xs-6 col-sm-6 col-md-4 col-lg-4">Name</div>
+            <div className="col-xs-6 col-sm-3 col-md-3 col-lg-2">Answer</div>
+            <div className="visible-md visible-lg col-md-3 col-lg-4">Notes</div>
+            <div className="hidden-xs col-sm-3 col-md-2 col-lg-2">Tags</div>
+          </div>
+          </div>
+          <div style={ contentsStyle }>
+            { puzzles }
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  getRoundTitle = (round) => {
+    const target = targetifyRound(round);
+    if (round.hunt_url) {
+      return (
+        <h2 id={target}>
+          <a href={ round.hunt_url }>{`R${ round.number } ${ round.name }`}</a>
+          {" "}
+          { this.getCaret() }
+        </h2>
+      );
+    } else {
+      return (
+        <h2 id={target}>
+          {`R${ round.number } ${ round.name }`} { this.getCaret() }
+        </h2>
+      );
+    }
+  }
+
+  getCaret = () => {
+    return (
+      <button onClick={ this.onCaretClick }>
+        { this.state.show ? 'v' : '^' }
+      </button>
+    );
+  }
+
+  onCaretClick = (evt) => {
+    evt.preventDefault();
+    this.setState({
+      show: !this.state.show || false
+    });
+  }
+
+  allSolved = (puzzleList) => {
+    puzzleList = puzzleList ? puzzleList : this.props.round.puzzle_set;
+    return _.filter(puzzleList, function (puzzle) {
+      return !puzzle.answer;
+    }).length === 0;
+  }
+
+  getFilteredPuzzles = () => {
+    const filter = this.props.filter || "";
+
+    if (this.props.showAnswered && !filter) {
+      return this.props.round.puzzle_set;
+    }
+    return _.filter(this.props.round.puzzle_set, function(puzzle) {
+      const tagsAndName = puzzle.tags.toLowerCase() + ' ' + puzzle.name.toLowerCase();
+      return (this.props.showAnswered || !puzzle.answer) &&
+        _.contains(tagsAndName, filter.toLowerCase());
+    }, this);
+  }
+};
+
+RoundComponent.propTypes = {
+  round: Shapes.RoundShape.isRequired,
+  onChange: PropTypes.func,
+  filter: PropTypes.string.isRequired,
+  showAnswered: PropTypes.bool.isRequired,
+};
 
 module.exports = RoundComponent;

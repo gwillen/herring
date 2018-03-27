@@ -4,3 +4,4 @@ henv/
 staticfiles
 .env
 *.swp
+herring/puzzles/static/bundle.js

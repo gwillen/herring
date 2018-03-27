@@ -17,14 +17,14 @@ if not settings.DEBUG:
             create_puzzle_sheet_and_channel.delay(instance.slug)
 
 
-@receiver(pre_save, sender=Puzzle)
-def before_puzzle_save(sender, instance, **kwargs):
-    if instance.answer:
-        if instance.answer != instance.tracker.previous('answer'):
-            post_answer.delay(instance.slug, instance.answer)
+# @receiver(pre_save, sender=Puzzle)
+# def before_puzzle_save(sender, instance, **kwargs):
+#     if instance.answer:
+#         if instance.answer != instance.tracker.previous('answer'):
+#             post_answer.delay(instance.slug, instance.answer)
 
-    if instance.tags != instance.tracker.previous('tags') and instance.tracker.previous('tags') is not None:
-        post_update.delay(instance.slug, 'tags', instance.tags)
+#     if instance.tags != instance.tracker.previous('tags') and instance.tracker.previous('tags') is not None:
+#         post_update.delay(instance.slug, 'tags', instance.tags)
 
-    if instance.note != instance.tracker.previous('note') and instance.tracker.previous('note') is not None:
-        post_update.delay(instance.slug, 'notes', instance.note)
+#     if instance.note != instance.tracker.previous('note') and instance.tracker.previous('note') is not None:
+#         post_update.delay(instance.slug, 'notes', instance.note)

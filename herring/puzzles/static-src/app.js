@@ -7,11 +7,14 @@ const request = require('then-request');
 const NavHeaderComponent = require('./components/nav-header');
 const RoundsComponent = require('./components/rounds');
 
-const Page = React.createClass({
-  getInitialState() {
-    return {};
-  },
-  componentDidMount: function() {
+
+class Page extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {};
+  }
+
+  componentDidMount() {
     this.loadDataFromServer();
     setInterval(this.loadDataFromServer, this.props.pollInterval);
     Notification.requestPermission(function (permission) {
@@ -20,25 +23,30 @@ const Page = React.createClass({
         console.log('Browser notifications are active.');
       }
     });
-  },
-  render: function() {
+  }
+
+  render() {
     if (this.state.rounds) {
-        return (
-          <div>
-            <NavHeaderComponent rounds={ this.state.rounds } />
-            <RoundsComponent rounds={ this.state.rounds }
-                             changeMade={ this.loadDataFromServer } />
-          </div>);
-    } else {
-        return null;
+      return (
+        <div>
+          <NavHeaderComponent rounds={ this.state.rounds } />
+          <RoundsComponent
+            rounds={ this.state.rounds }
+            onChange={ this.loadDataFromServer }
+          />
+        </div>);
     }
-  },
-  loadDataFromServer: function() {
+    return null;
+  }
+
+  loadDataFromServer = () => {
     request('GET', '/puzzles/').done(function (res) {
       this.setState(JSON.parse(res.getBody()));
     }.bind(this));
   }
-});
+};
 
-const page = <Page pollInterval={ 10000 } />;
-const renderedPage = ReactDOM.render(page, document.getElementById('react-root'));
+const renderedPage = ReactDOM.render(
+  <Page pollInterval={ 10000 } />,
+  document.getElementById('react-root')
+);
