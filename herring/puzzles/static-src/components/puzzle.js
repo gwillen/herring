@@ -7,7 +7,6 @@ const request = require('then-request');
 
 const PuzzleInfoComponent = require('./puzzle-info');
 const CelebrationModal = require('./celebration');
-const UrlChangeModal = require('./url-editor');
 
 
 class PuzzleComponent extends React.Component {
@@ -15,7 +14,6 @@ class PuzzleComponent extends React.Component {
     super(props);
     this.state = {
       celebrating: false,
-      changingUrl: false
     };
   }
 
@@ -51,14 +49,6 @@ class PuzzleComponent extends React.Component {
           closeCallback={ this.stopCelebrating } />
       );
     }
-    if (this.state.changingUrl) {
-      urlChangeModal = (
-        <UrlChangeModal 
-          puzzle={ puzzle }
-          actionCallback={ (val) => this.updateData('url', val)}
-          closeCallback={ this.toggleUrlModal } />
-      );
-    }
     if (puzzle.hunt_url) {
       puzzlePageButton = (
         <a
@@ -79,13 +69,7 @@ class PuzzleComponent extends React.Component {
 
           <div className="row">
           <div className="col-xs-6 col-sm-6 col-md-4 col-lg-4 name">
-            { puzzlePageButton }
-            <button
-              title={ `${puzzle.hunt_url ? "Edit" : "Add"} hunt puzzle page` }
-              onClick={ this.toggleUrlModal }
-            >
-              { puzzle.hunt_url ? "Edit" : "Add" }
-            </button>
+            { puzzlePageButton || <span className="button-placeholder" /> }
             <a
               title={ `#${puzzle.slug}` }
               href={ `https://ireproof.slack.com/app_redirect?channel=${puzzle.slug}` }
@@ -134,12 +118,6 @@ class PuzzleComponent extends React.Component {
   stopCelebrating = () => {
     this.setState({
       celebrating: false
-    });
-  }
-
-  toggleUrlModal = () => {
-    this.setState({
-      changingUrl: !this.state.changingUrl
     });
   }
 };

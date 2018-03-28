@@ -82,6 +82,12 @@ button, a.button, input[type=submit] {
 	}
 }
 
+.button-placeholder {
+	display: inline-block;
+	width: 30px;
+	height: 2px;
+}
+
 .dropdown {
 	margin-top: @stdpadding;
 
@@ -196,7 +202,7 @@ button, a.button, input[type=submit] {
 	.name {
 		position: relative;
 
-		.button {
+		.button, button, .button-placeholder {
 			margin-right: @stdpadding/2;
 		}
 
