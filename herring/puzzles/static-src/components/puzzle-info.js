@@ -26,21 +26,15 @@ class PuzzleInfoComponent extends React.Component {
   }
 
   render() {
-    let contents;
+    let form;
     if (this.state.editable) {
-      contents = (
+      form = (
         <form onSubmit={ this.onSubmit }>
           <DefaultInputComponent
             ref="editInput"
             disabled={ this.state.disabled }
             defaultValue={ this.props.val }/>
         </form>
-      );
-    } else {
-      contents = (
-        <span title={ this.props.val }>
-          { this.props.val }&nbsp;
-        </span>
       );
     }
     return (
@@ -49,15 +43,22 @@ class PuzzleInfoComponent extends React.Component {
         className={ this.props.className }
         onClick={ this.editElement }
       >
-        { contents }
+        { form }
+        <span
+          title={ this.props.val }
+          style={{ display: this.state.editable ? "none" : "block" }}>
+          { this.props.val }&nbsp;
+        </span>
       </div>
     );
   }
 
   handleDocumentClick = (evt) => {
-    const self = ReactDOM.findDOMNode(this.refs.editableComponent),
-      target = evt.target;
-    if (this.state.editable && (!self || !self.contains(target))) {
+    if (!this.state.editable) return;
+
+    const self = ReactDOM.findDOMNode(this.refs.editableComponent);
+    const target = evt.target;
+    if (!self || !self.contains(target)) {
       this.setState({ editable: false });
     }
   }
@@ -74,13 +75,8 @@ class PuzzleInfoComponent extends React.Component {
     this.setState(newState);
   }
 
-  editElement = () => {
-    this.setState(
-      { editable: true },
-      () => {
-        ReactDOM.findDOMNode(this.refs.editInput).focus();
-      }
-    );
+  editElement = (evt) => {
+    this.setState({ editable: true });
   }
 };
 

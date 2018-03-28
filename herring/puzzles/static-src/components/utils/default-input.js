@@ -13,6 +13,15 @@ const DefaultInputComponent = React.createClass({
     return { val: this.props.defaultValue };
   },
 
+  componentDidMount: function () {
+    // focus on mount...
+    this.refs.editInput.focus();
+
+    // ...and move cursor to end
+    this.refs.editInput.value = '';
+    this.refs.editInput.value = this.state.val;
+  },
+
   render: function(){
     return (
       <input

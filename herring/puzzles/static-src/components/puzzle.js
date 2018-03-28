@@ -21,7 +21,7 @@ class PuzzleComponent extends React.Component {
 
   componentWillReceiveProps(nextProps) {
     // Did this puzzle just get solved?
-    if (nextProps.puzzle.answer && nextProps.puzzle.answer !== this.props.puzzle.answer) {
+    if (nextProps.puzzle.answer && this.props.puzzle.answer === '') {
       this.setState({
         celebrating: true
       });
