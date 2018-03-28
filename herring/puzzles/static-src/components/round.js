@@ -17,7 +17,7 @@ class RoundComponent extends React.Component {
   }
 
   componentDidMount() {
-    if (this.allSolved()) {
+    if (this.allMetasSolved()) {
       this.setState({
         show: false
       });
@@ -26,7 +26,7 @@ class RoundComponent extends React.Component {
 
   componentWillReceiveProps(nextProps) {
     /* If we just solved the last unsolved puzzle in this round, hide the round */
-    if (!this.allSolved() && this.allSolved(nextProps.round.puzzle_set)) {
+    if (!this.allMetasSolved() && this.allMetasSolved(nextProps.round.puzzle_set)) {
       this.setState({
         show: false
       });
@@ -53,7 +53,14 @@ class RoundComponent extends React.Component {
 
     let contentsStyle = {};
     if (!this.state.show) {
-      contentsStyle.display = 'none';
+      contentsStyle = {
+        height: 0,
+        width: 0,
+        padding: 0,
+        margin: 0,
+        overflow: 'hidden',
+        visibility: 'hidden'
+      };
     }
 
     return (
@@ -110,10 +117,10 @@ class RoundComponent extends React.Component {
     });
   }
 
-  allSolved = (puzzleList) => {
+  allMetasSolved = (puzzleList) => {
     puzzleList = puzzleList ? puzzleList : this.props.round.puzzle_set;
     return _.filter(puzzleList, function (puzzle) {
-      return !puzzle.answer;
+      return puzzle.is_meta && !puzzle.answer;
     }).length === 0;
   }
 
