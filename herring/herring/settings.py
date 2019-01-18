@@ -137,6 +137,8 @@ BROKER_URL = env.get_value('BROKER_URL', default='redis://localhost:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 
+# XXX: the following was an attempt to get more stuff logged in Heroku. It
+# didm't appear to work and it's not clear that it does anything.
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
