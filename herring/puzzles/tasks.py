@@ -88,6 +88,7 @@ def create_puzzle_sheet_and_channel(self, slug):
     try:
         created = SLACK.channels.create(slug)
     except slacker.Error:
+        logging.error("tasks: failed to create channel when creating sheet and channel (joining instead) - %s", slug, exc_info=True)
         created = SLACK.channels.join(slug)
 
     channel_id = created.body['channel']['id']
