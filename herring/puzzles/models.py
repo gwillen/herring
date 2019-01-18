@@ -82,7 +82,7 @@ class Puzzle(models.Model,JSONMixin):
         child_type = 'P'
         if self.is_meta:
             child_type = 'M'
-        num = str(self.number) if self.number is not None else 'x'
+        num = str(self.number) if self.number is not None else ''
         return str(self.parent) + child_type + num
     
     def __str__(self):
