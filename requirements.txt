@@ -20,4 +20,4 @@ django-model-utils
 django-environ
 oauth2client
 #kombu
-redis
+redis==2.10.6
