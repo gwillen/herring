@@ -7,6 +7,8 @@ import time
 import sys
 import logging
 
+STATUS_CHANNEL="_puzzle_status"
+
 try:
     from herring.secrets import SECRETS
     # A token logged in as a legitimate user. Turns out that "bots" can't
@@ -31,7 +33,7 @@ def post_local_and_global(local_channel, local_message, global_message):
         # Probably the channel's already archived. Don't worry too much about it.
         logging.warning("tasks: failed to post to local channel (probably archived)", exc_info=True)
 
-    response = SLACK.channels.join('puzzle-status')
+    response = SLACK.channels.join(STATUS_CHANNEL)
     global_channel_id = response.body['channel']['id']
     SLACK.chat.post_message(global_channel_id, global_message, link_names=True, as_user=True)
 
@@ -103,7 +105,7 @@ def create_puzzle_sheet_and_channel(self, slug):
     )
     SLACK.channels.set_topic(channel_id, topic)
     
-    response = SLACK.channels.join('_puzzle_status')
+    response = SLACK.channels.join(STATUS_CHANNEL)
     status_channel_id = response.body['channel']['id']
 
     new_channel_msg = 'New puzzle created: "{name}" (#{slug})'.format(
