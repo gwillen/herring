@@ -43,7 +43,7 @@ def puzzle_to_slug(puzzle):
     Make a complete puzzle slug from a Puzzle object, such as
     'r4p9-anagrams'.
     """
-    id_part = puzzle.identifier().lower()
+    id_part = "z"  # We no longer include puzzle and round numbers in channel names.
     title_part = title_to_slug(puzzle.name)
     parts = [id_part, title_part]
     return '-'.join(parts)[:20]
