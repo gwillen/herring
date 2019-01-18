@@ -78,12 +78,12 @@ class Puzzle(models.Model,JSONMixin):
     class Json:
         include_fields = ['id', 'name', 'number', 'answer', 'note', 'tags', 'is_meta', 'url', 'hunt_url', 'slug']
 
+    # XXX: This is arguably misnamed now that it no longer includes the puzzle number. It's just a prefix.
     def identifier(self):
-        child_type = 'P'
+        meta_marker = ''
         if self.is_meta:
-            child_type = 'M'
-        num = str(self.number) if self.number is not None else ''
-        return str(self.parent) + child_type + num
+            meta_marker = 'M'
+        return str(self.parent) + meta_marker
     
     def __str__(self):
         return '#%s %s' % (self.slug, self.name)

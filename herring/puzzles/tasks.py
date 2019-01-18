@@ -79,7 +79,7 @@ def create_puzzle_sheet_and_channel(self, slug):
         logging.error("tasks: Failed to retrieve puzzle when creating sheet and channel (may be retried) - %s", slug, exc_info=True)
         raise self.retry(exc=e)
 
-    sheet_title = '{} {}'.format(puzzle.identifier(), puzzle.name)
+    sheet_title = '{} - {}'.format(puzzle.identifier(), puzzle.name)
     sheet_url = make_sheet(sheet_title).rsplit('?', 1)[0]
 
     puzzle.url = sheet_url
