@@ -32,6 +32,10 @@ Set up your database:
 
 `launchctl load ~/Library/LaunchAgents/homebrew.mxcl.postgresql.plist`
 
+(On Ubuntu: it's already running after installation.)
+
+(On Ubuntu before doing the next step: `sudo -u postgres createuser [your current username, under which you will be running herring]`)
+
 `createdb herringdb`
 
 When running as Metropolitan Rage Warehouse, get the Python module of stuff we can't commit to GitHub by downloading it from the pinned entry in https://ireproof.slack.com/messages/tech/. Save it as `herring/herring/secrets.py` (that is, in the same directory that settings.py is in).
@@ -39,6 +43,14 @@ When running as Metropolitan Rage Warehouse, get the Python module of stuff we c
 Run:
 
 `cd herring && python3 manage.py migrate`
+
+(OR, instead of createdb and migrate, you can restore from a prod backup. This is messy. If your prodbackup is named asdf.dump, do the following (NOTE: this is dangerous if your dump does not contain a specified database name, as it will overwrite the 'postgres' database!)
+
+`sudo -u postgres pg_restore --no-owner --role=postgres -d postgres -Cc asdf.dump`
+`sudo -u postgres psql -d postgres -c 'ALTER DATABASE whateverprodcalledit RENAME TO herringdb'`
+`sudo -u postgres psql -d postgres -c 'ALTER USER myusername WITH SUPERUSER'`
+
+Uh, obviously that last line should not be required. ?!
 
 `python3 manage.py runserver`
 
