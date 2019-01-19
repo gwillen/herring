@@ -12,8 +12,6 @@ import environ
 env = environ.Env()
 environ.Env.read_env()
 
-app = celery.Celery();
-
 STATUS_CHANNEL="_puzzle_status"
 BULLSHIT_CHANNEL="_herring_experimental"
 
