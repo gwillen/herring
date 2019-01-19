@@ -139,4 +139,4 @@ def scrape_activity_log():
     bullshit_channel_id = response.body['channel']['id']
 
     activity_msg = "Last activity was: {}".format(data[0])
-    SLACK.chat.post_message(bullshit_channel_id, activity_msg, link_name=True, as_user=True)
+    SLACK.chat.post_message(bullshit_channel_id, activity_msg, link_names=True, as_user=True)
