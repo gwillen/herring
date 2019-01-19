@@ -127,7 +127,7 @@ def scrape_activity_log():
 
     LOG_URL = env.get_value('PUZZLE_ACTIVITY_LOG_URL');
     SESSION_COOKIE = env.get_value('PUZZLE_SITE_SESSION_COOKIE');
-    text = requests.get(LOG_URL, cookies={"session": SESSION_COOKIE})
+    text = requests.get(LOG_URL, cookies={"session": SESSION_COOKIE}).text
     parsed = BeautifulSoup(text)
     # Grab all fields, discard first three irrelevant rows that aren't entries, format:
     # ["Weekday HH:MM:SS", "Puzzle Title", {"UNLOCKED", "CORRECT", "INCORRECT", "SOLVED"}, "ANSWER"]
