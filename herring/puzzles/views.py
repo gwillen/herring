@@ -7,6 +7,8 @@ from django.http import HttpResponse, JsonResponse
 import django.contrib.auth
 from django.contrib.auth.decorators import login_required
 
+from puzzles.tasks import scrape_activity_log
+
 from .models import Round, Puzzle, to_json_value
 
 @login_required
@@ -95,3 +97,7 @@ def update_puzzle_hook(request):
     puzzle.save()
     return HttpResponse("Updated puzzle " + str(puzzle.slug))
 
+@csrf_exempt
+def run_scraper(request):
+    scrape_activity_log.delay()
+    return HttpResponse("ok")
