@@ -5,9 +5,17 @@ from puzzles.spreadsheets import make_sheet
 import slacker
 import time
 import sys
+import requests
+from bs4 import BeautifulSoup
 import logging
+import environ
+env = environ.Env()
+environ.Env.read_env()
+
+app = celery.Celery();
 
 STATUS_CHANNEL="_puzzle_status"
+BULLSHIT_CHANNEL="_herring_experimental"
 
 try:
     from herring.secrets import SECRETS
@@ -113,3 +121,24 @@ def create_puzzle_sheet_and_channel(self, slug):
     )
 
     SLACK.chat.post_message(status_channel_id, new_channel_msg, link_names=True, as_user=True)
+
+
+@shared_task(rate_limit=0.1)
+def scrape_activity_log():
+    logging.warning("tasks: scrape_activity_log()")
+
+    LOG_URL = env.get_value('PUZZLE_ACTIVITY_LOG_URL');
+    SESSION_COOKIE = env.get_value('PUZZLE_SITE_SESSION_COOKIE');
+    text = requests.get(LOG_URL, cookies={"session": SESSION_COOKIE})
+    parsed = BeautifulSoup(text)
+    # Grab all fields, discard first three irrelevant rows that aren't entries, format:
+    # ["Weekday HH:MM:SS", "Puzzle Title", {"UNLOCKED", "CORRECT", "INCORRECT", "SOLVED"}, "ANSWER"]
+    # - The answer field is the literal entered answer for correct/incorrect, and the normalized answer for solved; it's "" for unlocked
+    # - Field 3 can also be "SUBMITTED" or something when the puzzle is in the call queue; then it becomes CORRECT or INCORRECT.
+    data = [[''.join(td.stripped_strings) for td in tr.find_all('td')] for tr in parsed.find_all('tr')][3:]
+
+    response = SLACK.channels.join(BULLSHIT_CHANNEL)
+    bullshit_channel_id = response.body['channel']['id']
+
+    activity_msg = "Last activity was: {}".format(data[0])
+    SLACK.chat.post_message(bullshit_channel_id, activity_msg, link_name=True, as_user=True)

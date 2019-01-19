@@ -21,3 +21,5 @@ django-environ
 oauth2client
 #kombu
 redis==2.10.6
+requests
+bs4
