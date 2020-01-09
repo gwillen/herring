@@ -1,10 +1,7 @@
-import celery
 from celery import shared_task
 from puzzles.models import Puzzle
 from puzzles.spreadsheets import make_sheet
 import slacker
-import time
-import sys
 import requests
 from bs4 import BeautifulSoup
 import logging
@@ -12,7 +9,7 @@ import environ
 env = environ.Env()
 environ.Env.read_env()
 
-STATUS_CHANNEL="_puzzle_status"
+STATUS_CHANNEL = env.get_value('STATUS_CHANNEL', default='_dev_puzzle_status')
 BULLSHIT_CHANNEL="_herring_experimental"
 
 try:

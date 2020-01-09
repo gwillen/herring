@@ -33,6 +33,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='puzzle',
             name='parent',
-            field=models.ForeignKey(to='puzzles.Round'),
+            field=models.ForeignKey(to='puzzles.Round', on_delete=models.PROTECT),
         ),
     ]

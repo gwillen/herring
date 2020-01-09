@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(serialize=False, primary_key=True, auto_created=True, verbose_name='ID')),
                 ('avatar_url', models.CharField(max_length=200)),
-                ('user', models.OneToOneField(to=settings.AUTH_USER_MODEL, related_name='profile')),
+                ('user', models.OneToOneField(to=settings.AUTH_USER_MODEL, related_name='profile', on_delete=models.PROTECT)),
             ],
         ),
         migrations.AlterField(
