@@ -55,7 +55,7 @@ class Round(models.Model,JSONMixin):
 
 class Puzzle(models.Model,JSONMixin):
     # class for all puzzles, including metas
-    parent = models.ForeignKey(Round)
+    parent = models.ForeignKey(Round, on_delete=models.PROTECT)
     name = models.CharField(max_length=200)
     slug = AutoSlugField(
         populate_from=puzzle_to_slug,

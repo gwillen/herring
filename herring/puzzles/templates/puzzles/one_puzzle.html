@@ -5,6 +5,6 @@
 	var csrfToken = "{{ csrf_token }}";
 </script>
 <a href="{{ puzzle.hunt_url }}">{{ puzzle.name }} hunt puzzle page</a>
-{% load staticfiles %}
+{% load static %}
 <iframe src="{{ puzzle.url }}" frameborder="0" width="100%" height="100%" style="border: 0px; flex: 1 1 auto;"></iframe>
 {% endblock %}

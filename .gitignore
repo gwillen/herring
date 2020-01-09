@@ -1,4 +1,5 @@
 henv/
+staticfiles/
 *.pyc
 *.DS_Store
 .env
