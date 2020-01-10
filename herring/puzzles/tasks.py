@@ -11,6 +11,7 @@ environ.Env.read_env()
 
 STATUS_CHANNEL = env.get_value('STATUS_CHANNEL', default='_dev_puzzle_status')
 BULLSHIT_CHANNEL="_herring_experimental"
+HOST = env.get_value('HOST', default='http://localhost:5000')
 
 try:
     from herring.secrets import SECRETS
@@ -101,10 +102,11 @@ def create_puzzle_sheet_and_channel(self, slug):
     if len(puzzle_name) >= 30:
         puzzle_name = puzzle_name[:29] + '\N{HORIZONTAL ELLIPSIS}'
 
-    topic = "{name} - Sheet: {sheet} - Puzzle: {url}".format(
+    topic = "{name} - Sheet: {host}/s/{id} - Puzzle: {url}".format(
         name=puzzle_name,
         url=puzzle.hunt_url,
-        sheet=sheet_url
+        host=HOST,
+        id=puzzle.id
     )
     SLACK.channels.set_topic(channel_id, topic)
     
