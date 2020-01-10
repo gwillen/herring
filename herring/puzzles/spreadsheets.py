@@ -1,21 +1,15 @@
+from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
-from oauth2client import crypt
-from oauth2client.service_account import ServiceAccountCredentials
-import httplib2
+
+from herring.secrets import SECRETS, FUCK_OAUTH
 
 try:
-    from herring.secrets import SECRETS, FUCK_OAUTH
-
-    credentials = ServiceAccountCredentials(
-        service_account_email=FUCK_OAUTH['client_email'],
-        signer=crypt.OpenSSLSigner.from_string(FUCK_OAUTH['private_key']),
-        scopes='https://www.googleapis.com/auth/drive'
-    )
+    credentials = Credentials.from_service_account_info(
+        FUCK_OAUTH,
+        scopes=['https://www.googleapis.com/auth/drive'])
     service = build('drive', 'v2', credentials=credentials)
-
-    http = credentials.authorize(httplib2.Http())
-except KeyError:
-    http = None
+except ValueError:
+    pass
 
 
 def make_sheet(title):
@@ -24,7 +18,7 @@ def make_sheet(title):
         'title': title,
         'parents': [{'id': SECRETS['gapps-folder']}]
     }
-    got = service.files().insert(body=body).execute(http=http)
+    got = service.files().insert(body=body).execute()
 
     # I don't know why it's called "alternateLink", but it's the link that
     # works.
