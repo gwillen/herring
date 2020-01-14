@@ -1,13 +1,11 @@
 'use strict';
 
-var React = require('react'),
-    Utils = require('../utils');
+import React from 'react';
+import * as Utils from '../utils';
 
-
-var NavHeaderComponent = React.createClass({
-  render: function() {
+export default function NavHeaderComponent({ rounds }) {
     var rs,
-        roundTags = this.props.rounds.map(function(round) {
+        roundTags = rounds.map(function(round) {
           var target = '#' + Utils.targetifyRound(round);
           var key = 'shortcut-' + round.id.toString();
           return (
@@ -23,7 +21,4 @@ var NavHeaderComponent = React.createClass({
           </div>
         </div>
          );
-  }
-});
-
-module.exports = NavHeaderComponent;
+}

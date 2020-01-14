@@ -1,20 +1,14 @@
 'use strict';
 
-var React = require('react');
-var Shapes = require('../shapes');
-var Modal = require('./utils/modal');
-
+import PropTypes from 'prop-types';
+import React from 'react';
+import Modal from './utils/modal';
+import { PuzzleShape } from '../shapes';
 
 var n;
 
-var Celebration = React.createClass({
-    propTypes: {
-        puzzle: Shapes.PuzzleShape.isRequired,
-        roundName: React.PropTypes.string,
-        roundNumber: React.PropTypes.number,
-        closeCallback: React.PropTypes.func.isRequired
-    },
-    componentDidMount: function () {
+export default class Celebration extends React.Component {
+    componentDidMount() {
         var self = this;
         if (Notification.permission === 'granted') {
             // If it's okay let's create a notification
@@ -29,8 +23,8 @@ var Celebration = React.createClass({
                 n.close();
             };
         }
-    },
-    render: function () {
+    }
+    render() {
         return (
             <Modal closeCallback={ this.handleClose }>
                 <div className="celebration">
@@ -41,13 +35,18 @@ var Celebration = React.createClass({
                 </div>
             </Modal>
         );
-    },
-    handleClose: function () {
+    }
+    handleClose = () => {
         if (n) {
             n.close();
         }
         this.props.closeCallback();
-    }
-});
+    };
+}
 
-module.exports = Celebration;
+Celebration.propTypes = {
+    puzzle: PuzzleShape.isRequired,
+    roundName: PropTypes.string,
+    roundNumber: PropTypes.number,
+    closeCallback: PropTypes.func.isRequired,
+};

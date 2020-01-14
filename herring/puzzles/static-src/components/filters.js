@@ -1,25 +1,21 @@
 'use strict';
 
-var React = require('react');
-var ReactDOM = require('react-dom');
+import PropTypes from 'prop-types';
+import React from 'react';
 
-
-var Filters = React.createClass({
-    propTypes: {
-        updateFulltextFilter: React.PropTypes.func.isRequired,
-        updateAnswerFilter: React.PropTypes.func.isRequired
-    },
-    componentDidMount: function () {
+export default class Filters extends React.Component {
+    searchFilter = React.createRef();
+    componentDidMount() {
         this.focus();
-    },
-    render: function() {
+    }
+    render() {
         return (
             <div className="filters">
                 <h4>Filter by:</h4>
                 <div>
                     <label>
                         <input type="search"
-                               ref="searchFilter"
+                               ref={ this.searchFilter }
                                placeholder="Search..."
                                onChange={ this.updateFilter } />
                         Tag or puzzle name
@@ -34,13 +30,16 @@ var Filters = React.createClass({
                 </div>
             </div>
         );
-    },
-    updateFilter: function (evt) {
-        this.props.updateFulltextFilter(evt.target.value);
-    },
-    focus: function () {
-        ReactDOM.findDOMNode(this.refs.searchFilter).focus();
     }
-});
+    updateFilter = evt => {
+        this.props.updateFulltextFilter(evt.target.value);
+    };
+    focus() {
+        this.searchFilter.current.focus();
+    }
+}
 
-module.exports = Filters;
+Filters.propTypes = {
+    updateFulltextFilter: PropTypes.func.isRequired,
+    updateAnswerFilter: PropTypes.func.isRequired,
+};

@@ -1,21 +1,14 @@
 'use strict';
 
-var React = require('react');
-var Shapes = require('../shapes');
-var Modal = require('./utils/modal');
+import PropTypes from 'prop-types';
+import React from 'react';
+import Modal from './utils/modal';
+import { PuzzleShape } from '../shapes';
 
-
-var UrlEditor = React.createClass({
-    propTypes: {
-        puzzle: Shapes.PuzzleShape.isRequired,
-        actionCallback: React.PropTypes.func.isRequired,
-        closeCallback: React.PropTypes.func.isRequired
-    },
-    getInitialState() {
-        return {
-            newUrl: this.props.puzzle.url
-        };
-    },
+export default class UrlEditor extends React.Component {
+    state = {
+        newUrl: this.props.puzzle.url
+    };
     render() {
         return (
             <Modal closeCallback={ this.props.closeCallback }>
@@ -31,20 +24,24 @@ var UrlEditor = React.createClass({
                 </div>
             </Modal>
         );
-    },
+    }
 
-    handleChange(evt){
+    handleChange = evt => {
         this.setState({
             newUrl: evt.target.value
         });
-    },
-    handleSubmit(evt) {
+    };
+    handleSubmit = evt => {
         evt.preventDefault();
         if (this.state.newUrl) {
             this.props.actionCallback(this.state.newUrl);
         }
         this.props.closeCallback();
-    }
-});
+    };
+}
 
-module.exports = UrlEditor;
+UrlEditor.propTypes = {
+    puzzle: PuzzleShape.isRequired,
+    actionCallback: PropTypes.func.isRequired,
+    closeCallback: PropTypes.func.isRequired
+};

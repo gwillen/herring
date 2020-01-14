@@ -1,27 +1,30 @@
-var webpack = require("webpack");
+const path = require('path');
+const webpack = require('webpack');
 
 module.exports = {
+  mode: 'production',
+  //mode: 'development',  // use this if you want PropTypes checking, no minification
   entry: './app.js',
   output: {
-    path: '../static',
+    path: path.resolve('../static'),
     filename: 'bundle.js',
   },
-  plugins: [
-    new webpack.optimize.UglifyJsPlugin(),
-  ],
   module: {
-    loaders: [
+    rules: [
       {
         test: /\.jsx?$/,
         exclude: /(node-modules|bower_components)/,
-        loader: 'babel',
-        query: {
-          presets: ['react', 'es2015']
+        use: {
+          loader: 'babel-loader',
+          options: {
+            presets: ['@babel/react', '@babel/env'],
+            plugins: ['@babel/plugin-proposal-class-properties'],
+          },
         },
       },
     ],
   },
   resolve: {
-    extensions: ['', '.js', '.jsx'],
+    extensions: ['.js', '.jsx'],
   }
 };
