@@ -6,7 +6,7 @@ from .models import Round, Puzzle, UserProfile
 class PuzzleInline(admin.TabularInline):
     model = Puzzle
     extra = 1
-    exclude = ('answer', 'note', 'tags', 'url')
+    exclude = ('answer', 'note', 'tags', 'sheet_id')
 
 
 class RoundAdmin(admin.ModelAdmin):
@@ -16,7 +16,7 @@ class RoundAdmin(admin.ModelAdmin):
 
 
 class PuzzleAdmin(admin.ModelAdmin):
-    exclude = ('answer', 'note', 'tags', 'url')
+    exclude = ('answer', 'note', 'tags', 'sheet_id')
     search_fields = ['name']
 
 class UserProfileAdmin(admin.ModelAdmin):

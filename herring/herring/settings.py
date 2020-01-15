@@ -115,6 +115,26 @@ REDIS_URL = env.get_value('REDIS_URL', default='redis://localhost:6379/0')
 
 # Celery queue
 CELERY_BROKER_URL = env.get_value('BROKER_URL', default=REDIS_URL)
+CELERY_REDBEAT_REDIS_URL = REDIS_URL
+CELERY_BEAT_SCHEDULER = 'redbeat.RedBeatScheduler'
+CELERY_BEAT_SCHEDULE = {
+    'read-google-sheets-changes': {
+        'task': 'puzzles.tasks.process_google_sheets_changes',
+        'schedule': 15.0,
+    },
+    'check-connection-to-slack': {
+        'task': 'puzzles.tasks.check_connection_to_slack',
+        'schedule': 60.0,
+    },
+}
+
+# This indirectly affects the expiration time of the lock RedBeat sets in
+# Redis to ensure that only one scheduler is running. It largely doesn't
+# matter unless the worker process with the active RedBeat instance is
+# forcefully killed, in which case having a max_loop_interval of 30 seconds
+# means that it could be up to 6 minutes before another RedBeat claims the
+# lock and starts scheduling tasks again.
+CELERY_BEAT_MAX_LOOP_INTERVAL = 30
 
 
 # Previously in puzzles/tasks.py

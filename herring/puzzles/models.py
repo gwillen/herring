@@ -1,3 +1,4 @@
+from datetime import datetime
 from django.conf import settings
 from django.db import models
 from autoslug import AutoSlugField
@@ -36,6 +37,8 @@ def to_json_value(field):
         return [to_json_value(item) for item in field.all()]
     if isinstance(field, JSONMixin):
         return field.to_json()
+    if isinstance(field, datetime):
+        return field.isoformat()
 
 
 class Round(models.Model,JSONMixin):
@@ -67,8 +70,12 @@ class Puzzle(models.Model,JSONMixin):
     note = models.CharField(max_length=200, default='', **optional)
     tags = models.CharField(max_length=200, default='', **optional)
     is_meta = models.BooleanField(default=False)
-    url = models.CharField(max_length=1000, default='', **optional)
+    sheet_id = models.CharField(max_length=1000, default=None, unique=True, db_index=True, null=True)
     hunt_url = models.CharField(max_length=1000, default='', **optional)
+
+    last_active = models.DateTimeField(auto_now_add=True, editable=False)
+    channel_count = models.PositiveIntegerField(default=0, editable=False)
+    activity_tracker = models.BigIntegerField(default=0, editable=False)
 
     tracker = FieldTracker()
 
@@ -76,7 +83,7 @@ class Puzzle(models.Model,JSONMixin):
         ordering = ['parent', '-is_meta', 'number', 'id']
 
     class Json:
-        include_fields = ['id', 'name', 'number', 'answer', 'note', 'tags', 'is_meta', 'url', 'hunt_url', 'slug']
+        include_fields = ['id', 'name', 'number', 'answer', 'note', 'tags', 'is_meta', 'hunt_url', 'slug', 'channel_count', 'activity_histo', 'last_active']
 
     # XXX: This is arguably misnamed now that it no longer includes the puzzle number. It's just a prefix.
     def identifier(self):
@@ -91,6 +98,65 @@ class Puzzle(models.Model,JSONMixin):
     def is_answered(self):
         return bool(self.answer)
 
+    def record_activity(self, dt):
+        """
+        Updates the last_active and activity_tracker fields to be consistent
+        with activity seen at the given time. Returns a boolean indicating
+        whether this model was changed as a consequence.
+        """
+
+        # Let time be divided into a fixed set of observation periods of size
+        # P. activity_tracker is a bitset where each bit represents whether
+        # there was or was not activity during a certain period. Bit 0 always
+        # corresponds to the period containing the last_active datetime, and
+        # a total of N periods are tracked. For now,
+        P = 120  # = two minutes
+        N = 60   # for a total window of two hours
+        # record_activity needs to do two things: ensure last_active is equal
+        # to or later than dt (bitshifting activity_tracker in the process if
+        # necessary), and set the bit corresponding to the period of dt in
+        # activity_tracker.
+
+        dt0 = self.last_active
+        shift_distance = int(dt.timestamp()) // P - int(dt0.timestamp()) // P
+
+        changed = False
+        bits = self.activity_tracker
+
+        if dt > dt0:
+            changed = True
+            self.last_active = dt
+
+            if shift_distance < N:
+                # Note: we're in Python, so this is not as efficient as it
+                # looks. Probably doesn't matter, but if it ever does, bring in
+                # numpy or something.
+                bits <<= shift_distance
+                bits &= (1 << N) - 1
+            else:
+                bits = 0
+            bits |= 1
+        else:
+            shift_distance = -shift_distance
+            if shift_distance < N:
+                bits |= 1 << shift_distance
+                changed = bits != self.activity_tracker
+
+        self.activity_tracker = bits
+        return changed
+
+    @property
+    def activity_histo(self):
+        """
+        This is a slightly friendlier representation of activity_tracker,
+        intended for JSON transport.
+        """
+        return f"{self.activity_tracker:015x}"
+
+    @classmethod
+    def batch_save_activity(cls, objs):
+        cls.objects.bulk_update(objs, ['last_active', 'activity_tracker'], batch_size=50)
+
 
 class UserProfile(models.Model):
     user = models.OneToOneField(
@@ -102,3 +168,17 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return "profile for " + self.user.__str__()
+
+
+class ChannelParticipation(models.Model):
+    channel_puzzle = models.ForeignKey(
+        Puzzle,
+        to_field='slug',
+        db_column='channel_name',
+        on_delete=models.CASCADE)
+    user_id = models.CharField(max_length=30)
+    last_active = models.DateTimeField(null=True)
+    is_member = models.BooleanField()
+
+    class Meta:
+        indexes = [models.Index(fields=['channel_puzzle', 'user_id'])]

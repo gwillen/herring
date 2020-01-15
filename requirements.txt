@@ -21,3 +21,5 @@ redis==3.3.11
 bs4==0.0.1
 google-auth==1.10.0
 lazy-object-proxy==1.4.3
+celery-redbeat==0.13.0
+websockets==8.1
