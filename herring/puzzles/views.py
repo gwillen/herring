@@ -50,6 +50,13 @@ def one_puzzle(request, puzzle_id):
     else:
         return get_one_puzzle(request, puzzle_id)
 
+
+@login_required
+def puzzle_spreadsheet(request, puzzle_id):
+    puzzle = get_object_or_404(Puzzle, pk=puzzle_id)
+    return redirect(puzzle.url)
+
+
 def to_channel(title):
     return re.sub(r'\W+', '_', title.lower())
 
