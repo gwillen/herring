@@ -1,5 +1,6 @@
 from celery import shared_task
 from django.conf import settings
+from lazy_object_proxy import Proxy as lazy_object
 from puzzles.models import Puzzle
 from puzzles.spreadsheets import make_sheet
 import slacker
@@ -9,16 +10,18 @@ import logging
 
 BULLSHIT_CHANNEL="_herring_experimental"
 
-try:
-    # A token logged in as a legitimate user. Turns out that "bots" can't
-    # do the things we want to automate!
-    SLACK = slacker.Slacker(settings.HERRING_SECRETS['slack-user-token'])
-except KeyError:
-    print(
-        "Couldn't find the SECRETS environment variable. This server won't be able "
-        "to use Slack and Google Drive integrations."
-    )
-    SLACK = None
+
+@lazy_object
+def SLACK():
+    try:
+        # A token logged in as a legitimate user. Turns out that "bots" can't
+        # do the things we want to automate!
+        return slacker.Slacker(settings.HERRING_SECRETS['slack-user-token'])
+    except KeyError:
+        print(
+            "Couldn't find the SECRETS environment variable. This server won't be able "
+            "to use Slack and Google Drive integrations."
+        )
 
 
 def post_local_and_global(local_channel, local_message, global_message):

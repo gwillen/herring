@@ -1,14 +1,18 @@
 from django.conf import settings
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
+from lazy_object_proxy import Proxy as lazy_object
 
-try:
-    credentials = Credentials.from_service_account_info(
-        settings.HERRING_FUCK_OAUTH,
-        scopes=['https://www.googleapis.com/auth/drive'])
-    service = build('drive', 'v2', credentials=credentials)
-except ValueError:
-    pass
+
+@lazy_object
+def service():
+    try:
+        credentials = Credentials.from_service_account_info(
+            settings.HERRING_FUCK_OAUTH,
+            scopes=['https://www.googleapis.com/auth/drive'])
+        return build('drive', 'v2', credentials=credentials)
+    except ValueError:
+        return None
 
 
 def make_sheet(title):
