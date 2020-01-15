@@ -11,14 +11,15 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 """
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+import json
 import os
 
 import environ
-env = environ.Env()
-environ.Env.read_env()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+env = environ.Env()
+environ.Env.read_env(os.path.join(os.path.dirname(BASE_DIR), '.env'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
@@ -110,10 +111,23 @@ STATIC_ROOT = 'staticfiles'
 STATIC_URL = '/static/'
 STATICFILES_DIRS = []
 
+REDIS_URL = env.get_value('REDIS_URL', default='redis://localhost:6379/0')
+
 # Celery queue
-BROKER_URL = env.get_value('BROKER_URL', default='redis://localhost:6379/0')
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
+CELERY_BROKER_URL = env.get_value('BROKER_URL', default=REDIS_URL)
+
+
+# Previously in puzzles/tasks.py
+HERRING_STATUS_CHANNEL = env.get_value('STATUS_CHANNEL', default='_dev_puzzle_status')
+HERRING_HOST = env.get_value('HOST', default='http://localhost:5000')
+HERRING_PUZZLE_ACTIVITY_LOG_URL = env.get_value('PUZZLE_ACTIVITY_LOG_URL', default=None)
+HERRING_PUZZLE_SITE_SESSION_COOKIE = env.get_value('PUZZLE_SITE_SESSION_COOKIE', default=None)
+
+
+# Previously in herring/secrets.py
+HERRING_SECRETS = json.loads(env.get_value('SECRETS', default='{}'))
+HERRING_FUCK_OAUTH = json.loads(env.get_value('FUCK_OAUTH', default='{}'))
+
 
 # XXX: the following was an attempt to get more stuff logged in Heroku. It
 # didm't appear to work and it's not clear that it does anything.

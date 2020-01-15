@@ -1,23 +1,18 @@
 from celery import shared_task
+from django.conf import settings
 from puzzles.models import Puzzle
 from puzzles.spreadsheets import make_sheet
 import slacker
 import requests
 from bs4 import BeautifulSoup
 import logging
-import environ
-env = environ.Env()
-environ.Env.read_env()
 
-STATUS_CHANNEL = env.get_value('STATUS_CHANNEL', default='_dev_puzzle_status')
 BULLSHIT_CHANNEL="_herring_experimental"
-HOST = env.get_value('HOST', default='http://localhost:5000')
 
 try:
-    from herring.secrets import SECRETS
     # A token logged in as a legitimate user. Turns out that "bots" can't
     # do the things we want to automate!
-    SLACK = slacker.Slacker(SECRETS['slack-user-token'])
+    SLACK = slacker.Slacker(settings.HERRING_SECRETS['slack-user-token'])
 except KeyError:
     print(
         "Couldn't find the SECRETS environment variable. This server won't be able "
@@ -37,7 +32,7 @@ def post_local_and_global(local_channel, local_message, global_message):
         # Probably the channel's already archived. Don't worry too much about it.
         logging.warning("tasks: failed to post to local channel (probably archived)", exc_info=True)
 
-    response = SLACK.channels.join(STATUS_CHANNEL)
+    response = SLACK.channels.join(settings.HERRING_STATUS_CHANNEL)
     global_channel_id = response.body['channel']['id']
     SLACK.chat.post_message(global_channel_id, global_message, link_names=True, as_user=True)
 
@@ -105,12 +100,12 @@ def create_puzzle_sheet_and_channel(self, slug):
     topic = "{name} - Sheet: {host}/s/{id} - Puzzle: {url}".format(
         name=puzzle_name,
         url=puzzle.hunt_url,
-        host=HOST,
+        host=settings.HERRING_HOST,
         id=puzzle.id
     )
     SLACK.channels.set_topic(channel_id, topic)
     
-    response = SLACK.channels.join(STATUS_CHANNEL)
+    response = SLACK.channels.join(settings.HERRING_STATUS_CHANNEL)
     status_channel_id = response.body['channel']['id']
 
     new_channel_msg = 'New puzzle created: "{name}" (#{slug})'.format(
@@ -124,9 +119,10 @@ def create_puzzle_sheet_and_channel(self, slug):
 def scrape_activity_log():
     logging.warning("tasks: scrape_activity_log()")
 
-    LOG_URL = env.get_value('PUZZLE_ACTIVITY_LOG_URL');
-    SESSION_COOKIE = env.get_value('PUZZLE_SITE_SESSION_COOKIE');
-    text = requests.get(LOG_URL, cookies={"session": SESSION_COOKIE}).text
+    response = requests.get(
+        settings.HERRING_PUZZLE_ACTIVITY_LOG_URL,
+        cookies={"session": settings.HERRING_PUZZLE_SITE_SESSION_COOKIE})
+    text = response.text
     parsed = BeautifulSoup(text)
     # Grab all fields, discard first three irrelevant rows that aren't entries, format:
     # ["Weekday HH:MM:SS", "Puzzle Title", {"UNLOCKED", "CORRECT", "INCORRECT", "SOLVED"}, "ANSWER"]

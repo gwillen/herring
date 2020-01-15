@@ -1,11 +1,10 @@
+from django.conf import settings
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 
-from herring.secrets import SECRETS, FUCK_OAUTH
-
 try:
     credentials = Credentials.from_service_account_info(
-        FUCK_OAUTH,
+        settings.HERRING_FUCK_OAUTH,
         scopes=['https://www.googleapis.com/auth/drive'])
     service = build('drive', 'v2', credentials=credentials)
 except ValueError:
@@ -16,7 +15,7 @@ def make_sheet(title):
     body = {
         'mimeType': 'application/vnd.google-apps.spreadsheet',
         'title': title,
-        'parents': [{'id': SECRETS['gapps-folder']}]
+        'parents': [{'id': settings.HERRING_SECRETS['gapps-folder']}]
     }
     got = service.files().insert(body=body).execute()
 
