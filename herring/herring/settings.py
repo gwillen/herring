@@ -28,7 +28,7 @@ environ.Env.read_env(os.path.join(os.path.dirname(BASE_DIR), '.env'))
 SECRET_KEY = '+fn9lj!kwzxqzpxihje!_+o0!y8ork#@+wc19w_mnf7^6gi4d$'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = env.get_value('DEBUG', default=False)
 
 ALLOWED_HOSTS = []
 
@@ -129,8 +129,6 @@ HERRING_SECRETS = json.loads(env.get_value('SECRETS', default='{}'))
 HERRING_FUCK_OAUTH = json.loads(env.get_value('FUCK_OAUTH', default='{}'))
 
 
-# XXX: the following was an attempt to get more stuff logged in Heroku. It
-# didm't appear to work and it's not clear that it does anything.
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -139,10 +137,17 @@ LOGGING = {
             'class': 'logging.StreamHandler',
         },
     },
+    'root': {
+        'handlers': ['console'],
+        'level': env.get_value('LOG_LEVEL', default='INFO'),
+    },
     'loggers': {
-        'django': {
+        'django.db.backends': {
             'handlers': ['console'],
-            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
+            'level': env.get_value(
+                'DJANGO_DB_LOG_LEVEL',
+                default='DEBUG' if DEBUG else 'INFO'),
+            'propagate': False,
         },
     },
 }

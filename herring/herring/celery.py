@@ -4,6 +4,7 @@ from __future__ import absolute_import
 
 import os
 from celery import Celery
+from celery.signals import setup_logging
 
 # set the default Django settings module for the 'celery' program.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'herring.settings')
@@ -11,6 +12,14 @@ from django.conf import settings
 
 app = Celery('herring')
 app.config_from_object('django.conf:settings', namespace='CELERY')
+
+
+@setup_logging.connect
+def config_loggers(*args, **kwargs):
+    from logging.config import dictConfig
+    dictConfig(settings.LOGGING)
+
+
 app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
 
 
