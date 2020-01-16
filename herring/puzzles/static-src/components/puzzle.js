@@ -1,35 +1,28 @@
 'use strict';
 
-var React = require('react');
-var cx = require('classnames');
-var request = require('then-request');
-var RoundInfoComponent = require('./round-info');
-var CelebrationModal = require('./celebration');
-var UrlChangeModal = require('./url-editor');
+import cx from 'classnames';
+import PropTypes from 'prop-types';
+import React from 'react';
+import request from 'then-request';
+import CelebrationModal from './celebration';
+import RoundInfoComponent from './round-info';
+import UrlChangeModal from './url-editor';
 
-
-var PuzzleComponent = React.createClass({
-    propTypes: {
-        puzzle: React.PropTypes.object.isRequired,
-        parent: React.PropTypes.object,
-        changeMade: React.PropTypes.func,
-    },
-    getInitialState: function () {
-        return {
-            celebrating: false,
-            changingUrl: false
-        };
-    },
-    componentWillReceiveProps(nextProps) {
+export default class PuzzleComponent extends React.Component {
+    state = {
+        celebrating: false,
+        changingUrl: false
+    };
+    componentDidUpdate(prevProps) {
         // did we solve a new puzzle?
-        if (nextProps.puzzle.answer && nextProps.puzzle.answer !== this.props.puzzle.answer) {
-            this.setState({
+        if (this.props.puzzle.answer && this.props.puzzle.answer !== prevProps.puzzle.answer) {
+            this.state.celebrating || this.setState({
                 celebrating: true
             });
-        } else if (nextProps.puzzle.answer === '') {
+        } else if (this.props.puzzle.answer === '') {
             this.stopCelebrating();
         }
-    },
+    }
     render() {
         var puzzle = this.props.puzzle;
         var classes = cx({
@@ -101,24 +94,24 @@ var PuzzleComponent = React.createClass({
               </div>
             </div>
         );
-    },
+    }
     showPuzzleUrlModal() {
         this.setState({
             changingUrl: true
         });
-    },
-    updateUrl(val) {
+    }
+    updateUrl = val => {
         this.updateData('url', val);
-    },
-    updateAnswer(val) {
+    };
+    updateAnswer = val => {
         this.updateData('answer', val);
-    },
-    updateNote(val) {
+    };
+    updateNote = val => {
         this.updateData('note', val);
-    },
-    updateTags(val) {
+    };
+    updateTags = val => {
         this.updateData('tags', val);
-    },
+    };
     updateData(key, val) {
         // TODO
         var update = {};
@@ -134,17 +127,21 @@ var PuzzleComponent = React.createClass({
         ).done(function (res) {
             this.props.changeMade && this.props.changeMade();
           }.bind(this));
-    },
-    stopCelebrating() {
-        this.setState({
+    }
+    stopCelebrating = () => {
+        this.state.celebrating && this.setState({
             celebrating: false
         });
-    },
-    closeUrlModal() {
+    };
+    closeUrlModal = () => {
         this.setState({
             changingUrl: false
         });
-    }
-});
+    };
+}
 
-module.exports = PuzzleComponent;
+PuzzleComponent.propTypes = {
+    puzzle: PropTypes.object.isRequired,
+    parent: PropTypes.object,
+    changeMade: PropTypes.func,
+};

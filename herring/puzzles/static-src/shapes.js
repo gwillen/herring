@@ -1,22 +1,20 @@
 'use strict';
 
-var React = require('react');
+import PropTypes from 'prop-types';
 
-var PuzzleShape = React.PropTypes.shape({
-  id: React.PropTypes.number.isRequired,
-  number: React.PropTypes.number,
-  answer: React.PropTypes.string.isRequired,
-  is_meta: React.PropTypes.bool.isRequired,
-  tags: React.PropTypes.string.isRequired,
-  name: React.PropTypes.string.isRequired,
-  note: React.PropTypes.string.isRequired,
+export const PuzzleShape = PropTypes.shape({
+  id: PropTypes.number.isRequired,
+  number: PropTypes.number,
+  answer: PropTypes.string.isRequired,
+  is_meta: PropTypes.bool.isRequired,
+  tags: PropTypes.string.isRequired,
+  name: PropTypes.string.isRequired,
+  note: PropTypes.string.isRequired,
 });
 
-var RoundShape = React.PropTypes.shape({
-  id: React.PropTypes.number.isRequired,
-  number: React.PropTypes.number,
-  name: React.PropTypes.string.isRequired,
-  puzzle_set: React.PropTypes.arrayOf(PuzzleShape).isRequired,
+export const RoundShape = PropTypes.shape({
+  id: PropTypes.number.isRequired,
+  number: PropTypes.number,
+  name: PropTypes.string.isRequired,
+  puzzle_set: PropTypes.arrayOf(PuzzleShape).isRequired,
 });
-
-module.exports = {PuzzleShape, RoundShape};

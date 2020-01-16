@@ -1,35 +1,25 @@
 'use strict';
 
-var React = require('react');
-var Shapes = require('../shapes');
-var RoundComponent = require('./round');
-var Filters = require('./filters');
-var _ = require('lodash');
+import PropTypes from 'prop-types';
+import React from 'react';
+import Filters from './filters';
+import RoundComponent from './round';
+import { RoundShape } from '../shapes';
 
-var RoundsComponent = React.createClass({
-    propTypes: {
-        rounds: React.PropTypes.arrayOf(Shapes.RoundShape.isRequired).isRequired,
-        changeMade: React.PropTypes.func,
-    },
-    getInitialState: function () {
-        return {
-            filter: '',
-            showAnswered: true
-        };
-    },
-    changeMade() {
+export default class RoundsComponent extends React.Component {
+    state = {
+        filter: '',
+        showAnswered: true
+    };
+    changeMade = () => {
         this.props.changeMade && this.props.changeMade();
-    },
-    render: function() {
-        var self = this;
-        var rs = _.map(this.props.rounds, function(round) {
-                return (
+    };
+    render() {
+        var rs = this.props.rounds.map(round =>
                     <RoundComponent key={ round.id }
                                     round={ round }
-                                    changeMade={ self.changeMade }
-                                    { ...self.state } />
-                );
-            });
+                                    changeMade={ this.changeMade }
+                                    { ...this.state } />);
         return (
             <div>
                 <div className='row'>
@@ -41,17 +31,20 @@ var RoundsComponent = React.createClass({
                 { rs.length > 0 ? rs : <p>No puzzles are available</p> }
             </div>
         );
-    },
-    changeFilter: function(filter){
+    }
+    changeFilter = filter => {
         this.setState({
             filter: filter
         });
-    },
-    toggleAnswerStatus: function(){
+    };
+    toggleAnswerStatus = () => {
         this.setState({
             showAnswered: !this.state.showAnswered
         });
-    }
-});
+    };
+}
 
-module.exports = RoundsComponent;
+RoundsComponent.propTypes = {
+    rounds: PropTypes.arrayOf(RoundShape.isRequired).isRequired,
+    changeMade: PropTypes.func,
+};

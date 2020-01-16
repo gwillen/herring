@@ -1,54 +1,44 @@
 'use strict';
 
-var React = require('react');
-var PuzzleComponent = require('./puzzle');
-var targetifyRound = require('../utils').targetifyRound;
-var Shapes = require('../shapes');
-var _ = require('lodash');
+import PropTypes from 'prop-types';
+import React from 'react';
+import PuzzleComponent from './puzzle';
+import { RoundShape } from '../shapes';
+import { targetifyRound } from '../utils';
 
-var RoundComponent = React.createClass({
-    propTypes: {
-        round: Shapes.RoundShape.isRequired,
-        changeMade: React.PropTypes.func,
-        filter: React.PropTypes.string.isRequired,
-        showAnswered: React.PropTypes.bool.isRequired,
-    },
-    getInitialState: function (){
-        return {
-            show: true
-        };
-    },
-    componentDidMount: function (){
+export default class RoundComponent extends React.Component {
+    state = {
+        show: true
+    };
+    componentDidMount() {
         if (this.allSolved()) {
             this.setState({
                 show: false
             });
         }
-    },
-    componentWillReceiveProps: function(nextProps) {
-        if (!this.allSolved() && this.allSolved(nextProps.round.puzzle_set)) {
+    }
+    componentDidUpdate(prevProps) {
+        if (!this.allSolved(prevProps.round.puzzle_set) && this.allSolved()) {
             this.setState({
                 show: false
             });
         }
-    },
-    changeMade() {
+    }
+    changeMade = () => {
         this.props.changeMade && this.props.changeMade();
-    },
-    render: function() {
+    };
+    render() {
         var round = this.props.round;
         var target = targetifyRound(round);
-        var self = this;
         var filteredPuzzles = this.getFilteredPuzzles();
         if (filteredPuzzles.length <= 0 ) {
             return <div key={round.id} className="row"></div>;
         }
-        var puzzles = _.map(filteredPuzzles, function(puzzle) {
-            return <PuzzleComponent key={ puzzle.id }
-                                    puzzle={ puzzle }
-                                    parent={ round }
-                                    changeMade={ self.changeMade} />;
-        });
+        var puzzles = filteredPuzzles.map(puzzle =>
+            <PuzzleComponent key={ puzzle.id }
+                             puzzle={ puzzle }
+                             parent={ round }
+                             changeMade={ this.changeMade } />);
         var caret = (
             <button onClick={ this.onCaretClick }>
                 { this.state.show ? 'v' : '^' }
@@ -82,30 +72,33 @@ var RoundComponent = React.createClass({
                 </div>
             </div>
         );
-    },
-    onCaretClick: function (evt) {
+    }
+    onCaretClick = evt => {
         evt.preventDefault();
         this.setState({
             show: !this.state.show || false
         });
-    },
-    allSolved: function (puzzleList) {
+    };
+    allSolved(puzzleList) {
         puzzleList = puzzleList ? puzzleList : this.props.round.puzzle_set;
-        return _.filter(puzzleList, function (puzzle) {
-            return !puzzle.answer;
-        }).length === 0;
-    },
+        return puzzleList.every(puzzle => puzzle.answer);
+    }
 
-    getFilteredPuzzles: function () {
-        return _.filter(this.props.round.puzzle_set, function(puzzle) {
+    getFilteredPuzzles() {
+        return this.props.round.puzzle_set.filter(puzzle => {
             if (this.props.showAnswered && !this.props.filter) {
                 return true;
             }
             var tagsAndName = puzzle.tags.toLowerCase() + ' ' + puzzle.name.toLowerCase();
             return (this.props.showAnswered || !puzzle.answer) &&
-                _.contains(tagsAndName, this.props.filter.toLowerCase());
-        }, this);
+                tagsAndName.indexOf(this.props.filter.toLowerCase()) >= 0;
+        });
     }
-});
+}
 
-module.exports = RoundComponent;
+RoundComponent.propTypes = {
+    round: RoundShape.isRequired,
+    changeMade: PropTypes.func,
+    filter: PropTypes.string.isRequired,
+    showAnswered: PropTypes.bool.isRequired,
+};
