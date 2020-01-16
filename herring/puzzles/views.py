@@ -1,6 +1,9 @@
 import json
 import re
 
+from cachetools.func import ttl_cache
+from datetime import datetime, timedelta, timezone
+from django.db.models import Count, F
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, JsonResponse
@@ -9,7 +12,7 @@ from django.contrib.auth.decorators import login_required
 
 from puzzles.tasks import scrape_activity_log
 
-from .models import Round, Puzzle, to_json_value
+from .models import ChannelParticipation, Round, Puzzle, to_json_value
 
 @login_required
 def logout(request):
@@ -40,7 +43,7 @@ def get_puzzles(request):
         'rounds': Round.objects.all()
     }
     print("Serializing puzzle data.")
-    return JsonResponse(to_json_value(data))
+    return JsonResponse(add_metrics(to_json_value(data)))
 
 
 @login_required
@@ -54,7 +57,7 @@ def one_puzzle(request, puzzle_id):
 @login_required
 def puzzle_spreadsheet(request, puzzle_id):
     puzzle = get_object_or_404(Puzzle, pk=puzzle_id)
-    return redirect(puzzle.url)
+    return redirect(f'https://docs.google.com/spreadsheets/d/{puzzle.sheet_id}/edit')
 
 
 def to_channel(title):
@@ -108,3 +111,32 @@ def update_puzzle_hook(request):
 def run_scraper(request):
     scrape_activity_log.delay()
     return HttpResponse("ok")
+
+
+def add_metrics(json):
+    """
+    This function exists because I am paranoid about making the big
+    fetch-all-the-puzzles query too slow, and also I am too unclever right
+    now to figure out how to coax Django into doing the correct join and
+    aggregation logic. So instead we do the aggregation in a separate query
+    (which we can cache), and manually join it to the JSON here.
+
+    Probably this optimization is premature and unnecessary, and a future me
+    or a future someone else is almost certainly more clever, so this may not
+    remain in this form for long.
+    """
+    active_users_by_slug = compute_active_users()
+    for r in json['rounds']:
+        for p in r['puzzle_set']:
+            p['channel_active_count'] = active_users_by_slug.get(p['slug'], 0)
+    return json
+
+
+@ttl_cache(ttl=5)
+def compute_active_users():
+    now = datetime.utcnow().replace(tzinfo=timezone.utc)
+    results = ChannelParticipation.objects\
+        .filter(is_member=True, last_active__gt=now - timedelta(hours=2))\
+        .values(slug=F('channel_puzzle__slug'))\
+        .annotate(active=Count('user_id'))
+    return {result['slug']: result['active'] for result in results}

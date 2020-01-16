@@ -4,6 +4,7 @@ import cx from 'classnames';
 import PropTypes from 'prop-types';
 import React from 'react';
 import request from 'then-request';
+import ActivityComponent from './activity';
 import CelebrationModal from './celebration';
 import RoundInfoComponent from './round-info';
 import UrlChangeModal from './url-editor';
@@ -65,7 +66,7 @@ export default class PuzzleComponent extends React.Component {
                 <div className={ classes }>
 
                   <div className="row">
-                    <div className="col-xs-6 col-sm-6 col-md-4 col-lg-4 name">
+                    <div className="col-xs-6 col-sm-6 col-md-4 col-lg-3 name">
                       { puzzlePageButton }
                       <a
                           title={ `#${puzzle.slug}` }
@@ -80,7 +81,7 @@ export default class PuzzleComponent extends React.Component {
                         onSubmit={ this.updateAnswer }
                     />
                     <RoundInfoComponent
-                        className="visible-md visible-lg col-md-3 col-lg-4 note editable"
+                        className="visible-md visible-lg col-md-3 col-lg-3 note editable"
                         val={ puzzle.note }
                         onSubmit={ this.updateNote }
                     />
@@ -88,6 +89,15 @@ export default class PuzzleComponent extends React.Component {
                         className="hidden-xs col-sm-3 col-md-2 col-lg-2 tags editable"
                         val={ puzzle.tags }
                         onSubmit={ this.updateTags }
+                    />
+                    <ActivityComponent
+                        className="visible-lg-block col-lg-2 activity"
+                        activity={ {
+                            channelCount: puzzle.channel_count,
+                            channelActiveCount: puzzle.channel_active_count,
+                            activityHisto: puzzle.activity_histo,
+                            lastActive: new Date(puzzle.last_active),
+                        } }
                     />
                   </div>
                 </div>

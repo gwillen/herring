@@ -11,14 +11,15 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 """
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+import json
 import os
 
 import environ
-env = environ.Env()
-environ.Env.read_env()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+env = environ.Env()
+environ.Env.read_env(os.path.join(os.path.dirname(BASE_DIR), '.env'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
@@ -27,7 +28,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = '+fn9lj!kwzxqzpxihje!_+o0!y8ork#@+wc19w_mnf7^6gi4d$'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = env.get_value('DEBUG', default=False)
 
 ALLOWED_HOSTS = []
 
@@ -110,13 +111,44 @@ STATIC_ROOT = 'staticfiles'
 STATIC_URL = '/static/'
 STATICFILES_DIRS = []
 
-# Celery queue
-BROKER_URL = env.get_value('BROKER_URL', default='redis://localhost:6379/0')
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
+REDIS_URL = env.get_value('REDIS_URL', default='redis://localhost:6379/0')
 
-# XXX: the following was an attempt to get more stuff logged in Heroku. It
-# didm't appear to work and it's not clear that it does anything.
+# Celery queue
+CELERY_BROKER_URL = env.get_value('BROKER_URL', default=REDIS_URL)
+CELERY_REDBEAT_REDIS_URL = REDIS_URL
+CELERY_BEAT_SCHEDULER = 'redbeat.RedBeatScheduler'
+CELERY_BEAT_SCHEDULE = {
+    'read-google-sheets-changes': {
+        'task': 'puzzles.tasks.process_google_sheets_changes',
+        'schedule': 15.0,
+    },
+    'check-connection-to-slack': {
+        'task': 'puzzles.tasks.check_connection_to_slack',
+        'schedule': 60.0,
+    },
+}
+
+# This indirectly affects the expiration time of the lock RedBeat sets in
+# Redis to ensure that only one scheduler is running. It largely doesn't
+# matter unless the worker process with the active RedBeat instance is
+# forcefully killed, in which case having a max_loop_interval of 30 seconds
+# means that it could be up to 6 minutes before another RedBeat claims the
+# lock and starts scheduling tasks again.
+CELERY_BEAT_MAX_LOOP_INTERVAL = 30
+
+
+# Previously in puzzles/tasks.py
+HERRING_STATUS_CHANNEL = env.get_value('STATUS_CHANNEL', default='_dev_puzzle_status')
+HERRING_HOST = env.get_value('HOST', default='http://localhost:5000')
+HERRING_PUZZLE_ACTIVITY_LOG_URL = env.get_value('PUZZLE_ACTIVITY_LOG_URL', default=None)
+HERRING_PUZZLE_SITE_SESSION_COOKIE = env.get_value('PUZZLE_SITE_SESSION_COOKIE', default=None)
+
+
+# Previously in herring/secrets.py
+HERRING_SECRETS = json.loads(env.get_value('SECRETS', default='{}'))
+HERRING_FUCK_OAUTH = json.loads(env.get_value('FUCK_OAUTH', default='{}'))
+
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -125,10 +157,17 @@ LOGGING = {
             'class': 'logging.StreamHandler',
         },
     },
+    'root': {
+        'handlers': ['console'],
+        'level': env.get_value('LOG_LEVEL', default='INFO'),
+    },
     'loggers': {
-        'django': {
+        'django.db.backends': {
             'handlers': ['console'],
-            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
+            'level': env.get_value(
+                'DJANGO_DB_LOG_LEVEL',
+                default='DEBUG' if DEBUG else 'INFO'),
+            'propagate': False,
         },
     },
 }

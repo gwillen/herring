@@ -11,12 +11,19 @@ class Page extends React.Component {
   componentDidMount() {
     this.loadDataFromServer();
     setInterval(this.loadDataFromServer, this.props.pollInterval);
-    Notification.requestPermission(function (permission) {
-      // If the user accepts, let's create a notification
-      if (permission === 'granted') {
-        console.log('Browser notifications are active.');
-      }
-    });
+
+    // Request permission to send web notifications--this has to take place in
+    // an event handler triggered by a user interaction, or modern browsers
+    // will ignore it.
+    const askForPermissionToNotify = () => {
+      Notification.requestPermission(permission => {
+        document.removeEventListener('click', askForPermissionToNotify);
+        if (permission === 'granted') {
+          console.log('Browser notifications are active.');
+        }
+      });
+    };
+    document.addEventListener('click', askForPermissionToNotify);
   }
   render() {
     if (this.state.rounds) {

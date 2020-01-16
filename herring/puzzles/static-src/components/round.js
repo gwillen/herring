@@ -58,12 +58,13 @@ export default class RoundComponent extends React.Component {
                   { roundTitle }
                   <div className="col-lg-12" style={ contentsStyle }>
                     <div className="row legend">
-                      <div className="col-xs-6 col-sm-6 col-md-4 col-lg-4">
+                      <div className="col-xs-6 col-sm-6 col-md-4 col-lg-3">
                         Name
                       </div>
                       <div className="col-xs-6 col-sm-3 col-md-3 col-lg-2">Answer</div>
-                      <div className="visible-md visible-lg col-md-3 col-lg-4">Notes</div>
+                      <div className="visible-md visible-lg col-md-3 col-lg-3">Notes</div>
                       <div className="hidden-xs col-sm-3 col-md-2 col-lg-2">Tags</div>
+                      <div className="visible-lg-block col-lg-2">Activity</div>
                     </div>
                   </div>
                   <div style={ contentsStyle }>

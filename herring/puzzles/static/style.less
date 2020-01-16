@@ -306,12 +306,43 @@ button, a.button, input[type=submit] {
 			background-color: @mainColor;
 		}
 
+		.activity .allMembers {
+			color: fadeout(lighten(@backgroundColor, 3%), 50%);
+		}
+
 		&:hover {
 			background: lighten(@mainColor, 5%);
 		}
 		&.solved, &.solved a {
 			background-color: @textColor; // darken(@mainColor, 10%);
 			color: white;
+		}
+		&.solved .activity .allMembers {
+			color: fadeout(white, 50%);
+		}
+	}
+
+	.activity {
+		font-size: 75%;
+		line-height: 32px;
+		overflow: hidden;
+		white-space: nowrap;
+
+		.invisible {
+			visibility: hidden;
+		}
+
+		.allMembers {
+			color: fadeout(@textColor, 50%);
+		}
+
+		.glyphicon {
+			font-size: 80%;
+			vertical-align: text-top;
+		}
+
+		svg {
+			vertical-align: text-bottom;
 		}
 	}
 }
