@@ -129,7 +129,7 @@ def create_puzzle_sheet_and_channel(self, slug):
         id=puzzle.id
     )
     SLACK.channels.set_topic(channel_id, topic)
-    
+
     response = SLACK.channels.join(settings.HERRING_STATUS_CHANNEL)
     status_channel_id = response.body['channel']['id']
 
@@ -144,21 +144,26 @@ def create_puzzle_sheet_and_channel(self, slug):
 def scrape_activity_log():
     logging.warning("tasks: scrape_activity_log()")
 
-    response = requests.get(
-        settings.HERRING_PUZZLE_ACTIVITY_LOG_URL,
-        cookies={"session": settings.HERRING_PUZZLE_SITE_SESSION_COOKIE})
-    text = response.text
-    parsed = BeautifulSoup(text)
-    # Grab all fields, discard first three irrelevant rows that aren't entries, format:
-    # ["Weekday HH:MM:SS", "Puzzle Title", {"UNLOCKED", "CORRECT", "INCORRECT", "SOLVED"}, "ANSWER"]
-    # - The answer field is the literal entered answer for correct/incorrect, and the normalized answer for solved; it's "" for unlocked
-    # - Field 3 can also be "SUBMITTED" or something when the puzzle is in the call queue; then it becomes CORRECT or INCORRECT.
-    data = [[''.join(td.stripped_strings) for td in tr.find_all('td')] for tr in parsed.find_all('tr')][3:]
+    flatten = lambda l: [item for sublist in l for item in sublist]
+    def extract_link(text, selector):
+        return BeautifulSoup(text, 'html.parser').select(selector)[0].get('href')
+    def extract_text(text, selector):
+        return BeautifulSoup(text, 'html.parser').select(selector)[0].get_text()
 
+    s = requests.Session()
+    r = s.get(log_url, cookies=log_cookies)
+    entries = flatten(reversed([[(x['when'], y) for y in x['htmls']] for x in json.loads(r.content)['log']]))
+
+    rounds = [(t, extract_text(x, 'b')) for (t, x) in entries if ' is now open!' in x]
+    unlocks = [(t, extract_link(x, 'a'), extract_text(x, 'span.puzzletitle'), extract_text(x, 'span.landtag')) for (t, x) in entries if ' opened.' in x]
+    solves = [(t, extract_link(x, 'a'), extract_text(x, 'span.puzzletitle'), extract_text(x, 'span.landtag')) for (t, x) in entries if ' solved.' in x]
+
+    last_unlock = unlocks[-1]
     response = SLACK.channels.join(BULLSHIT_CHANNEL)
     bullshit_channel_id = response.body['channel']['id']
 
-    activity_msg = "Last activity was: {}".format(data[0])
+    # XXX hardcoded hunt root URL
+    activity_msg = "Last puzzle unlock was '{}' in round '{}' at {} ({})".format(last_unlock[2], last_unlock[3], datetime.fromtimestamp(last_unlock[0]).strftime("%a %-I:%M %p"), "https://pennypark.fun" + last_unlock[1])
     SLACK.chat.post_message(bullshit_channel_id, activity_msg, link_names=True, as_user=True)
 
 
