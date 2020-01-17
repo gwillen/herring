@@ -3,6 +3,7 @@ import re
 
 from cachetools.func import ttl_cache
 from datetime import datetime, timedelta, timezone
+from django.conf import settings
 from django.db.models import Count, F
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.decorators.csrf import csrf_exempt
@@ -25,7 +26,7 @@ def index(request):
     admins = django.contrib.auth.models.User.objects.filter(is_staff=True)
     context = {
         'username': request.user.username,
-        'rounds': Round.objects.all(),
+        'rounds': Round.objects.filter(hunt_id=settings.HERRING_HUNT_ID),
         'channel': 'general_chat',
         'admins': admins,
     }
@@ -40,7 +41,7 @@ def get_resources(request):
 @login_required
 def get_puzzles(request):
     data = {
-        'rounds': Round.objects.all()
+        'rounds': Round.objects.filter(hunt_id=settings.HERRING_HUNT_ID)
     }
     print("Serializing puzzle data.")
     return JsonResponse(add_metrics(to_json_value(data)))
