@@ -151,7 +151,7 @@ def scrape_activity_log():
 
     flatten = lambda l: [item for sublist in l for item in sublist]
     def extract_link(text, selector):
-        return BeautifulSoup(text, 'html.parser').select(selector)[0].get('href')
+        return HUNT_URL_PREFIX + BeautifulSoup(text, 'html.parser').select(selector)[0].get('href')
     def extract_text(text, selector):
         return BeautifulSoup(text, 'html.parser').select(selector)[0].get_text()
 
@@ -175,11 +175,11 @@ def scrape_activity_log():
     bullshit_channel_id = response.body['channel']['id']
 
     # XXX hardcoded hunt root URL
-    activity_msg = "Last puzzle unlock was '{}' in round '{}' at {} ({})".format(last_unlock[2], last_unlock[3], datetime.fromtimestamp(last_unlock[0]).strftime("%a %-I:%M %p"), HUNT_URL_PREFIX + last_unlock[1])
+    activity_msg = "Last puzzle unlock was '{}' in round '{}' at {} ({})".format(last_unlock[2], last_unlock[3], datetime.fromtimestamp(last_unlock[0]).strftime("%a %-I:%M %p"), last_unlock[1])
     SLACK.chat.post_message(bullshit_channel_id, activity_msg, link_names=True, as_user=True)
 
     if len(new_unlocks) > 0:
-        display_unlocks = ", ".join(["{} in {} ({})".format(x[2], x[3], HUNT_URL_PREFIX + x[1]) for x in new_unlocks])
+        display_unlocks = ", ".join(["{} in {} ({})".format(x[2], x[3], x[1]) for x in new_unlocks])
         activity_msg = "There are {} unlocks without puzzle pages: {}".format(len(new_unlocks), display_unlocks)
         SLACK.chat.post_message(bullshit_channel_id, activity_msg, link_names=True, as_user=True)
 
