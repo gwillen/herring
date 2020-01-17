@@ -144,6 +144,9 @@ def create_puzzle_sheet_and_channel(self, slug):
 def scrape_activity_log():
     logging.warning("tasks: scrape_activity_log()")
 
+    log_url = settings.HERRING_PUZZLE_ACTIVITY_LOG_URL
+    log_cookies = json.loads(settings.HERRING_PUZZLE_SITE_SESSION_COOKIE)
+
     flatten = lambda l: [item for sublist in l for item in sublist]
     def extract_link(text, selector):
         return BeautifulSoup(text, 'html.parser').select(selector)[0].get('href')
