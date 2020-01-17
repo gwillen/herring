@@ -17,6 +17,8 @@ from bs4 import BeautifulSoup
 import logging
 
 BULLSHIT_CHANNEL="_herring_experimental"
+# XXX specific to the 2020 hunt
+HUNT_URL_PREFIX="https://pennypark.fun"
 
 SLACK_USER_ID = None  # will be initialized once SLACK is
 
@@ -162,13 +164,24 @@ def scrape_activity_log():
     solves = [(t, extract_link(x, 'a'), extract_text(x, 'span.puzzletitle'), extract_text(x, 'span.landtag')) for (t, x) in entries if ' solved.' in x]
 
     last_unlock = unlocks[-1]
+
+    new_unlocks = []
+    for ul in unlocks:
+        p = Puzzle.objects.filter(hunt_url=ul[1])
+        if not p:
+            new_unlocks.append(ul)
+
     response = SLACK.channels.join(BULLSHIT_CHANNEL)
     bullshit_channel_id = response.body['channel']['id']
 
     # XXX hardcoded hunt root URL
-    activity_msg = "Last puzzle unlock was '{}' in round '{}' at {} ({})".format(last_unlock[2], last_unlock[3], datetime.fromtimestamp(last_unlock[0]).strftime("%a %-I:%M %p"), "https://pennypark.fun" + last_unlock[1])
+    activity_msg = "Last puzzle unlock was '{}' in round '{}' at {} ({})".format(last_unlock[2], last_unlock[3], datetime.fromtimestamp(last_unlock[0]).strftime("%a %-I:%M %p"), HUNT_URL_PREFIX + last_unlock[1])
     SLACK.chat.post_message(bullshit_channel_id, activity_msg, link_names=True, as_user=True)
 
+    if len(new_unlocks) > 0:
+        display_unlocks = ", ".join(["{} in {} ({})".format(x[2], x[3], HUNT_URL_PREFIX + x[1]) for x in new_unlocks])
+        activity_msg = "There are {} unlocks without puzzle pages: {}".format(len(new_unlocks), display_unlocks)
+        SLACK.chat.post_message(bullshit_channel_id, activity_msg, link_names=True, as_user=True)
 
 @shared_task(ignore_result=True)
 def check_connection_to_slack():
