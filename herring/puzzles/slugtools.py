@@ -16,7 +16,9 @@ COMMON_WORDS = {
     'way', 'could', 'our', 'even', 'too', 'its', 'being', 'am', 'may',
     'such', 'those', 'through', 'use', 'does', 'thing', 'things',
     'find', 'again', 'cant', 'around', 'between', 'ever', 'every',
-    'makes', 'goes', 'went', 'heres', 'theres', 'any', 'youre', 'puzzle'
+    'makes', 'goes', 'went', 'heres', 'theres', 'any', 'youre', 'puzzle',
+    # XXX: special for 2020
+    'penny', 'park'
 }
 
 
