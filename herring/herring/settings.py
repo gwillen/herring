@@ -148,6 +148,8 @@ HERRING_PUZZLE_SITE_SESSION_COOKIE = env.get_value('PUZZLE_SITE_SESSION_COOKIE',
 HERRING_SECRETS = json.loads(env.get_value('SECRETS', default='{}'))
 HERRING_FUCK_OAUTH = json.loads(env.get_value('FUCK_OAUTH', default='{}'))
 
+# This should be more dynamic in the future.
+HERRING_HUNT_ID = int(env.get_value('HUNT_ID', default=0))
 
 LOGGING = {
     'version': 1,

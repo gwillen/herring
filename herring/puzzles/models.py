@@ -43,6 +43,7 @@ def to_json_value(field):
 
 class Round(models.Model,JSONMixin):
     # shell model for defining rounds
+    hunt_id = models.IntegerField(default=settings.HERRING_HUNT_ID)  # which hunt is this for? Will turn into a foreign key later.
     number = models.IntegerField(default=1)
     name = models.CharField(max_length=200)
     hunt_url = models.CharField(max_length=1000, default='', **optional)
@@ -58,6 +59,7 @@ class Round(models.Model,JSONMixin):
 
 class Puzzle(models.Model,JSONMixin):
     # class for all puzzles, including metas
+    hunt_id = models.IntegerField(default=settings.HERRING_HUNT_ID)  # which hunt is this for? Will turn into a foreign key later.
     parent = models.ForeignKey(Round, on_delete=models.PROTECT)
     name = models.CharField(max_length=200)
     slug = AutoSlugField(
@@ -91,7 +93,7 @@ class Puzzle(models.Model,JSONMixin):
         if self.is_meta:
             meta_marker = 'M'
         return str(self.parent) + meta_marker
-    
+
     def __str__(self):
         return '#%s %s' % (self.slug, self.name)
 
