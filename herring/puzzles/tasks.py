@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from django.conf import settings
 from django.db import transaction
 import json
+import kombu.exceptions
 from lazy_object_proxy import Proxy as lazy_object
 from puzzles.models import Puzzle
 from puzzles.spreadsheets import iterate_changes, make_sheet
@@ -48,6 +49,42 @@ def REDIS():
     return Redis.from_url(settings.REDIS_URL, max_connections=1)
 
 
+_optional_tasks_enabled = None
+
+
+def optional_task(t):
+    """
+    This decorator replaces the task it decorates with a no-op if, on first
+    call, a connection to Redis can't be established.
+    """
+    def dummy_apply_async(*args, **kwargs):
+        logging.warning(
+            f"Optional task {t.__name__} has been disabled because a "
+            "connection to Redis could not be established. If Redis is "
+            "running again, the web server should be restarted.")
+
+    def apply_async(*args, **kwargs):
+        global _optional_tasks_enabled
+        if _optional_tasks_enabled is None:
+            try:
+                t.__class__.apply_async(t, *args, **kwargs)
+                _optional_tasks_enabled = True
+                del t.apply_async
+                return
+            except kombu.exceptions.OperationalError:
+                _optional_tasks_enabled = False
+
+        if _optional_tasks_enabled:
+            del t.apply_async
+        else:
+            t.apply_async = dummy_apply_async
+
+        t.apply_async(*args, **kwargs)
+
+    t.apply_async = apply_async
+    return t
+
+
 def post_local_and_global(local_channel, local_message, global_message):
     logging.warning("tasks: post_local_and_global(%s, %s, %s)", local_channel, local_message, global_message)
 
@@ -64,6 +101,7 @@ def post_local_and_global(local_channel, local_message, global_message):
     SLACK.chat.post_message(global_channel_id, global_message, link_names=True, as_user=True)
 
 
+@optional_task
 @shared_task(rate_limit=0.5)
 def post_answer(slug, answer):
     logging.warning("tasks: post_answer(%s, %s)", slug, answer)
@@ -79,6 +117,7 @@ def post_answer(slug, answer):
     post_local_and_global(slug, local_message, global_message)
 
 
+@optional_task
 @shared_task(rate_limit=0.5)
 def post_update(slug, updated_field, value):
     logging.warning("tasks: post_update(%s, %s, %s)", slug, updated_field, value)
@@ -97,6 +136,7 @@ def post_update(slug, updated_field, value):
     post_local_and_global(slug, local_message, global_message)
 
 
+@optional_task
 @shared_task(bind=True, max_retries=10, default_retry_delay=5, rate_limit=0.25)  # rate_limit is in tasks/sec
 def create_puzzle_sheet_and_channel(self, slug):
     logging.warning("tasks: create_puzzle_sheet_and_channel(%s)", slug)
