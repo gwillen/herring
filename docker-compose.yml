@@ -1,0 +1,22 @@
+version: '3.2'
+services:
+    project:
+        image: python:3.8-alpine
+        ports:
+            - 8000:5000
+        environment:
+            REDIS_URL: redis://redis:6379/0
+            DATABASE_URL: postgres://postgres:pgpass@postgres/postgres
+        volumes:
+            - .:/opt/project
+        working_dir: /opt/project
+        command: ./docker-project-command.sh
+        depends_on:
+            - postgres
+            - redis
+    postgres:
+        image: postgres:10.11-alpine
+        environment:
+            POSTGRES_PASSWORD: pgpass
+    redis:
+        image: redis:4.0.14-alpine
