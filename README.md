@@ -6,6 +6,34 @@ Members of teams Metropolitan Rage Warehouse and Death and Mayhem have contribut
 
 ## Local dev setup
 
+First, when running as Metropolitan Rage Warehouse, get the file of stuff we can't commit to GitHub by downloading it from the pinned entry in https://ireproof.slack.com/messages/tech/. Save it as `.env` in this directory.
+
+Now, you have a choice. If you have Docker and Docker Compose installed, or are comfortable installing them, do so and then see the [With Docker Compose](#user-content-with-docker-compose) section below. This approach ensures you're running the same versions of software that we use on Heroku, and frees you from having to manually manage users, database servers, worker processes, or Python virtual environments. This comes at the expense of, well, running Docker, which is not always easy to manage on non-Linux platforms, and will generally use more disk space than installing the software natively.
+
+The alternative is to install all the necessary software directly on your computer. If you choose this option, see the [Manually](#user-content-manually) section below.
+
+### With Docker Compose
+
+Run `docker-compose up` to create and start everything. When finished, run `docker-compose stop` to stop running processes, or `docker-compose down` to both stop and delete containers (which will result in a longer startup next time and an empty database).
+
+The website will be accessible at http://localhost:8000.
+
+To run anything in the Python environment, use `docker-compose exec project <command>`. For example, you can:
+* open a Django-enabled Python REPL: `docker-compose exec project herring/manage.py shell`
+* create new database migration files: `docker-compose exec project herring/manage.py makemigrations`
+* inspect Celery workers: `docker-compose exec project celery --app=herring --workdir=herring inspect stats`
+* open a shell to run arbitrary commands: `docker-compose exec project sh`
+
+You can do work on the React frontend outside of the Docker environment:
+
+```
+cd herring/puzzles/static-src
+npm install 
+./node_modules/.bin/webpack --watch
+```
+
+### Manually
+
 `brew install python3 postgres npm`
 
 Install Redis, which is `apt-get install redis-server` or `brew install redis` for all I know.
@@ -38,8 +66,6 @@ Set up your database:
 
 `createdb herringdb`
 
-When running as Metropolitan Rage Warehouse, get the Python module of stuff we can't commit to GitHub by downloading it from the pinned entry in https://ireproof.slack.com/messages/tech/. Save it as `herring/herring/secrets.py` (that is, in the same directory that settings.py is in).
-
 Run:
 
 `cd herring && python3 manage.py migrate`
@@ -55,6 +81,8 @@ Uh, obviously that last line should not be required. ?!
 `python3 manage.py runserver`
 
 And in a second shell:
+
+`python3 manage.py collectstatic --noinput --clear --link`
 
 `cd herring/puzzles/static-src`
 
