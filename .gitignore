@@ -5,3 +5,6 @@ staticfiles/
 .env
 *.swp
 package-lock.json
+/herring.iml
+/.idea/
+/postgres-data/

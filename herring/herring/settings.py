@@ -123,12 +123,12 @@ CELERY_BROKER_TRANSPORT_OPTIONS = dict(max_retries=3)
 CELERY_REDBEAT_REDIS_URL = REDIS_URL
 CELERY_BEAT_SCHEDULER = 'redbeat.RedBeatScheduler'
 CELERY_BEAT_SCHEDULE = {
-    'read-google-sheets-changes': {
-        'task': 'puzzles.tasks.process_google_sheets_changes',
-        'schedule': 15.0,
-    },
-    'check-connection-to-slack': {
-        'task': 'puzzles.tasks.check_connection_to_slack',
+    # 'read-google-sheets-changes': {
+    #     'task': 'puzzles.tasks.process_google_sheets_changes',
+    #     'schedule': 15.0,
+    # },
+    'check-connection-to-messaging': {
+        'task': 'puzzles.tasks.check_connection_to_messaging',
         'schedule': 60.0,
     },
 }
@@ -147,6 +147,8 @@ HERRING_STATUS_CHANNEL = env.get_value('STATUS_CHANNEL', default='_dev_puzzle_st
 HERRING_HOST = env.get_value('HOST', default='http://localhost:5000')
 HERRING_PUZZLE_ACTIVITY_LOG_URL = env.get_value('PUZZLE_ACTIVITY_LOG_URL', default=None)
 HERRING_PUZZLE_SITE_SESSION_COOKIE = env.get_value('PUZZLE_SITE_SESSION_COOKIE', default=None)
+
+HERRING_DISCORD_GUILD_ID = int(env.get_value('DISCORD_GUILD', default=750176135224229979))
 
 
 # Previously in herring/secrets.py

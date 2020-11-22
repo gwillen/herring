@@ -1,5 +1,5 @@
 from asgiref.sync import sync_to_async
-from asyncio import run, sleep, wait
+from asyncio import run, sleep, wait, get_event_loop
 from cachetools.func import ttl_cache
 from celery import shared_task
 from datetime import datetime, timezone
@@ -8,7 +8,8 @@ from django.db import transaction
 import json
 import kombu.exceptions
 from lazy_object_proxy import Proxy as lazy_object
-from puzzles.models import Puzzle
+from puzzles.discordbot import make_announcer_bot, make_listener_bot
+from puzzles.models import Puzzle, Round
 from puzzles.spreadsheets import iterate_changes, make_sheet
 from redis import Redis
 import slacker
@@ -22,7 +23,6 @@ BULLSHIT_CHANNEL="_herring_experimental"
 HUNT_URL_PREFIX="https://pennypark.fun"
 
 SLACK_USER_ID = None  # will be initialized once SLACK is
-
 
 @lazy_object
 def SLACK():
@@ -48,6 +48,10 @@ def REDIS():
     # Redis connections so quickly; it's possible this doesn't help at all.
     return Redis.from_url(settings.REDIS_URL, max_connections=1)
 
+
+@lazy_object
+def DISCORD_ANNOUNCER():
+    return make_announcer_bot(settings.HERRING_SECRETS['discord-bot-token'])
 
 _optional_tasks_enabled = None
 
@@ -87,7 +91,6 @@ def optional_task(t):
 
 def post_local_and_global(local_channel, local_message, global_message):
     logging.warning("tasks: post_local_and_global(%s, %s, %s)", local_channel, local_message, global_message)
-
     try:
         response = SLACK.channels.join(local_channel)
         channel_id = response.body['channel']['id']
@@ -182,6 +185,23 @@ def create_puzzle_sheet_and_channel(self, slug):
     SLACK.chat.post_message(status_channel_id, new_channel_msg, link_names=True, as_user=True)
 
 
+@optional_task
+@shared_task(bind=True, max_retries=10, default_retry_delay=5, rate_limit=0.25)
+def create_round_category(self, round_id):
+    logging.warning("tasks: create_round_category(%d)", round_id)
+
+    try:
+        round = Round.objects.get(id=round_id)
+    except Exception as e:
+        logging.error("tasks: Couldn't retrieve round %d to create a Discord category", round_id, exc_info=True)
+        raise self.retry(exc=e)
+
+    category = DISCORD_ANNOUNCER.do_in_loop(DISCORD_ANNOUNCER.make_category(round.name))
+    if category:
+        round.discord_categories = str(category.id)
+        round.save()
+
+
 @shared_task(rate_limit=0.1)
 def scrape_activity_log():
     logging.warning("tasks: scrape_activity_log()")
@@ -224,18 +244,18 @@ def scrape_activity_log():
         SLACK.chat.post_message(bullshit_channel_id, activity_msg, link_names=True, as_user=True)
 
 @shared_task(ignore_result=True)
-def check_connection_to_slack():
+def check_connection_to_messaging():
     # This task is intended to run *indefinitely*. The scheduler will attempt
     # to kick it off regularly, but we only want one running at any given time;
-    # more would certainly be a waste of compute and might annoy our Slack
-    # overlords. To achieve this, we'll use Redis as a mutex.
+    # more would certainly be a waste of compute and will definitely make the Discord integration work
+    # unreliably. To achieve this, we'll use Redis as a mutex.
 
-    mutex = REDIS.lock('puzzles.tasks.check_connection_to_slack:mutex', timeout=10)
+    mutex = REDIS.lock('puzzles.tasks.check_connection_to_messaging:mutex', timeout=10)
 
     if not mutex.acquire(blocking=False):
         return
 
-    logging.info("check_connection_to_slack: Acquired mutex")
+    logging.info("check_connection_to_messaging: Acquired mutex")
 
     async def keep_mutex():
         while True:
@@ -243,10 +263,16 @@ def check_connection_to_slack():
             mutex.reacquire()
 
     try:
-        run(wait([process_slack_messages_forever(), keep_mutex()]))
+        logging.info("herring secrets: %s", settings.HERRING_SECRETS)
+        run(wait([process_slack_messages_forever(), run_discord_listener_bot(), keep_mutex()]))
     finally:
         mutex.release()
-        logging.info("check_connection_to_slack: Released mutex")
+        logging.info("check_connection_to_messaging: Released mutex")
+
+
+async def run_discord_listener_bot():
+    listener_bot = make_listener_bot(get_event_loop())
+    await listener_bot.start(settings.HERRING_SECRETS['discord-bot-token'])
 
 
 async def process_slack_messages_forever():

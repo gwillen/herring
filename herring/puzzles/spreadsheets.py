@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from django.conf import settings
 from google.oauth2.service_account import Credentials
@@ -8,11 +9,13 @@ from lazy_object_proxy import Proxy as lazy_object
 @lazy_object
 def service():
     try:
+        logging.info("settings: %s", settings.HERRING_FUCK_OAUTH)
         credentials = Credentials.from_service_account_info(
             settings.HERRING_FUCK_OAUTH,
             scopes=['https://www.googleapis.com/auth/drive'])
         return build('drive', 'v3', credentials=credentials, cache_discovery=False)
-    except ValueError:
+    except ValueError as e:
+        logging.error("Couldn't get the google drive service", exc_info=True)
         return None
 
 

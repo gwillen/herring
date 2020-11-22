@@ -47,6 +47,7 @@ class Round(models.Model,JSONMixin):
     number = models.IntegerField(default=1)
     name = models.CharField(max_length=200)
     hunt_url = models.CharField(max_length=1000, default='', **optional)
+    discord_categories = models.CharField(max_length=1000, editable=False, **optional)
 
     def __str__(self):
         return 'R' + str(self.number)
@@ -167,6 +168,7 @@ class UserProfile(models.Model):
             related_name='profile',
     )
     avatar_url = models.CharField(max_length=200)
+    discord_identifier = models.CharField(max_length=200, **optional)
 
     def __str__(self):
         return "profile for " + self.user.__str__()

@@ -16,6 +16,8 @@ services:
             - redis
     postgres:
         image: postgres:10.11-alpine
+        volumes:
+            - ./postgres-data:/var/lib/postgresql/data
         environment:
             POSTGRES_PASSWORD: pgpass
     redis:

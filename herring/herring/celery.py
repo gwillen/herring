@@ -4,7 +4,7 @@ from __future__ import absolute_import
 
 import os
 from celery import Celery
-from celery.signals import setup_logging, worker_process_init
+from celery.signals import setup_logging, worker_init, worker_process_init
 
 # set the default Django settings module for the 'celery' program.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'herring.settings')
@@ -19,10 +19,10 @@ def config_loggers(*args, **kwargs):
     from logging.config import dictConfig
     dictConfig(settings.LOGGING)
 
-
-@worker_process_init.connect
-def on_worker_process_init(*args, **kwargs):
-    app.tasks['puzzles.tasks.check_connection_to_slack'].delay()
+#this happens once when Celery starts up
+@worker_init.connect
+def on_worker_init(*args, **kwargs):
+    app.tasks['puzzles.tasks.check_connection_to_messaging'].delay()
 
 
 app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
