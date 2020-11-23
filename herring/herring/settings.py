@@ -144,12 +144,12 @@ CELERY_BEAT_MAX_LOOP_INTERVAL = 30
 
 # Previously in puzzles/tasks.py
 HERRING_STATUS_CHANNEL = env.get_value('STATUS_CHANNEL', default='_dev_puzzle_status')
-HERRING_HOST = env.get_value('HOST', default='http://localhost:5000')
+HERRING_HOST = env.get_value('HOST', default='http://localhost:8000')
 HERRING_PUZZLE_ACTIVITY_LOG_URL = env.get_value('PUZZLE_ACTIVITY_LOG_URL', default=None)
 HERRING_PUZZLE_SITE_SESSION_COOKIE = env.get_value('PUZZLE_SITE_SESSION_COOKIE', default=None)
 
 HERRING_DISCORD_GUILD_ID = int(env.get_value('DISCORD_GUILD', default=750176135224229979))
-
+HERRING_DISCORD_PUZZLE_ANNOUNCEMENTS = env.get_value('DISCORD_ANNOUNCEMENTS', default='puzzle-announcements')
 
 # Previously in herring/secrets.py
 HERRING_SECRETS = json.loads(env.get_value('SECRETS', default='{}'))

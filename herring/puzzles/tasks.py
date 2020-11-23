@@ -184,6 +184,8 @@ def create_puzzle_sheet_and_channel(self, slug):
 
     SLACK.chat.post_message(status_channel_id, new_channel_msg, link_names=True, as_user=True)
 
+    DISCORD_ANNOUNCER.do_in_loop(DISCORD_ANNOUNCER.make_puzzle_channels(puzzle))
+
 
 @optional_task
 @shared_task(bind=True, max_retries=10, default_retry_delay=5, rate_limit=0.25)
