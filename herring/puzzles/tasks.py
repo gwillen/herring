@@ -27,6 +27,9 @@ SLACK_USER_ID = None  # will be initialized once SLACK is
 @lazy_object
 def SLACK():
     global SLACK_USER_ID
+    if not settings.HERRING_ACTIVATE_SLACK:
+        logging.warning("Running without Slack integration!")
+        return None
     try:
         # A token logged in as a legitimate user. Turns out that "bots" can't
         # do the things we want to automate!
@@ -51,6 +54,9 @@ def REDIS():
 
 @lazy_object
 def DISCORD_ANNOUNCER():
+    if not settings.HERRING_ACTIVATE_DISCORD:
+        logging.warning("Running without Discord integration!")
+        return None
     return make_announcer_bot(settings.HERRING_SECRETS['discord-bot-token'])
 
 _optional_tasks_enabled = None
@@ -91,18 +97,21 @@ def optional_task(t):
 
 def post_local_and_global(local_channel, local_message, global_message):
     logging.warning("tasks: post_local_and_global(%s, %s, %s)", local_channel, local_message, global_message)
-    try:
-        response = SLACK.channels.join(local_channel)
-        channel_id = response.body['channel']['id']
-        SLACK.chat.post_message(channel_id, local_message, link_names=True, as_user=True)
-    except Exception:
-        # Probably the channel's already archived. Don't worry too much about it.
-        logging.warning("tasks: failed to post to local channel (probably archived)", exc_info=True)
+    if settings.HERRING_ACTIVATE_SLACK:
+        try:
+            response = SLACK.channels.join(local_channel)
+            channel_id = response.body['channel']['id']
+            SLACK.chat.post_message(channel_id, local_message, link_names=True, as_user=True)
+        except Exception:
+            # Probably the channel's already archived. Don't worry too much about it.
+            logging.warning("tasks: failed to post to local channel (probably archived)", exc_info=True)
 
-    response = SLACK.channels.join(settings.HERRING_STATUS_CHANNEL)
-    global_channel_id = response.body['channel']['id']
-    SLACK.chat.post_message(global_channel_id, global_message, link_names=True, as_user=True)
+        response = SLACK.channels.join(settings.HERRING_STATUS_CHANNEL)
+        global_channel_id = response.body['channel']['id']
+        SLACK.chat.post_message(global_channel_id, global_message, link_names=True, as_user=True)
 
+    if settings.HERRING_ACTIVATE_DISCORD:
+        DISCORD_ANNOUNCER.do_in_loop(DISCORD_ANNOUNCER.post_local_and_global(local_channel, local_message, global_message))
 
 @optional_task
 @shared_task(rate_limit=0.5)
@@ -111,8 +120,8 @@ def post_answer(slug, answer):
 
     puzzle = Puzzle.objects.get(slug=slug)
     answer = answer.upper()
-    local_message = ":tada: Confirmed answer: {}".format(answer)
-    global_message = ':tada: Puzzle "{name}" (#{slug}) was solved! The answer is: {answer}'.format(
+    local_message = "\N{PARTY POPPER} Confirmed answer: {}".format(answer)
+    global_message = '\N{PARTY POPPER} Puzzle "{name}" (#{slug}) was solved! The answer is: {answer}'.format(
         answer=answer,
         slug=slug,
         name=puzzle.name
@@ -150,41 +159,44 @@ def create_puzzle_sheet_and_channel(self, slug):
         logging.error("tasks: Failed to retrieve puzzle when creating sheet and channel (may be retried) - %s", slug, exc_info=True)
         raise self.retry(exc=e)
 
-    sheet_title = '{} - {}'.format(puzzle.identifier(), puzzle.name)
-    sheet_id = make_sheet(sheet_title)
+    if settings.HERRING_ACTIVATE_GAPPS:
+        sheet_title = '{} - {}'.format(puzzle.identifier(), puzzle.name)
+        sheet_id = make_sheet(sheet_title)
 
-    puzzle.sheet_id = sheet_id
-    puzzle.save()
+        puzzle.sheet_id = sheet_id
+        puzzle.save()
 
-    try:
-        created = SLACK.channels.create(slug)
-    except slacker.Error:
-        logging.error("tasks: failed to create channel when creating sheet and channel (joining instead) - %s", slug, exc_info=True)
-        created = SLACK.channels.join(slug)
+    if settings.HERRING_ACTIVATE_SLACK:
+        try:
+            created = SLACK.channels.create(slug)
+        except slacker.Error:
+            logging.error("tasks: failed to create channel when creating sheet and channel (joining instead) - %s", slug, exc_info=True)
+            created = SLACK.channels.join(slug)
 
-    channel_id = created.body['channel']['id']
-    puzzle_name = puzzle.name
-    if len(puzzle_name) >= 30:
-        puzzle_name = puzzle_name[:29] + '\N{HORIZONTAL ELLIPSIS}'
+        channel_id = created.body['channel']['id']
+        puzzle_name = puzzle.name
+        if len(puzzle_name) >= 30:
+            puzzle_name = puzzle_name[:29] + '\N{HORIZONTAL ELLIPSIS}'
 
-    topic = "{name} - Sheet: {host}/s/{id} - Puzzle: {url}".format(
-        name=puzzle_name,
-        url=puzzle.hunt_url,
-        host=settings.HERRING_HOST,
-        id=puzzle.id
-    )
-    SLACK.channels.set_topic(channel_id, topic)
+        topic = "{name} - Sheet: {host}/s/{id} - Puzzle: {url}".format(
+            name=puzzle_name,
+            url=puzzle.hunt_url,
+            host=settings.HERRING_HOST,
+            id=puzzle.id
+        )
+        SLACK.channels.set_topic(channel_id, topic)
 
-    response = SLACK.channels.join(settings.HERRING_STATUS_CHANNEL)
-    status_channel_id = response.body['channel']['id']
+        response = SLACK.channels.join(settings.HERRING_STATUS_CHANNEL)
+        status_channel_id = response.body['channel']['id']
 
-    new_channel_msg = 'New puzzle created: "{name}" (#{slug})'.format(
-        slug=slug, name=puzzle.name
-    )
+        new_channel_msg = 'New puzzle created: "{name}" (#{slug})'.format(
+            slug=slug, name=puzzle.name
+        )
 
-    SLACK.chat.post_message(status_channel_id, new_channel_msg, link_names=True, as_user=True)
+        SLACK.chat.post_message(status_channel_id, new_channel_msg, link_names=True, as_user=True)
 
-    DISCORD_ANNOUNCER.do_in_loop(DISCORD_ANNOUNCER.make_puzzle_channels(puzzle))
+    if settings.HERRING_ACTIVATE_DISCORD:
+        DISCORD_ANNOUNCER.do_in_loop(DISCORD_ANNOUNCER.make_puzzle_channels(puzzle))
 
 
 @optional_task
@@ -192,16 +204,17 @@ def create_puzzle_sheet_and_channel(self, slug):
 def create_round_category(self, round_id):
     logging.warning("tasks: create_round_category(%d)", round_id)
 
-    try:
-        round = Round.objects.get(id=round_id)
-    except Exception as e:
-        logging.error("tasks: Couldn't retrieve round %d to create a Discord category", round_id, exc_info=True)
-        raise self.retry(exc=e)
+    if settings.HERRING_ACTIVATE_DISCORD:
+        try:
+            round = Round.objects.get(id=round_id)
+        except Exception as e:
+            logging.error("tasks: Couldn't retrieve round %d to create a Discord category", round_id, exc_info=True)
+            raise self.retry(exc=e)
 
-    category = DISCORD_ANNOUNCER.do_in_loop(DISCORD_ANNOUNCER.make_category(round.name))
-    if category:
-        round.discord_categories = str(category.id)
-        round.save()
+        category = DISCORD_ANNOUNCER.do_in_loop(DISCORD_ANNOUNCER.make_category(round.name))
+        if category:
+            round.discord_categories = str(category.id)
+            round.save()
 
 
 @shared_task(rate_limit=0.1)
@@ -233,17 +246,18 @@ def scrape_activity_log():
         if not p:
             new_unlocks.append(ul)
 
-    response = SLACK.channels.join(BULLSHIT_CHANNEL)
-    bullshit_channel_id = response.body['channel']['id']
+    if settings.HERRING_ACTIVATE_SLACK:
+        response = SLACK.channels.join(BULLSHIT_CHANNEL)
+        bullshit_channel_id = response.body['channel']['id']
 
-    # XXX hardcoded hunt root URL
-    activity_msg = "Last puzzle unlock was '{}' in round '{}' at {} ({})".format(last_unlock[2], last_unlock[3], datetime.fromtimestamp(last_unlock[0]).strftime("%a %-I:%M %p"), last_unlock[1])
-    SLACK.chat.post_message(bullshit_channel_id, activity_msg, link_names=True, as_user=True)
-
-    if len(new_unlocks) > 0:
-        display_unlocks = ", ".join(["{} in {} ({})".format(x[2], x[3], x[1]) for x in new_unlocks])
-        activity_msg = "There are {} unlocks without puzzle pages: {}".format(len(new_unlocks), display_unlocks)
+        # XXX hardcoded hunt root URL
+        activity_msg = "Last puzzle unlock was '{}' in round '{}' at {} ({})".format(last_unlock[2], last_unlock[3], datetime.fromtimestamp(last_unlock[0]).strftime("%a %-I:%M %p"), last_unlock[1])
         SLACK.chat.post_message(bullshit_channel_id, activity_msg, link_names=True, as_user=True)
+
+        if len(new_unlocks) > 0:
+            display_unlocks = ", ".join(["{} in {} ({})".format(x[2], x[3], x[1]) for x in new_unlocks])
+            activity_msg = "There are {} unlocks without puzzle pages: {}".format(len(new_unlocks), display_unlocks)
+            SLACK.chat.post_message(bullshit_channel_id, activity_msg, link_names=True, as_user=True)
 
 @shared_task(ignore_result=True)
 def check_connection_to_messaging():
@@ -273,25 +287,27 @@ def check_connection_to_messaging():
 
 
 async def run_discord_listener_bot():
-    listener_bot = make_listener_bot(get_event_loop())
-    await listener_bot.start(settings.HERRING_SECRETS['discord-bot-token'])
+    if settings.HERRING_ACTIVATE_DISCORD:
+        listener_bot = make_listener_bot(get_event_loop())
+        await listener_bot.start(settings.HERRING_SECRETS['discord-bot-token'])
 
 
 async def process_slack_messages_forever():
     logging.info("process_slack_messages_forever: Starting")
     while True:
-        try:
-            result = SLACK.rtm.connect()
-            if result.successful:
-                uri = result.body['url']
-                async with websockets.connect(uri) as ws:
-                    while await dispatch_slack_message(json.loads(await ws.recv())):
-                        pass
-                continue  # reconnect immediately
-            else:
-                logging.error("Couldn't connect to Slack RTM API: %s", result.error)
-        except Exception:
-            logging.exception("Error processing Slack RTM messages")
+        if settings.HERRING_ACTIVATE_SLACK:
+            try:
+                result = SLACK.rtm.connect()
+                if result.successful:
+                    uri = result.body['url']
+                    async with websockets.connect(uri) as ws:
+                        while await dispatch_slack_message(json.loads(await ws.recv())):
+                            pass
+                    continue  # reconnect immediately
+                else:
+                    logging.error("Couldn't connect to Slack RTM API: %s", result.error)
+            except Exception:
+                logging.exception("Error processing Slack RTM messages")
 
         # If we're here, we failed to connect or we recorded an application
         # error. Either way, we'll attempt to reconnect in a minute.
@@ -353,28 +369,31 @@ def update_slack_channel_membership(channel_id):
     except Puzzle.DoesNotExist:
         return
 
-    result = SLACK.conversations.members(channel_id)
-    if not result.successful:
-        return
+    if settings.HERRING_ACTIVATE_SLACK:
+        result = SLACK.conversations.members(channel_id)
+        if not result.successful:
+            return
 
-    membership = set(result.body['members'])
-    membership.remove(SLACK_USER_ID)
-    n = len(membership)
+        membership = set(result.body['members'])
+        membership.remove(SLACK_USER_ID)
+        n = len(membership)
 
-    puzzle.channel_count = n
-    puzzle.save(update_fields=['channel_count'])
+        puzzle.channel_count = n
+        puzzle.save(update_fields=['channel_count'])
 
-    puzzle.channelparticipation_set\
-        .exclude(user_id__in=membership)\
-        .update(is_member=False)
+        puzzle.channelparticipation_set\
+            .exclude(user_id__in=membership)\
+            .update(is_member=False)
 
-    for row in puzzle.channelparticipation_set.filter(is_member=True).values():
-        membership.remove(row.user_id)
+        for row in puzzle.channelparticipation_set.filter(is_member=True).values():
+            membership.remove(row.user_id)
 
-    for user_id in membership:
-        puzzle.channelparticipation_set.update_or_create(
-            user_id=user_id,
-            defaults=dict(is_member=True))
+        for user_id in membership:
+            puzzle.channelparticipation_set.update_or_create(
+                user_id=user_id,
+                defaults=dict(is_member=True))
+
+    # TODO do something similar for Discord
 
     logging.info("update_slack_channel_membership: For puzzle %s, set channel_count = %d", slug, n)
 
@@ -391,21 +410,21 @@ def channel_name(channel_id):
 def process_google_sheets_changes(self):
     logging.info("process_google_sheets_changes: Starting")
 
-    puzzles_to_update = set()
-    for change in fetch_latest_sheet_changes():
-        try:
-            puzzle = Puzzle.objects\
-                .select_for_update()\
-                .get(sheet_id=change.sheet_id)
-        except Puzzle.DoesNotExist:
-            continue
+    if settings.HERRING_ACTIVATE_GAPPS:
+        puzzles_to_update = set()
+        for change in fetch_latest_sheet_changes():
+            try:
+                puzzle = Puzzle.objects \
+                    .select_for_update() \
+                    .get(sheet_id=change.sheet_id)
+            except Puzzle.DoesNotExist:
+                continue
 
-        if puzzle.record_activity(change.datetime):
-            puzzles_to_update.add(puzzle)
+            if puzzle.record_activity(change.datetime):
+                puzzles_to_update.add(puzzle)
 
-    Puzzle.batch_save_activity(puzzles_to_update)
-
-    logging.info("process_google_sheets_changes: Finished (%d updated)", len(puzzles_to_update))
+        Puzzle.batch_save_activity(puzzles_to_update)
+        logging.info("process_google_sheets_changes: Finished (%d updated)", len(puzzles_to_update))
 
 
 def fetch_latest_sheet_changes():

@@ -149,6 +149,7 @@ HERRING_PUZZLE_ACTIVITY_LOG_URL = env.get_value('PUZZLE_ACTIVITY_LOG_URL', defau
 HERRING_PUZZLE_SITE_SESSION_COOKIE = env.get_value('PUZZLE_SITE_SESSION_COOKIE', default=None)
 
 HERRING_DISCORD_GUILD_ID = int(env.get_value('DISCORD_GUILD', default=750176135224229979))
+HERRING_DISCORD_PROTECTED_CATEGORIES = set(json.loads(env.get_value('DISCORD_PROTECTED_CATEGORIES', default="[750176135849050192, 779933113450102834]")))
 HERRING_DISCORD_PUZZLE_ANNOUNCEMENTS = env.get_value('DISCORD_ANNOUNCEMENTS', default='puzzle-announcements')
 
 # Previously in herring/secrets.py
@@ -157,6 +158,10 @@ HERRING_FUCK_OAUTH = json.loads(env.get_value('FUCK_OAUTH', default='{}'))
 
 # This should be more dynamic in the future.
 HERRING_HUNT_ID = int(env.get_value('HUNT_ID', default=0))
+
+HERRING_ACTIVATE_GAPPS = env.bool('ACTIVATE_GAPPS', default=True)
+HERRING_ACTIVATE_SLACK = env.bool('ACTIVATE_SLACK', default=True)
+HERRING_ACTIVATE_DISCORD = env.bool('ACTIVATE_DISCORD', default=True)
 
 LOGGING = {
     'version': 1,

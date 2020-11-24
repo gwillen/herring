@@ -8,6 +8,9 @@ from lazy_object_proxy import Proxy as lazy_object
 
 @lazy_object
 def service():
+    if not settings.HERRING_ACTIVATE_GAPPS:
+        logging.warning("Running without GApps integration!")
+        return None
     try:
         logging.info("settings: %s", settings.HERRING_FUCK_OAUTH)
         credentials = Credentials.from_service_account_info(
