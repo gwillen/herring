@@ -19,6 +19,7 @@ export default class RoundsComponent extends React.Component {
                     <RoundComponent key={ round.id }
                                     round={ round }
                                     changeMade={ this.changeMade }
+                                    settings={ this.props.settings }
                                     { ...this.state } />);
         return (
             <div>
@@ -47,4 +48,5 @@ export default class RoundsComponent extends React.Component {
 RoundsComponent.propTypes = {
     rounds: PropTypes.arrayOf(RoundShape.isRequired).isRequired,
     changeMade: PropTypes.func,
+    settings: PropTypes.object
 };

@@ -41,7 +41,11 @@ def get_resources(request):
 @login_required
 def get_puzzles(request):
     data = {
-        'rounds': Round.objects.filter(hunt_id=settings.HERRING_HUNT_ID)
+        'rounds': Round.objects.filter(hunt_id=settings.HERRING_HUNT_ID),
+        'settings': {
+            'slack': settings.HERRING_ACTIVATE_SLACK,
+            'discord': settings.HERRING_ACTIVATE_DISCORD
+        }
     }
     print("Serializing puzzle data.")
     return JsonResponse(add_metrics(to_json_value(data)))

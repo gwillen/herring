@@ -38,7 +38,9 @@ export default class RoundComponent extends React.Component {
             <PuzzleComponent key={ puzzle.id }
                              puzzle={ puzzle }
                              parent={ round }
-                             changeMade={ this.changeMade } />);
+                             changeMade={ this.changeMade }
+                             settings={ this.props.settings }
+            />);
         var caret = (
             <button onClick={ this.onCaretClick }>
                 { this.state.show ? 'v' : '^' }
@@ -52,6 +54,15 @@ export default class RoundComponent extends React.Component {
         if (!this.state.show) {
             contentsStyle.display = 'none';
         }
+        var puzzleLinkSpacer = (<span className="missing-button" />);
+        var slackSpacer;
+        if (this.props.settings.slack) {
+            slackSpacer = (<span className="messaging-spacer" />);
+        }
+        var discordSpacer;
+        if (this.props.settings.discord) {
+            discordSpacer = (<span className="messaging-spacer" />);
+        }
         return (
             <div key={ round.id } className="row">
                 <div className="col-lg-12 round">
@@ -59,8 +70,12 @@ export default class RoundComponent extends React.Component {
                   <div className="col-lg-12" style={ contentsStyle }>
                     <div className="row legend">
                       <div className="col-xs-6 col-sm-6 col-md-4 col-lg-3">
-                        <span style={{marginRight: '6.5em'}} />
-                        Name
+                        {puzzleLinkSpacer}
+                        {slackSpacer}
+                        {discordSpacer}
+                        <span className="name-legend">
+                          Name
+                        </span>
                       </div>
                       <div className="col-xs-6 col-sm-3 col-md-3 col-lg-2">Answer</div>
                       <div className="visible-md visible-lg col-md-3 col-lg-3">Notes</div>
@@ -103,4 +118,5 @@ RoundComponent.propTypes = {
     changeMade: PropTypes.func,
     filter: PropTypes.string.isRequired,
     showAnswered: PropTypes.bool.isRequired,
+    settings: PropTypes.object,
 };

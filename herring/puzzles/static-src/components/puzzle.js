@@ -63,6 +63,30 @@ export default class PuzzleComponent extends React.Component {
                   <span className="glyphicon glyphicon-share-alt"></span>
                 </a>
             );
+        } else {
+          puzzlePageButton = (
+              <span className="missing-button" />
+          )
+        }
+        var slackButton;
+        if (this.props.settings.slack) {
+          slackButton = (
+              <a
+                  title={ `#${puzzle.slug}` }
+                  href={ `https://ireproof.slack.com/messages/${puzzle.slug}/` }
+                  target="_blank" rel="noopener">
+                <img className="messaging-logo" src={ slackIcon } alt={ `Slack` } />
+              </a>
+          )
+        }
+        var discordButton;
+        if (this.props.settings.discord) {
+          discordButton = (
+              <CopyToClipboard
+                  text={ `hb!join ${puzzle.slug}` }>
+                <img className="messaging-logo" src={ discordIcon } alt={ `Discord` } title={ `Click to copy!` }/>
+              </CopyToClipboard>
+          )
         }
         return (
             <div key={ puzzle.id } className="row">
@@ -74,16 +98,8 @@ export default class PuzzleComponent extends React.Component {
                   <div className="row">
                     <div className="col-xs-6 col-sm-6 col-md-4 col-lg-3 name">
                       { puzzlePageButton }
-                      <a
-                          title={ `#${puzzle.slug}` }
-                          href={ `https://ireproof.slack.com/messages/${puzzle.slug}/` }
-                          target="_blank" rel="noopener">
-                        <img className="messagingLogo" src={ slackIcon } alt={ `Slack` } />
-                      </a>
-                      <CopyToClipboard
-                          text={ `hb!join ${puzzle.slug}` }>
-                        <img className="messagingLogo" src={ discordIcon } alt={ `Discord` } title={ `Click to copy!` }/>
-                      </CopyToClipboard>
+                      { slackButton }
+                      { discordButton }
                       <span className="name-text">{ puzzle.name }</span>
                     </div>
                     <RoundInfoComponent
@@ -165,4 +181,5 @@ PuzzleComponent.propTypes = {
     puzzle: PropTypes.object.isRequired,
     parent: PropTypes.object,
     changeMade: PropTypes.func,
+    settings: PropTypes.object,
 };

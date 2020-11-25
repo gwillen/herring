@@ -217,7 +217,21 @@ button, a.button, input[type=submit] {
 
 .round {
 	margin-bottom: @stdpadding*3;
+
+	.messaging-spacer {
+		padding-left: @textSize * 2;
+	}
+
+	.name-legend {
+		padding-left: @stdpadding/2
+	}
+
 }
+
+.missing-button {
+	padding-left: @textSize + 14px;
+}
+
 
 .puzzle {
 	line-height: 2;
@@ -234,8 +248,8 @@ button, a.button, input[type=submit] {
 		background-color: @puzzleBackgroundColor;
 	}
 
-	.messagingLogo {
-		height: 2em;
+	.messaging-logo {
+		width: @textSize * 2;
 		cursor: pointer;
 		margin-top: -@stdpadding/6;
 	}
