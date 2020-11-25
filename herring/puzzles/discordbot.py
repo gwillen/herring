@@ -66,8 +66,16 @@ class HerringCog(commands.Cog):
             target_channel = message.channel_mentions[0]
             await self.add_user_to_puzzle(payload.member, target_channel.name)
 
-    @commands.command()
+    @commands.command(brief="Join a puzzle channel")
     async def join(self, ctx:commands.Context, channel:typing.Optional[discord.TextChannel]):
+        """
+        Join a puzzle channel. Including the exact name of the channel will just let you straight into it with
+        no further fuss (this is what gets copied from the Herring UI). Otherwise, the bot will PM you with
+        a menu interaction that will let you find the puzzle you're looking for.
+        :param ctx:
+        :param channel: (optional) A specific channel to join
+        :return:
+        """
         await self.delete_message_if_possible(ctx.message)
         # using fetch_member() here so we don't have to turn on the members intent
         member = await self.guild.fetch_member(ctx.author.id)
@@ -106,8 +114,16 @@ class HerringCog(commands.Cog):
         channel = await self.add_user_to_puzzle(member, puzzle_chosen.slug)
         await ctx.author.send(f"Welcome to the puzzle {puzzle_chosen.name} in {channel.mention}! Happy solving!")
 
-    @commands.command(aliases=["part"])
+    @commands.command(aliases=["part"], brief="Leave a puzzle channel")
     async def leave(self, ctx, channel:typing.Optional[discord.TextChannel]):
+        """
+        Leave the puzzle channel in which you executed hb!leave, thus hiding it from you once more (once you click
+        away). Technically you can also leave a channel by name from anywhere, because it was easy to write; I don't
+        really see this capability as being very useful.
+        :param ctx:
+        :param channel: (optional) A specific channel to leave.
+        :return:
+        """
         await self.delete_message_if_possible(ctx.message)
         # using fetch_member() here so we don't have to turn on the members intent
         member = await self.guild.fetch_member(ctx.author.id)
@@ -121,15 +137,28 @@ class HerringCog(commands.Cog):
             # don't actually care
             pass
 
-    @commands.command(aliases=["solve"])
+    @commands.command(aliases=["solve"], brief="You solved a puzzle!")
     async def answer(self, ctx, *, answer):
+        """
+        Register the answer to a puzzle in Herring. Must be called in a puzzle channel.
+        :param ctx:
+        :param answer: The puzzle answer; spaces are allowed
+        :return:
+        """
         await self.delete_message_if_possible(ctx.message)
         def answer_puzzle(puzzle):
             puzzle.answer = answer
         await self._manipulate_puzzle(ctx.channel.name, answer_puzzle)
 
-    @commands.command()
+    @commands.command(brief="Add a tag to a puzzle")
     async def tag(self, ctx, *, tag):
+        """
+        Add a tag to a puzzle (for example, "konundrum"). Must be called in a puzzle channel. Puzzles can have
+        as many tags as you like (within reason, please).
+        :param ctx:
+        :param tag: The tag to add
+        :return:
+        """
         await self.delete_message_if_possible(ctx.message)
         def tag_puzzle(puzzle):
             tags = self._parse_tags(puzzle)
@@ -138,8 +167,14 @@ class HerringCog(commands.Cog):
             puzzle.tags = self._combine_tags(tags)
         await self._manipulate_puzzle(ctx.channel.name, tag_puzzle)
 
-    @commands.command()
+    @commands.command(brief="Remove a tag from a puzzle")
     async def untag(self, ctx, *, tag):
+        """
+        Remove a tag from a puzzle. Must be called in a puzzle channel.
+        :param ctx:
+        :param tag: The tag to remove
+        :return:
+        """
         await self.delete_message_if_possible(ctx.message)
         def untag_puzzle(puzzle):
             tags = self._parse_tags(puzzle)
@@ -154,8 +189,14 @@ class HerringCog(commands.Cog):
     def _combine_tags(tags):
         return ", ".join(tags)
 
-    @commands.command()
+    @commands.command(brief="Set the note for a puzzle")
     async def note(self, ctx, *, note):
+        """
+        Set the note for a puzzle, as a suggestion for future solvers. Must be called in a puzzle channel.
+        :param ctx:
+        :param note: The note to set for future solvers
+        :return:
+        """
         await self.delete_message_if_possible(ctx.message)
         def note_puzzle(puzzle):
             puzzle.note = note
@@ -171,7 +212,7 @@ class HerringCog(commands.Cog):
         except Puzzle.DoesNotExist:
             return
 
-    @commands.command()
+    @commands.command(hidden=True)
     async def cleanup_channels(self, ctx):
         await self.delete_message_if_possible(ctx.message)
 
@@ -347,7 +388,7 @@ class HerringCog(commands.Cog):
         logging.error(f"Ran out of options in a menu! {[printerizer(option) for option in options]}")
         return None
 
-    @commands.command()
+    @commands.command(hidden=True)
     async def test_positions(self, ctx: commands.Context):
         for category in self.guild.categories:
             channels_str = " ".join(f"{channel.name}: {channel.position}" for channel in category.channels)
