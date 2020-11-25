@@ -4,10 +4,16 @@ import cx from 'classnames';
 import PropTypes from 'prop-types';
 import React from 'react';
 import request from 'then-request';
+import {CopyToClipboard} from 'react-copy-to-clipboard';
 import ActivityComponent from './activity';
 import CelebrationModal from './celebration';
 import RoundInfoComponent from './round-info';
 import UrlChangeModal from './url-editor';
+
+// importing these as react/webpack images does NOT work because we don't really have webpack
+// and Django set up to talk to each other
+const slackIcon = '/static/Slack_Mark_Web.png';
+const discordIcon = '/static/Discord-Logo-Color.png';
 
 export default class PuzzleComponent extends React.Component {
     state = {
@@ -72,8 +78,13 @@ export default class PuzzleComponent extends React.Component {
                           title={ `#${puzzle.slug}` }
                           href={ `https://ireproof.slack.com/messages/${puzzle.slug}/` }
                           target="_blank" rel="noopener">
-                        { puzzle.name }
+                        <img className="messagingLogo" src={ slackIcon } alt={ `Slack` } />
                       </a>
+                      <CopyToClipboard
+                          text={ `hb!join ${puzzle.slug}` }>
+                        <img className="messagingLogo" src={ discordIcon } alt={ `Discord` } title={ `Click to copy!` }/>
+                      </CopyToClipboard>
+                      <span>{ puzzle.name }</span>
                     </div>
                     <RoundInfoComponent
                         className="col-xs-6 col-sm-3 col-md-3 col-lg-2 answer editable"
