@@ -234,12 +234,14 @@ button, a.button, input[type=submit] {
 		background-color: @puzzleBackgroundColor;
 	}
 
+	.messagingLogo {
+		height: 2em;
+		cursor: pointer;
+		margin-top: -@stdpadding/6;
+	}
+
 	.name {
 		position: relative;
-
-		.button {
-			margin-right: @stdpadding/2;
-		}
 
 		a:not(.button) {
 			color: black;
@@ -261,10 +263,10 @@ button, a.button, input[type=submit] {
 			display: inline;
 		}
 
-		.messagingLogo {
-			height: 2em;
-			cursor: pointer;
+		.name-text {
+			margin-left: @stdpadding/2;
 		}
+
 	}
 
 	.answer {

@@ -59,6 +59,7 @@ export default class RoundComponent extends React.Component {
                   <div className="col-lg-12" style={ contentsStyle }>
                     <div className="row legend">
                       <div className="col-xs-6 col-sm-6 col-md-4 col-lg-3">
+                        <span style={{marginRight: '6.5em'}} />
                         Name
                       </div>
                       <div className="col-xs-6 col-sm-3 col-md-3 col-lg-2">Answer</div>

@@ -84,7 +84,7 @@ export default class PuzzleComponent extends React.Component {
                           text={ `hb!join ${puzzle.slug}` }>
                         <img className="messagingLogo" src={ discordIcon } alt={ `Discord` } title={ `Click to copy!` }/>
                       </CopyToClipboard>
-                      <span>{ puzzle.name }</span>
+                      <span className="name-text">{ puzzle.name }</span>
                     </div>
                     <RoundInfoComponent
                         className="col-xs-6 col-sm-3 col-md-3 col-lg-2 answer editable"

@@ -13,6 +13,7 @@ from herring import settings
 from puzzles.models import Round, Puzzle
 
 # Discord limits a user to putting 20 emojis on a message, so if this is more than 19, the menu won't work
+# also, an embed is limited to length 2048, which isn't really very long
 MENU_REACTIONS = [
     "\N{REGIONAL INDICATOR SYMBOL LETTER A}",
     "\N{REGIONAL INDICATOR SYMBOL LETTER B}",
@@ -77,8 +78,7 @@ class HerringCog(commands.Cog):
         :return:
         """
         await self.delete_message_if_possible(ctx.message)
-        # using fetch_member() here so we don't have to turn on the members intent
-        member = await self.guild.fetch_member(ctx.author.id)
+        member = self.guild.get_member(ctx.author.id)
 
         if isinstance(channel, discord.TextChannel):
             # we were asked for a puzzle by name, let's just hand it over
@@ -97,18 +97,33 @@ class HerringCog(commands.Cog):
             "Which round contains the puzzle you want to join?",
             lambda round: round.name
         )
+        if round_chosen is None:
+            # timed out, bail
+            return
 
         puzzles = await sync_to_async(lambda: list(round_chosen.puzzle_set.all()))()
         if len(puzzles) == 0:
             await ctx.author.send(f"Sorry, {round_chosen.name} has no puzzles at the moment.")
             return
 
+        def puzzle_printerizer(puzzle):
+            text_channel, voice_channel = self.get_channel_pair(puzzle.slug)
+            # -2 for @everyone and the bot
+            people_watching = len(text_channel.overwrites) - 2
+            people_chatting = len(voice_channel.voice_states)
+            solved = "(SOLVED!) " if puzzle.answer else ""
+            return f"{_abbreviate_name(puzzle)} {solved}{people_watching} watchers, {people_chatting} in voice)"
+
         puzzle_chosen: Puzzle = await self.do_menu(
             ctx.author,
             puzzles,
             "Which puzzle would you like to join?",
-            lambda puzzle: f"{puzzle.name} (TODO presence data)"
+            puzzle_printerizer
         )
+
+        if puzzle_chosen is None:
+            # timed out, bail
+            return
 
         logging.info(f"adding {member} to {puzzle_chosen.slug}")
         channel = await self.add_user_to_puzzle(member, puzzle_chosen.slug)
@@ -212,6 +227,57 @@ class HerringCog(commands.Cog):
         except Puzzle.DoesNotExist:
             return
 
+    @commands.command(aliases=["status"], brief="Show stats about puzzles")
+    async def who(self, ctx, puzzle_name:typing.Optional[discord.TextChannel]):
+        await self.delete_message_if_possible(ctx.message)
+
+        def puzzle_printerizer(puzzle):
+            text_channel, voice_channel = self.get_channel_pair(puzzle.slug)
+            # -2 for @everyone and the bot
+            watching = len(text_channel.overwrites) - 2
+            in_voice = ", ".join(member.mention for member in voice_channel.members) or "no one"
+            solved = " (SOLVED!)" if puzzle.answer else ""
+            return f"{_abbreviate_name(puzzle)} ({text_channel.mention}){solved}: {watching} watching, {in_voice} currently solving"
+
+        if puzzle_name is not None:
+            try:
+                puzzle = await sync_to_async(lambda: Puzzle.objects.get(slug=puzzle_name.name))()
+                await ctx.author.send(puzzle_printerizer(puzzle))
+            except Puzzle.DoesNotExist:
+                # don't care
+                pass
+            return
+
+        rounds = await sync_to_async(lambda: list(Round.objects.all()))()
+        if len(rounds) == 0:
+            await ctx.author.send("Sorry, there are no rounds available!")
+            return
+
+        round_chosen: Round = await self.do_menu(
+            ctx.author,
+            rounds,
+            "Which round are you curious about?",
+            lambda round: round.name
+        )
+        if round_chosen is None:
+            # timed out, bail
+            return
+
+        puzzles = await sync_to_async(lambda: list(round_chosen.puzzle_set.all()))()
+        if len(puzzles) == 0:
+            await ctx.author.send("Sorry, that round contains no puzzles right now.")
+            return
+
+        description = puzzle_printerizer(puzzles[0])
+        for puzzle in puzzles[1:]:
+            puzzle_line = puzzle_printerizer(puzzle)
+            if len(description) + len(puzzle_line) > 2000:
+                await ctx.author.send("", embed=discord.Embed(description=description))
+                description = puzzle_line
+            else:
+                description += "\n" + puzzle_line
+        await ctx.author.send("", embed=discord.Embed(description=description))
+
     @commands.command(hidden=True)
     async def cleanup_channels(self, ctx):
         await self.delete_message_if_possible(ctx.message)
@@ -223,6 +289,9 @@ class HerringCog(commands.Cog):
             "Are you sure you want to do this?",
             lambda b: "Yes" if b else "Dry Run"
         )
+        if really_do_it is None:
+            # timed out, bail
+            return
 
         @sync_to_async
         def get_rounds_and_puzzles():
@@ -365,7 +434,7 @@ class HerringCog(commands.Cog):
             description += "\n".join(f"{reaction} : {printerizer(option)}" for reaction, option in zip(MENU_REACTIONS, options[start:]))
             if len(options) > start + len(MENU_REACTIONS):
                 description += f"\n{MENU_EXTRA_REACTION} : Something else"
-            menu = await target.send("", embed = discord.Embed(description=description))
+            menu = await target.send("", embed=discord.Embed(description=description))
             for reaction, option in zip(MENU_REACTIONS, options[start:]):
                 await menu.add_reaction(reaction)
             if len(options) > start + len(MENU_REACTIONS):
@@ -373,11 +442,15 @@ class HerringCog(commands.Cog):
 
             idx = None
             while idx is None:
-                reaction, user = await self.bot.wait_for("reaction_add", check=lambda r, u: r.message.id == menu.id and u != self.bot.user)
-                if reaction.emoji == MENU_EXTRA_REACTION:
-                    idx = -1
-                else:
-                    idx = MENU_REACTION_LOOKUP[reaction.emoji]
+                try:
+                    reaction, user = await self.bot.wait_for("reaction_add", check=lambda r, u: r.message.id == menu.id and u != self.bot.user, timeout=900)
+                    if reaction.emoji == MENU_EXTRA_REACTION:
+                        idx = -1
+                    else:
+                        idx = MENU_REACTION_LOOKUP[reaction.emoji]
+                except asyncio.TimeoutError:
+                    # we want to clean these up after a while so we don't leak tasks forever if people don't follow through
+                    return None
 
             if idx != -1:
                 return options[start + idx]
@@ -410,7 +483,9 @@ class HerringListenerBot(commands.Bot):
     access this bot directly, because it only exists in one of the worker processes.
     """
     def __init__(self, *args, **kwargs):
-        super().__init__(command_prefix, *args, **kwargs)
+        intents = discord.Intents.default()
+        intents.members = True
+        super().__init__(command_prefix, *args, intents=intents, **kwargs)
         self.add_cog(HerringCog(self))
 
 
@@ -489,15 +564,20 @@ class HerringAnnouncerBot(discord.Client):
 
 
 async def _make_puzzle_channels_inner(category: discord.CategoryChannel, puzzle: Puzzle):
-    puzzle_name = puzzle.name
-    if len(puzzle_name) >= 30:
-        puzzle_name = puzzle_name[:29] + '\N{HORIZONTAL ELLIPSIS}'
+    puzzle_name = _abbreviate_name(puzzle)
     topic = f"{puzzle_name} - Sheet: {settings.HERRING_HOST}/s/{puzzle.id} - Puzzle: {puzzle.hunt_url}"
     # setting position=0 doesn't work
     position = 1 if puzzle.is_meta else puzzle.number + 10
     text_channel = await category.create_text_channel(puzzle.slug, topic=topic, position=position)
     voice_channel = await category.create_voice_channel(puzzle.slug, position=position)
     return text_channel, voice_channel
+
+
+def _abbreviate_name(puzzle):
+    puzzle_name = puzzle.name
+    if len(puzzle_name) >= 30:
+        puzzle_name = puzzle_name[:29] + '\N{HORIZONTAL ELLIPSIS}'
+    return puzzle_name
 
 
 async def _make_category_inner(guild: discord.Guild, name: str):
