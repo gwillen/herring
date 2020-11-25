@@ -2,12 +2,14 @@ import asyncio
 import collections
 import logging
 import threading
+import typing
+from datetime import timezone
 
 import discord
-import typing
 from asgiref.sync import sync_to_async
 from discord.ext import commands
 from discord.utils import get
+from django.db import transaction
 
 from herring import settings
 from puzzles.models import Round, Puzzle
@@ -66,6 +68,29 @@ class HerringCog(commands.Cog):
             message: discord.Message = await self.announce_channel.fetch_message(payload.message_id)
             target_channel = message.channel_mentions[0]
             await self.add_user_to_puzzle(payload.member, target_channel.name)
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        if message.author.id == self.bot.user.id:
+            return
+
+        context: commands.Context = await self.bot.get_context(message)
+        if context.valid:
+            # this is a command, not puzzle activity
+            return
+
+        def record_activity(puzzle: Puzzle):
+            dt = message.created_at.replace(tzinfo=timezone.utc)
+            puzzle.record_activity(dt)
+            row, created = puzzle.channelparticipation_set.get_or_create(
+                user_id=message.author.id,
+                defaults=dict(last_active=dt, is_member=True))
+            if not created and (row.last_active is None or row.last_active < dt):
+                row.last_active = dt
+                row.is_member = True
+                row.save(update_fields=['last_active', 'is_member'])
+
+        await self._manipulate_puzzle(message.channel.name, record_activity)
 
     @commands.command(brief="Join a puzzle channel")
     async def join(self, ctx:commands.Context, channel:typing.Optional[discord.TextChannel]):
@@ -219,13 +244,37 @@ class HerringCog(commands.Cog):
 
     @staticmethod
     @sync_to_async
-    def _manipulate_puzzle(puzzle_name, func):
+    def _manipulate_puzzle(puzzle, func):
         try:
-            puzzle = Puzzle.objects.get(slug=puzzle_name)
-            func(puzzle)
-            puzzle.save()
+            with transaction.atomic():
+                if isinstance(puzzle, str):
+                    puzzle = Puzzle.objects.select_for_update().get(slug=puzzle)
+                func(puzzle)
+                puzzle.save()
         except Puzzle.DoesNotExist:
             return
+
+    # not async! deals with database mostly; intended to be called from inside a _manipulate_puzzle
+    def _update_channel_participation(self, puzzle):
+        text_channel, _ = self.get_channel_pair(puzzle.slug)
+        membership = set(str(member.id) for member in text_channel.overwrites)
+        membership.remove(str(self.bot.user.id))
+        membership.remove(str(self.guild.default_role.id))
+        n = len(membership)
+        logging.info(f"updating membership for {puzzle.slug} to {membership}")
+        puzzle.channel_count = n
+
+        puzzle.channelparticipation_set \
+            .exclude(user_id__in=membership) \
+            .update(is_member=False)
+
+        for row in puzzle.channelparticipation_set.filter(is_member=True):
+            membership.remove(row.user_id)
+
+        for user_id in membership:
+            puzzle.channelparticipation_set.update_or_create(
+                user_id=user_id,
+                defaults=dict(is_member=True))
 
     @commands.command(aliases=["status"], brief="Show stats about puzzles")
     async def who(self, ctx, puzzle_name:typing.Optional[discord.TextChannel]):
@@ -395,6 +444,7 @@ class HerringCog(commands.Cog):
                             await voice_channel.edit(category=new_categories[intended_category_idx])
                         else:
                             await ctx.author.send(f"Moving {puzzle.name} to category {round.name} {intended_category_idx}")
+                await self._manipulate_puzzle(puzzle, self._update_channel_participation)
             # finally, put the metapuzzles back
             for puzzle in metapuzzles_by_round[round.id]:
                 text_channel, voice_channel = self.get_channel_pair(puzzle.slug)
@@ -409,6 +459,7 @@ class HerringCog(commands.Cog):
                         await voice_channel.edit(category=new_categories[0])
                     else:
                         await ctx.author.send(f"Moving meta {puzzle.name} to category {round.name}")
+                await self._manipulate_puzzle(puzzle, self._update_channel_participation)
 
     @staticmethod
     async def delete_message_if_possible(request_message):
@@ -421,6 +472,8 @@ class HerringCog(commands.Cog):
 
         await text_channel.set_permissions(member, read_messages=True)
         await voice_channel.set_permissions(member, view_channel=True)
+
+        await self._manipulate_puzzle(puzzle_name, self._update_channel_participation)
         return text_channel
 
     def get_channel_pair(self, puzzle_name):
@@ -433,6 +486,7 @@ class HerringCog(commands.Cog):
 
         await text_channel.set_permissions(member, overwrite=None)
         await voice_channel.set_permissions(member, overwrite=None)
+        await self._manipulate_puzzle(puzzle_name, self._update_channel_participation)
 
     async def do_menu(self, target, options, prompt, printerizer=(lambda x: x)):
         start = 0

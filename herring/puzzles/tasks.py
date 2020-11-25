@@ -385,7 +385,7 @@ def update_slack_channel_membership(channel_id):
             .exclude(user_id__in=membership)\
             .update(is_member=False)
 
-        for row in puzzle.channelparticipation_set.filter(is_member=True).values():
+        for row in puzzle.channelparticipation_set.filter(is_member=True):
             membership.remove(row.user_id)
 
         for user_id in membership:
