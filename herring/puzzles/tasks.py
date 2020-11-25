@@ -393,8 +393,6 @@ def update_slack_channel_membership(channel_id):
                 user_id=user_id,
                 defaults=dict(is_member=True))
 
-    # TODO do something similar for Discord
-
     logging.info("update_slack_channel_membership: For puzzle %s, set channel_count = %d", slug, n)
 
 

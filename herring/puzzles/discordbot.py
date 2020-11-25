@@ -444,6 +444,9 @@ class HerringCog(commands.Cog):
                             await voice_channel.edit(category=new_categories[intended_category_idx])
                         else:
                             await ctx.author.send(f"Moving {puzzle.name} to category {round.name} {intended_category_idx}")
+                    new_topic = _build_topic(puzzle)
+                    if text_channel.topic != new_topic:
+                        await text_channel.edit(topic=new_topic)
                 await self._manipulate_puzzle(puzzle, self._update_channel_participation)
             # finally, put the metapuzzles back
             for puzzle in metapuzzles_by_round[round.id]:
@@ -459,6 +462,9 @@ class HerringCog(commands.Cog):
                         await voice_channel.edit(category=new_categories[0])
                     else:
                         await ctx.author.send(f"Moving meta {puzzle.name} to category {round.name}")
+                    new_topic = _build_topic(puzzle)
+                    if text_channel.topic != new_topic:
+                        await text_channel.edit(topic=new_topic)
                 await self._manipulate_puzzle(puzzle, self._update_channel_participation)
 
     @staticmethod
@@ -625,13 +631,18 @@ class HerringAnnouncerBot(discord.Client):
 
 
 async def _make_puzzle_channels_inner(category: discord.CategoryChannel, puzzle: Puzzle):
-    puzzle_name = _abbreviate_name(puzzle)
-    topic = f"{puzzle_name} - Sheet: {settings.HERRING_HOST}/s/{puzzle.id} - Puzzle: {puzzle.hunt_url}"
+    topic = _build_topic(puzzle)
     # setting position=0 doesn't work
     position = 1 if puzzle.is_meta else puzzle.number + 10
     text_channel = await category.create_text_channel(puzzle.slug, topic=topic, position=position)
     voice_channel = await category.create_voice_channel(puzzle.slug, position=position)
     return text_channel, voice_channel
+
+
+def _build_topic(puzzle):
+    puzzle_name = _abbreviate_name(puzzle)
+    topic = f"{puzzle_name} - Sheet: {settings.HERRING_HOST}/s/{puzzle.id} - Puzzle: {puzzle.hunt_url}"
+    return topic
 
 
 def _abbreviate_name(puzzle):
