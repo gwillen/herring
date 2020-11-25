@@ -229,6 +229,13 @@ class HerringCog(commands.Cog):
 
     @commands.command(aliases=["status"], brief="Show stats about puzzles")
     async def who(self, ctx, puzzle_name:typing.Optional[discord.TextChannel]):
+        """
+        Reports status of puzzles, including who is currently in the voice chat (if anyone). Can take a puzzle
+        channel name, in which case it only reports that puzzle; otherwise it PMs the user a menu to choose the round
+        :param ctx:
+        :param puzzle_name: (optional) A particular puzzle channel you're curious about
+        :return:
+        """
         await self.delete_message_if_possible(ctx.message)
 
         def puzzle_printerizer(puzzle):
