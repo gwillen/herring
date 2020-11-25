@@ -435,14 +435,15 @@ class HerringAnnouncerBot(discord.Client):
         announcement = await self.announce_channel.send(f"New puzzle {puzzle.name} opened! {SIGNUP_EMOJI} this message to join, then head to {text_channel.mention}.")
         await announcement.add_reaction(SIGNUP_EMOJI)
 
-    async def post_local_and_global(self, puzzle_name, local_message, global_message):
+    async def post_local_and_global(self, puzzle_name, local_message, global_message:str):
         await self._really_ready.wait()
-        channel = get(self.guild.text_channels, name=puzzle_name)
+        channel: discord.TextChannel = get(self.guild.text_channels, name=puzzle_name)
         if channel is None:
             logging.error(f"Couldn't get Discord channel {puzzle_name} in post_local_and_global!")
             return
 
         await channel.send(local_message)
+        global_message = global_message.replace(f"#{puzzle_name}", channel.mention)
         await self.announce_channel.send(global_message)
 
 
