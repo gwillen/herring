@@ -70,10 +70,20 @@ export default class PuzzleComponent extends React.Component {
         }
         var slackButton;
         if (this.props.settings.slack) {
+          var href;
+          if (this.props.uiSettings.app_links){
+            if (puzzle.slack_channel_id) {
+            href = `slack://channel?team=T0ESH0TS5&id=${puzzle.slack_channel_id}`
+            } else {
+              href = `https://ireproof.slack.com/app_redirect?channel=${puzzle.slug}`
+            }
+          } else {
+            href = `https://ireproof.slack.com/messages/${puzzle.slug}`
+          }
           slackButton = (
               <a
                   title={ `#${puzzle.slug}` }
-                  href={ `https://ireproof.slack.com/messages/${puzzle.slug}/` }
+                  href={ href }
                   target="_blank" rel="noopener">
                 <img className="messaging-logo" src={ slackIcon } alt={ `Slack` } />
               </a>
@@ -81,12 +91,23 @@ export default class PuzzleComponent extends React.Component {
         }
         var discordButton;
         if (this.props.settings.discord) {
-          discordButton = (
-              <CopyToClipboard
-                  text={ `hb!join ${puzzle.slug}` }>
-                <img className="messaging-logo" src={ discordIcon } alt={ `Discord` } title={ `Click to copy!` }/>
-              </CopyToClipboard>
-          )
+          if (this.props.settings.profile.discord_identifier) {
+            discordButton = (
+                <a
+                    title={ `#${puzzle.slug}` }
+                    href={ `/disc/${puzzle.id}/${Number(this.props.uiSettings.app_links)}` }
+                    target="_blank" rel="noopener">
+                  <img className="messaging-logo" src={ discordIcon } alt={ `Discord` } />
+                </a>
+            )
+          } else {
+            discordButton = (
+                <CopyToClipboard
+                    text={`hb!join ${puzzle.slug}`}>
+                  <img className="messaging-logo" src={discordIcon} alt={`Discord`} title={`Click to copy!`}/>
+                </CopyToClipboard>
+            )
+          }
         }
         return (
             <div key={ puzzle.id } className="row">
@@ -182,4 +203,5 @@ PuzzleComponent.propTypes = {
     parent: PropTypes.object,
     changeMade: PropTypes.func,
     settings: PropTypes.object,
+    uiSettings: PropTypes.object,
 };

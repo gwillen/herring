@@ -20,13 +20,16 @@ export default class RoundsComponent extends React.Component {
                                     round={ round }
                                     changeMade={ this.changeMade }
                                     settings={ this.props.settings }
+                                    uiSettings={ this.props.uiSettings }
                                     { ...this.state } />);
         return (
             <div>
                 <div className='row'>
                     <div className="col-xs-12">
                         <Filters updateFulltextFilter={ this.changeFilter }
-                                 updateAnswerFilter={ this.toggleAnswerStatus } />
+                                 updateAnswerFilter={ this.toggleAnswerStatus }
+                                 toggleLinkType={ this.props.toggleLinkType }
+                        />
                     </div>
                 </div>
                 { rs.length > 0 ? rs : <p>No puzzles are available</p> }
@@ -48,5 +51,7 @@ export default class RoundsComponent extends React.Component {
 RoundsComponent.propTypes = {
     rounds: PropTypes.arrayOf(RoundShape.isRequired).isRequired,
     changeMade: PropTypes.func,
-    settings: PropTypes.object
+    settings: PropTypes.object,
+    uiSettings: PropTypes.object,
+    toggleLinkType: PropTypes.func.isRequired
 };

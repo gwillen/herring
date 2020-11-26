@@ -28,6 +28,13 @@ export default class Filters extends React.Component {
                         Unsolved
                     </label>
                 </div>
+                <div>
+                    <label>
+                        <input type="checkbox"
+                               onChange={ this.props.toggleLinkType } />
+                        Use app links
+                    </label>
+                </div>
             </div>
         );
     }
@@ -42,4 +49,5 @@ export default class Filters extends React.Component {
 Filters.propTypes = {
     updateFulltextFilter: PropTypes.func.isRequired,
     updateAnswerFilter: PropTypes.func.isRequired,
+    toggleLinkType: PropTypes.func.isRequired,
 };

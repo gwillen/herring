@@ -9,7 +9,7 @@ import json
 import kombu.exceptions
 from lazy_object_proxy import Proxy as lazy_object
 from puzzles.discordbot import make_announcer_bot, make_listener_bot
-from puzzles.models import Puzzle, Round
+from puzzles.models import Puzzle, Round, UserProfile
 from puzzles.spreadsheets import iterate_changes, make_sheet
 from redis import Redis
 import slacker
@@ -52,12 +52,13 @@ def REDIS():
     return Redis.from_url(settings.REDIS_URL, max_connections=1)
 
 
-@lazy_object
-def DISCORD_ANNOUNCER():
+def make_discord_announcer():
     if not settings.HERRING_ACTIVATE_DISCORD:
         logging.warning("Running without Discord integration!")
         return None
     return make_announcer_bot(settings.HERRING_SECRETS['discord-bot-token'])
+
+DISCORD_ANNOUNCER = make_discord_announcer()
 
 _optional_tasks_enabled = None
 
@@ -164,7 +165,6 @@ def create_puzzle_sheet_and_channel(self, slug):
         sheet_id = make_sheet(sheet_title)
 
         puzzle.sheet_id = sheet_id
-        puzzle.save()
 
     if settings.HERRING_ACTIVATE_SLACK:
         try:
@@ -174,6 +174,8 @@ def create_puzzle_sheet_and_channel(self, slug):
             created = SLACK.channels.join(slug)
 
         channel_id = created.body['channel']['id']
+        puzzle.slack_channel_id = channel_id
+
         puzzle_name = puzzle.name
         if len(puzzle_name) >= 30:
             puzzle_name = puzzle_name[:29] + '\N{HORIZONTAL ELLIPSIS}'
@@ -194,6 +196,8 @@ def create_puzzle_sheet_and_channel(self, slug):
         )
 
         SLACK.chat.post_message(status_channel_id, new_channel_msg, link_names=True, as_user=True)
+
+    puzzle.save()
 
     if settings.HERRING_ACTIVATE_DISCORD:
         DISCORD_ANNOUNCER.do_in_loop(DISCORD_ANNOUNCER.make_puzzle_channels(puzzle))
@@ -258,6 +262,7 @@ def scrape_activity_log():
             display_unlocks = ", ".join(["{} in {} ({})".format(x[2], x[3], x[1]) for x in new_unlocks])
             activity_msg = "There are {} unlocks without puzzle pages: {}".format(len(new_unlocks), display_unlocks)
             SLACK.chat.post_message(bullshit_channel_id, activity_msg, link_names=True, as_user=True)
+
 
 @shared_task(ignore_result=True)
 def check_connection_to_messaging():
@@ -341,6 +346,10 @@ def record_slack_activity(channel_id, user_id, timestamp):
     try:
         with transaction.atomic():
             puzzle = Puzzle.objects.select_for_update().get(slug=slug)
+            if puzzle.slack_channel_id != channel_id:
+                # this shouldn't ever really happen, just a fixup
+                puzzle.slack_channel_id = channel_id
+                puzzle.save(update_fields=['slack_channel_id'])
             if puzzle.record_activity(dt):
                 puzzle.save(update_fields=['last_active', 'activity_tracker'])
     except Puzzle.DoesNotExist:
@@ -440,3 +449,20 @@ def fetch_latest_sheet_changes():
     page_token = yield from iterate_changes(page_token)
 
     REDIS.set(start_page_token_key, page_token)
+
+
+@shared_task(rate_limit=0.5)
+def add_user_to_puzzle(user_id, puzzle_name):
+    logging.debug("add_user_to_puzzle: %r, %r", user_id, puzzle_name)
+    if not settings.HERRING_ACTIVATE_DISCORD:
+        return
+    try:
+        user = UserProfile.objects.get(user_id=user_id)
+    except UserProfile.DoesNotExist:
+        # oh well, we tried
+        return
+    channel = DISCORD_ANNOUNCER.do_in_loop(DISCORD_ANNOUNCER.add_user_to_puzzle(user, puzzle_name))
+    if channel is None:
+        # not sure what happened here
+        return
+    return channel.id

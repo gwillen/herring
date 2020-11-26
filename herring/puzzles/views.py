@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 
 from cachetools.func import ttl_cache
@@ -7,13 +8,13 @@ from django.conf import settings
 from django.db.models import Count, F
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.decorators.csrf import csrf_exempt
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, HttpResponseRedirect
 import django.contrib.auth
 from django.contrib.auth.decorators import login_required
 
-from puzzles.tasks import scrape_activity_log
+from puzzles.tasks import scrape_activity_log, add_user_to_puzzle
 
-from .models import ChannelParticipation, Round, Puzzle, to_json_value
+from .models import ChannelParticipation, Round, Puzzle, to_json_value, UserProfile
 
 @login_required
 def logout(request):
@@ -40,11 +41,17 @@ def get_resources(request):
 
 @login_required
 def get_puzzles(request):
+    try:
+        profile = UserProfile.objects.get(user_id=request.user.id)
+    except UserProfile.DoesNotExist:
+        profile = {}
     data = {
         'rounds': Round.objects.filter(hunt_id=settings.HERRING_HUNT_ID),
         'settings': {
-            'slack': settings.HERRING_ACTIVATE_SLACK,
-            'discord': settings.HERRING_ACTIVATE_DISCORD
+            'slack': True,
+#            'slack': settings.HERRING_ACTIVATE_SLACK,
+            'discord': settings.HERRING_ACTIVATE_DISCORD,
+            'profile': profile,
         }
     }
     print("Serializing puzzle data.")
@@ -58,11 +65,26 @@ def one_puzzle(request, puzzle_id):
     else:
         return get_one_puzzle(request, puzzle_id)
 
-
 @login_required
 def puzzle_spreadsheet(request, puzzle_id):
     puzzle = get_object_or_404(Puzzle, pk=puzzle_id)
-    return redirect(f'https://docs.google.com/spreadsheets/d/{puzzle.sheet_id}/edit')
+    return redirect(f'https://docs.google.com/spreadsheets/d/{puzzle.sheet_id}/edit', permanent=True)
+
+
+class DiscordRedirect(HttpResponseRedirect):
+    allowed_schemes = ['https', 'discord']
+
+@login_required
+def discord_channel_link(request, puzzle_id, use_app):
+    puzzle = get_object_or_404(Puzzle, pk=puzzle_id)
+    user = request.user.id
+    # intentional non-delayed task, because we don't have a results backend set up and we need to
+    # wait until it finishes before redirecting!
+    channel_id = add_user_to_puzzle(user, puzzle.slug)
+    protocol = 'discord' if use_app else 'https'
+    url = f'{protocol}://discordapp.com/channels/{settings.HERRING_DISCORD_GUILD_ID}/{channel_id}'
+    logging.info(f'redirecting {request.user} to {url}')
+    return DiscordRedirect(url)
 
 
 def to_channel(title):

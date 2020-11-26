@@ -40,6 +40,7 @@ export default class RoundComponent extends React.Component {
                              parent={ round }
                              changeMade={ this.changeMade }
                              settings={ this.props.settings }
+                             uiSettings={ this.props.uiSettings }
             />);
         var caret = (
             <button onClick={ this.onCaretClick }>
@@ -119,4 +120,5 @@ RoundComponent.propTypes = {
     filter: PropTypes.string.isRequired,
     showAnswered: PropTypes.bool.isRequired,
     settings: PropTypes.object,
+    uiSettings: PropTypes.object,
 };

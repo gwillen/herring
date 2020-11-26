@@ -7,7 +7,11 @@ import NavHeaderComponent from './components/nav-header';
 import RoundsComponent from './components/rounds';
 
 class Page extends React.Component {
-  state = {};
+  state = {
+    uiSettings: {
+      app_links: false
+    }
+  };
   componentDidMount() {
     this.loadDataFromServer();
     setInterval(this.loadDataFromServer, this.props.pollInterval);
@@ -33,6 +37,8 @@ class Page extends React.Component {
             <RoundsComponent rounds={ this.state.rounds }
                              changeMade={ this.loadDataFromServer }
                              settings={ this.state.settings }
+                             uiSettings={ this.state.uiSettings }
+                             toggleLinkType={ this.toggleLinkType }
             />
           </div>);
     } else {
@@ -43,6 +49,12 @@ class Page extends React.Component {
     request('GET', '/puzzles/').done(res =>
       this.setState(JSON.parse(res.getBody())));
   };
+  toggleLinkType = () => {
+    // this just deep-merges into state.uiSettings
+    this.setState(state => ({
+      uiSettings: {...state.uiSettings, app_links: !state.uiSettings.app_links}
+    }))
+  }
 }
 
 var page = <Page pollInterval={ 10000 } />;

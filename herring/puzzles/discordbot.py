@@ -12,7 +12,7 @@ from discord.utils import get
 from django.db import transaction
 
 from herring import settings
-from puzzles.models import Round, Puzzle
+from puzzles.models import Round, Puzzle, UserProfile
 
 # Discord limits a user to putting 20 emojis on a message, so if this is more than 19, the menu won't work
 # also, an embed is limited to length 2048, which isn't really very long
@@ -90,7 +90,7 @@ class HerringCog(commands.Cog):
                 row.is_member = True
                 row.save(update_fields=['last_active', 'is_member'])
 
-        await self._manipulate_puzzle(message.channel.name, record_activity)
+        await _manipulate_puzzle(message.channel.name, record_activity)
 
     @commands.command(brief="Join a puzzle channel")
     async def join(self, ctx:commands.Context, channel:typing.Optional[discord.TextChannel]):
@@ -188,7 +188,7 @@ class HerringCog(commands.Cog):
         await self.delete_message_if_possible(ctx.message)
         def answer_puzzle(puzzle):
             puzzle.answer = answer
-        await self._manipulate_puzzle(ctx.channel.name, answer_puzzle)
+        await _manipulate_puzzle(ctx.channel.name, answer_puzzle)
 
     @commands.command(brief="Add a tag to a puzzle")
     async def tag(self, ctx, *, tag):
@@ -205,7 +205,7 @@ class HerringCog(commands.Cog):
             if tag not in tags:
                 tags.append(tag)
             puzzle.tags = self._combine_tags(tags)
-        await self._manipulate_puzzle(ctx.channel.name, tag_puzzle)
+        await _manipulate_puzzle(ctx.channel.name, tag_puzzle)
 
     @commands.command(brief="Remove a tag from a puzzle")
     async def untag(self, ctx, *, tag):
@@ -219,7 +219,7 @@ class HerringCog(commands.Cog):
         def untag_puzzle(puzzle):
             tags = self._parse_tags(puzzle)
             puzzle.tags = self._combine_tags([t for t in tags if t != tag])
-        await self._manipulate_puzzle(ctx.channel.name, untag_puzzle)
+        await _manipulate_puzzle(ctx.channel.name, untag_puzzle)
 
     @staticmethod
     def _parse_tags(puzzle):
@@ -240,41 +240,16 @@ class HerringCog(commands.Cog):
         await self.delete_message_if_possible(ctx.message)
         def note_puzzle(puzzle):
             puzzle.note = note
-        await self._manipulate_puzzle(ctx.channel.name, note_puzzle)
-
-    @staticmethod
-    @sync_to_async
-    def _manipulate_puzzle(puzzle, func):
-        try:
-            with transaction.atomic():
-                if isinstance(puzzle, str):
-                    puzzle = Puzzle.objects.select_for_update().get(slug=puzzle)
-                func(puzzle)
-                puzzle.save()
-        except Puzzle.DoesNotExist:
-            return
+        await _manipulate_puzzle(ctx.channel.name, note_puzzle)
 
     # not async! deals with database mostly; intended to be called from inside a _manipulate_puzzle
     def _update_channel_participation(self, puzzle):
         text_channel, _ = self.get_channel_pair(puzzle.slug)
-        membership = set(str(member.id) for member in text_channel.overwrites)
-        membership.remove(str(self.bot.user.id))
-        membership.remove(str(self.guild.default_role.id))
-        n = len(membership)
-        logging.info(f"updating membership for {puzzle.slug} to {membership}")
-        puzzle.channel_count = n
-
-        puzzle.channelparticipation_set \
-            .exclude(user_id__in=membership) \
-            .update(is_member=False)
-
-        for row in puzzle.channelparticipation_set.filter(is_member=True):
-            membership.remove(row.user_id)
-
-        for user_id in membership:
-            puzzle.channelparticipation_set.update_or_create(
-                user_id=user_id,
-                defaults=dict(is_member=True))
+        membership = set(member.id for member in text_channel.overwrites)
+        membership.remove(self.bot.user.id)
+        membership.remove(self.guild.default_role.id)
+        membership = [str(id) for id in membership]
+        _update_channel_participation_inner(puzzle, membership)
 
     @commands.command(aliases=["status"], brief="Show stats about puzzles")
     async def who(self, ctx, puzzle_name:typing.Optional[discord.TextChannel]):
@@ -447,7 +422,7 @@ class HerringCog(commands.Cog):
                     new_topic = _build_topic(puzzle)
                     if text_channel.topic != new_topic:
                         await text_channel.edit(topic=new_topic)
-                await self._manipulate_puzzle(puzzle, self._update_channel_participation)
+                await _manipulate_puzzle(puzzle, self._update_channel_participation)
             # finally, put the metapuzzles back
             for puzzle in metapuzzles_by_round[round.id]:
                 text_channel, voice_channel = self.get_channel_pair(puzzle.slug)
@@ -465,7 +440,7 @@ class HerringCog(commands.Cog):
                     new_topic = _build_topic(puzzle)
                     if text_channel.topic != new_topic:
                         await text_channel.edit(topic=new_topic)
-                await self._manipulate_puzzle(puzzle, self._update_channel_participation)
+                await _manipulate_puzzle(puzzle, self._update_channel_participation)
 
     @staticmethod
     async def delete_message_if_possible(request_message):
@@ -476,10 +451,9 @@ class HerringCog(commands.Cog):
     async def add_user_to_puzzle(self, member: discord.Member, puzzle_name: str):
         text_channel, voice_channel = self.get_channel_pair(puzzle_name)
 
-        await text_channel.set_permissions(member, read_messages=True)
-        await voice_channel.set_permissions(member, view_channel=True)
+        await _add_user_to_channels(member, text_channel, voice_channel)
 
-        await self._manipulate_puzzle(puzzle_name, self._update_channel_participation)
+        await _manipulate_puzzle(puzzle_name, self._update_channel_participation)
         return text_channel
 
     def get_channel_pair(self, puzzle_name):
@@ -492,7 +466,7 @@ class HerringCog(commands.Cog):
 
         await text_channel.set_permissions(member, overwrite=None)
         await voice_channel.set_permissions(member, overwrite=None)
-        await self._manipulate_puzzle(puzzle_name, self._update_channel_participation)
+        await _manipulate_puzzle(puzzle_name, self._update_channel_participation)
 
     async def do_menu(self, target, options, prompt, printerizer=(lambda x: x)):
         start = 0
@@ -564,7 +538,9 @@ class HerringAnnouncerBot(discord.Client):
     running at once, so each copy would react.
     """
     def __init__(self, *args, **kwargs):
-        super(HerringAnnouncerBot, self).__init__(*args, **kwargs)
+        intents = discord.Intents.default()
+        intents.members = True
+        super(HerringAnnouncerBot, self).__init__(*args, intents=intents, **kwargs)
         self.guild = None
         self.announce_channel = None
         self._really_ready = asyncio.Event()
@@ -629,6 +605,30 @@ class HerringAnnouncerBot(discord.Client):
         global_message = global_message.replace(f"#{puzzle_name}", channel.mention)
         await self.announce_channel.send(global_message)
 
+    async def add_user_to_puzzle(self, user_profile: UserProfile, puzzle_name):
+        await self._really_ready.wait()
+        text_channel, voice_channel = self.get_channel_pair(puzzle_name)
+        if text_channel is None:
+            return
+        member = self.guild.get_member_named(user_profile.discord_identifier)
+        if member is None:
+            logging.warning(f"couldn't find member named {user_profile.discord_identifier}")
+            return
+        await _add_user_to_channels(member, text_channel, voice_channel)
+        membership = set(member.id for member in text_channel.overwrites)
+        membership.remove(self.guild.default_role.id)
+        membership.remove(self.user.id)
+        membership = [str(id) for id in membership]
+
+        await _manipulate_puzzle(puzzle_name, lambda puzzle: _update_channel_participation_inner(puzzle, membership))
+        return text_channel
+
+    def get_channel_pair(self, puzzle_name):
+        text_channel: discord.TextChannel = get(self.guild.text_channels, name=puzzle_name)
+        voice_channel: discord.VoiceChannel = get(self.guild.voice_channels, name=puzzle_name)
+        return text_channel, voice_channel
+
+# Shared utilities that both bots use
 
 async def _make_puzzle_channels_inner(category: discord.CategoryChannel, puzzle: Puzzle):
     topic = _build_topic(puzzle)
@@ -660,6 +660,40 @@ async def _make_category_inner(guild: discord.Guild, name: str):
 
     return await guild.create_category(name, overwrites=overwrites)
 
+
+@sync_to_async
+def _manipulate_puzzle(puzzle:typing.Union[Puzzle, str], func):
+    try:
+        with transaction.atomic():
+            if isinstance(puzzle, str):
+                puzzle = Puzzle.objects.select_for_update().get(slug=puzzle)
+            func(puzzle)
+            puzzle.save()
+    except Puzzle.DoesNotExist:
+        return
+
+
+async def _add_user_to_channels(member, text_channel, voice_channel):
+    await text_channel.set_permissions(member, read_messages=True)
+    await voice_channel.set_permissions(member, view_channel=True)
+
+
+def _update_channel_participation_inner(puzzle, membership):
+    n = len(membership)
+    logging.info(f"updating membership for {puzzle.slug} to {membership}")
+    puzzle.channel_count = n
+    puzzle.channelparticipation_set \
+        .exclude(user_id__in=membership) \
+        .update(is_member=False)
+    for row in puzzle.channelparticipation_set.filter(is_member=True):
+        membership.remove(row.user_id)
+    for user_id in membership:
+        puzzle.channelparticipation_set.update_or_create(
+            user_id=user_id,
+            defaults=dict(is_member=True))
+
+
+# Public factory methods
 
 def make_listener_bot(loop):
     return HerringListenerBot(loop=loop)

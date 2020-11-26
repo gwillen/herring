@@ -79,6 +79,7 @@ class Puzzle(models.Model,JSONMixin):
     last_active = models.DateTimeField(auto_now_add=True, editable=False)
     channel_count = models.PositiveIntegerField(default=0, editable=False)
     activity_tracker = models.BigIntegerField(default=0, editable=False)
+    slack_channel_id = models.CharField(max_length=30, default='', editable=False)
 
     tracker = FieldTracker()
 
@@ -86,7 +87,7 @@ class Puzzle(models.Model,JSONMixin):
         ordering = ['parent', '-is_meta', 'number', 'id']
 
     class Json:
-        include_fields = ['id', 'name', 'number', 'answer', 'note', 'tags', 'is_meta', 'hunt_url', 'slug', 'channel_count', 'activity_histo', 'last_active']
+        include_fields = ['id', 'name', 'number', 'answer', 'note', 'tags', 'is_meta', 'hunt_url', 'slug', 'channel_count', 'activity_histo', 'last_active', 'slack_channel_id']
 
     # XXX: This is arguably misnamed now that it no longer includes the puzzle number. It's just a prefix.
     def identifier(self):
@@ -161,14 +162,17 @@ class Puzzle(models.Model,JSONMixin):
         cls.objects.bulk_update(objs, ['last_active', 'activity_tracker'], batch_size=50)
 
 
-class UserProfile(models.Model):
+class UserProfile(models.Model, JSONMixin):
     user = models.OneToOneField(
             settings.AUTH_USER_MODEL,
             on_delete=models.CASCADE,
             related_name='profile',
     )
-    avatar_url = models.CharField(max_length=200)
+    avatar_url = models.CharField(max_length=200, **optional)
     discord_identifier = models.CharField(max_length=200, **optional)
+
+    class Json:
+        include_fields = ['avatar_url', 'discord_identifier']
 
     def __str__(self):
         return "profile for " + self.user.__str__()

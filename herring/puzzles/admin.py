@@ -47,10 +47,12 @@ class RoundAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'name',)
     list_filter = (HuntIdListFilter,)
     search_fields = ['name']
+    readonly_fields = ('discord_categories',)
 
 
 class PuzzleAdmin(admin.ModelAdmin):
     exclude = ('answer', 'note', 'tags', 'sheet_id')
+    readonly_fields = ('slack_channel_id',)
     list_filter = (HuntIdListFilter,)
     search_fields = ['name']
 
