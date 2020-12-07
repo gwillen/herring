@@ -163,6 +163,8 @@ HERRING_ACTIVATE_GAPPS = env.bool('ACTIVATE_GAPPS', default=True)
 HERRING_ACTIVATE_SLACK = env.bool('ACTIVATE_SLACK', default=True)
 HERRING_ACTIVATE_DISCORD = env.bool('ACTIVATE_DISCORD', default=True)
 
+HERRING_SOLVERTOOLS_URL = env.get_value('SOLVERTOOLS_URL', default="http://ireproof.org/")
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,

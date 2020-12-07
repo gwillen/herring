@@ -4,7 +4,7 @@ set -eu
 
 # These are build dependencies for some of the Python packages in
 # requirements.txt.
-apk add gcc libffi-dev musl-dev openssl-dev postgresql-dev
+apk add gcc g++ libstdc++ libffi-dev musl-dev openssl-dev postgresql-dev
 
 pip install -r requirements.txt
 
@@ -43,7 +43,7 @@ EOF
 # quotation marks and escape sequences. Instead, we point it at /dev/null.
 #
 # Finally, we run two copies of the worker process, both to ensure that there's
-# enough concurrency despite the long-running Slack task that will occupy one
+# enough concurrency despite the long-running Slack/Discord task that will occupy one
 # of the worker subprocesses indefinitely, and to test that Celery Beat is
 # configured such that scaling up workers doesn't cause tasks to be
 # double-scheduled.

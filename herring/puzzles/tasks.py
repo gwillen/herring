@@ -8,7 +8,7 @@ from django.db import transaction
 import json
 import kombu.exceptions
 from lazy_object_proxy import Proxy as lazy_object
-from puzzles.discordbot import make_announcer_bot, make_listener_bot
+from puzzles.discordbot import make_announcer_bot, run_listener_bot
 from puzzles.models import Puzzle, Round, UserProfile
 from puzzles.spreadsheets import iterate_changes, make_sheet
 from redis import Redis
@@ -293,8 +293,7 @@ def check_connection_to_messaging():
 
 async def run_discord_listener_bot():
     if settings.HERRING_ACTIVATE_DISCORD:
-        listener_bot = make_listener_bot(get_event_loop())
-        await listener_bot.start(settings.HERRING_SECRETS['discord-bot-token'])
+        await run_listener_bot(get_event_loop())
 
 
 async def process_slack_messages_forever():

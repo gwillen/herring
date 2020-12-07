@@ -4,6 +4,8 @@ import logging
 import threading
 import typing
 from datetime import timezone
+from urllib.parse import urljoin
+import aiohttp
 
 import discord
 from asgiref.sync import sync_to_async
@@ -98,9 +100,7 @@ class HerringCog(commands.Cog):
         Join a puzzle channel. Including the exact name of the channel will just let you straight into it with
         no further fuss (this is what gets copied from the Herring UI). Otherwise, the bot will PM you with
         a menu interaction that will let you find the puzzle you're looking for.
-        :param ctx:
         :param channel: (optional) A specific channel to join
-        :return:
         """
         await self.delete_message_if_possible(ctx.message)
         member = self.guild.get_member(ctx.author.id)
@@ -160,9 +160,7 @@ class HerringCog(commands.Cog):
         Leave the puzzle channel in which you executed hb!leave, thus hiding it from you once more (once you click
         away). Technically you can also leave a channel by name from anywhere, because it was easy to write; I don't
         really see this capability as being very useful.
-        :param ctx:
         :param channel: (optional) A specific channel to leave.
-        :return:
         """
         await self.delete_message_if_possible(ctx.message)
         # using fetch_member() here so we don't have to turn on the members intent
@@ -181,9 +179,7 @@ class HerringCog(commands.Cog):
     async def answer(self, ctx, *, answer):
         """
         Register the answer to a puzzle in Herring. Must be called in a puzzle channel.
-        :param ctx:
         :param answer: The puzzle answer; spaces are allowed
-        :return:
         """
         await self.delete_message_if_possible(ctx.message)
         def answer_puzzle(puzzle):
@@ -195,9 +191,7 @@ class HerringCog(commands.Cog):
         """
         Add a tag to a puzzle (for example, "konundrum"). Must be called in a puzzle channel. Puzzles can have
         as many tags as you like (within reason, please).
-        :param ctx:
         :param tag: The tag to add
-        :return:
         """
         await self.delete_message_if_possible(ctx.message)
         def tag_puzzle(puzzle):
@@ -211,9 +205,7 @@ class HerringCog(commands.Cog):
     async def untag(self, ctx, *, tag):
         """
         Remove a tag from a puzzle. Must be called in a puzzle channel.
-        :param ctx:
         :param tag: The tag to remove
-        :return:
         """
         await self.delete_message_if_possible(ctx.message)
         def untag_puzzle(puzzle):
@@ -233,9 +225,7 @@ class HerringCog(commands.Cog):
     async def note(self, ctx, *, note):
         """
         Set the note for a puzzle, as a suggestion for future solvers. Must be called in a puzzle channel.
-        :param ctx:
         :param note: The note to set for future solvers
-        :return:
         """
         await self.delete_message_if_possible(ctx.message)
         def note_puzzle(puzzle):
@@ -256,9 +246,7 @@ class HerringCog(commands.Cog):
         """
         Reports status of puzzles, including who is currently in the voice chat (if anyone). Can take a puzzle
         channel name, in which case it only reports that puzzle; otherwise it PMs the user a menu to choose the round
-        :param ctx:
         :param puzzle_name: (optional) A particular puzzle channel you're curious about
-        :return:
         """
         await self.delete_message_if_possible(ctx.message)
 
@@ -509,6 +497,53 @@ class HerringCog(commands.Cog):
             await ctx.author.send(f"{category.name}: {channels_str}")
 
 
+class SolvertoolsCog(commands.Cog):
+
+    def __init__(self, bot:commands.Bot, client:aiohttp.ClientSession):
+        self.bot = bot
+        self.client_session = client
+
+    @commands.command(brief="Retrieve anagrams")
+    async def anagram(self, ctx, *, arg):
+        """
+        Returns a bunch of anagrams of the given letters, sorted by cromulence. You can use "+1" or "-3" to add positive
+        or negative wildcards, but more than two positive wildcards is unlikely to produce useful results.
+        :param arg: Some letters, optionally followed by + or - a number of wildcards
+        """
+        url = urljoin(settings.HERRING_SOLVERTOOLS_URL, "/api/anagram")
+        await self.api_passthrough_command(ctx, url, arg)
+
+    @commands.command(brief="Solve crossword clues, maybe")
+    async def clue(self, ctx, *, arg):
+        """
+        Ask solvertools to solve a crossword clue for you. This doesn't work all that well but sometimes it comes
+        through for you. You can add an enumeration such as (10) or a pattern like /..s....to./ (or any other
+        regular expression) to limit the responses.
+        :param arg: A crossowrd clue, optionally followed by an enumeration in () or regular expression in //
+        """
+        url = urljoin(settings.HERRING_SOLVERTOOLS_URL, "/api/clue")
+        await self.api_passthrough_command(ctx, url, arg)
+
+    @commands.command(brief="Retrieve words satisfying a pattern")
+    async def pattern(self, ctx, *, arg):
+        """
+        Get a bunch of words that satisfy a regular expression, sorted by cromulence.
+        :param arg: A regular expression, optionally enclosed in //
+        """
+        url = urljoin(settings.HERRING_SOLVERTOOLS_URL, "/api/pattern")
+        await self.api_passthrough_command(ctx, url, arg)
+
+    async def api_passthrough_command(self, ctx, url, args):
+        # this might take a while
+        await ctx.trigger_typing()
+        try:
+            async with self.client_session.get(url, params={"text": args}) as response:
+                result = await response.text()
+                await ctx.send(result[:1500])
+        except aiohttp.ClientError:
+            await ctx.send("Sorry, the connection to ireproof.org doesn't seem to be working today.")
+
+
 def command_prefix(bot, message:discord.Message):
     if message.channel.type == discord.ChannelType.private:
         # allow unprefixed commands in DMs
@@ -523,11 +558,12 @@ class HerringListenerBot(commands.Bot):
     and makes appropriate changes in Django in response. It's critical that nothing in Celery or Django tries to
     access this bot directly, because it only exists in one of the worker processes.
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, loop, client, *args, **kwargs):
         intents = discord.Intents.default()
         intents.members = True
-        super().__init__(command_prefix, *args, intents=intents, **kwargs)
+        super().__init__(command_prefix, *args, loop=loop, intents=intents, **kwargs)
         self.add_cog(HerringCog(self))
+        self.add_cog(SolvertoolsCog(self, client))
 
 
 class HerringAnnouncerBot(discord.Client):
@@ -695,8 +731,10 @@ def _update_channel_participation_inner(puzzle, membership):
 
 # Public factory methods
 
-def make_listener_bot(loop):
-    return HerringListenerBot(loop=loop)
+async def run_listener_bot(loop):
+    async with aiohttp.ClientSession(loop=loop) as client:
+        bot = HerringListenerBot(loop, client)
+        await bot.start(settings.HERRING_SECRETS['discord-bot-token'])
 
 
 def make_announcer_bot(token):
@@ -708,6 +746,9 @@ def make_announcer_bot(token):
         async def start_bot():
             nonlocal bot
             with(cond):
+                # This is done in a silly way because asyncio.run() creates the event loop, and we need that
+                # event loop to be able to create the Bot object, which doesn't appreciate having its event loop
+                # changed out from under it after construction.
                 bot = HerringAnnouncerBot()
                 cond.notify(1)
             await bot.start(token)
