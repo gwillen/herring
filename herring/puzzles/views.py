@@ -5,22 +5,41 @@ import re
 from cachetools.func import ttl_cache
 from datetime import datetime, timedelta, timezone
 from django.conf import settings
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
 from django.db.models import Count, F
 from django.shortcuts import render, get_object_or_404, redirect
+from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, JsonResponse, HttpResponseRedirect
 import django.contrib.auth
 from django.contrib.auth.decorators import login_required
 
 from puzzles.tasks import scrape_activity_log, add_user_to_puzzle
+from .forms import UserProfileForm
 
 from .models import ChannelParticipation, Round, Puzzle, to_json_value, UserProfile
 
-@login_required
-def logout(request):
-    if request.method == "POST":
-        django.contrib.auth.logout(request)
-    return redirect('/')
+
+@never_cache
+def signup(request):
+    if request.method == 'POST':
+        user_form = UserCreationForm(request.POST)
+        profile_form = UserProfileForm(request.POST)
+        if user_form.is_valid() and profile_form.is_valid():
+            user:User = user_form.save(commit=False)
+            user.is_active = False
+            user.save()
+            user.refresh_from_db()  # load the profile instance created by the signal
+            profile_form = UserProfileForm(request.POST, instance=user.profile)
+            profile_form.full_clean()
+            profile_form.save()
+            return render(request, 'registration/post_signup.html', {'username': user.username})
+    else:
+        user_form = UserCreationForm()
+        profile_form = UserProfileForm()
+    return render(request, 'registration/signup.html', {'user_form': user_form, 'profile_form': profile_form})
+
 
 @login_required
 def index(request):
@@ -48,8 +67,7 @@ def get_puzzles(request):
     data = {
         'rounds': Round.objects.filter(hunt_id=settings.HERRING_HUNT_ID),
         'settings': {
-            'slack': True,
-#            'slack': settings.HERRING_ACTIVATE_SLACK,
+            'slack': settings.HERRING_ACTIVATE_SLACK,
             'discord': settings.HERRING_ACTIVATE_DISCORD,
             'profile': profile,
         }

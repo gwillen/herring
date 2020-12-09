@@ -19,6 +19,9 @@ from django.contrib.auth import views as auth_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('accounts/login/', auth_views.LoginView.as_view()),
+    # if we hooked up email we could just include all of these
+    # path('accounts/', include('django.contrib.auth.urls')),
+    path('accounts/login/', auth_views.LoginView.as_view(), name='login'),
+    path('accounts/logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('', include('puzzles.urls')),
 ]

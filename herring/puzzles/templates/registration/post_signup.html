@@ -1,0 +1,14 @@
+{% extends "herring/base.html" %}
+
+{% block page %}
+  <div class="container">
+    <h1>Registration Complete</h1>
+    <div>
+      Thanks for joining the team, {{ username }}! One of the admins will activate your account in the near future,
+      which will allow you to log in <a href="{% url 'index' %}">here</a>.
+    </div>
+    <div class="footer">
+      <h4>Powered by <a href="https://github.com/gwillen/herring">Herring</a></h4>
+    </div>
+  </div>
+{% endblock %}

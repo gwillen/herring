@@ -4,7 +4,7 @@ from . import views
 
 urlpatterns = [
     path('', views.index, name='index'),
-    path('logout', views.logout, name='logout'),
+    path('signup/', views.signup, name='signup'),
     path('resources/', views.get_resources, name='resources'),
     path('puzzles/', views.get_puzzles, name='get'),
     path('webhook/', views.update_puzzle_hook, name='webhook'),

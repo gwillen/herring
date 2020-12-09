@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.models import User
 from django.conf import settings
 
 from .models import Round, Puzzle, UserProfile
@@ -56,9 +58,23 @@ class PuzzleAdmin(admin.ModelAdmin):
     list_filter = (HuntIdListFilter,)
     search_fields = ['name']
 
+
 class UserProfileAdmin(admin.ModelAdmin):
     pass
 
+
+class UserProfileInline(admin.StackedInline):
+    model = UserProfile
+    can_delete = False
+    verbose_name_plural = "profile"
+
+
+class UserAdminWithProfile(UserAdmin):
+    inlines = (UserProfileInline, )
+
+
+admin.site.unregister(User)
+admin.site.register(User, UserAdminWithProfile)
 admin.site.register(Round, RoundAdmin)
 admin.site.register(Puzzle, PuzzleAdmin)
 admin.site.register(UserProfile, UserProfileAdmin)
