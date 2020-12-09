@@ -1,30 +1,27 @@
 import json
 import logging
 import re
-
-from cachetools.func import ttl_cache
 from datetime import datetime, timedelta, timezone
+
+import django.contrib.auth
+from cachetools.func import ttl_cache
 from django.conf import settings
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db.models import Count, F
-from django.shortcuts import render, get_object_or_404, redirect
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
-from django.http import HttpResponse, JsonResponse, HttpResponseRedirect
-import django.contrib.auth
-from django.contrib.auth.decorators import login_required
 
-from puzzles.tasks import scrape_activity_log, add_user_to_puzzle
-from .forms import UserProfileForm
-
-from .models import ChannelParticipation, Round, Puzzle, to_json_value, UserProfile
-
+from puzzles.tasks import add_user_to_puzzle, scrape_activity_log
+from .forms import UserProfileForm, UserSignupForm
+from .models import ChannelParticipation, Puzzle, Round, UserProfile, to_json_value
 
 @never_cache
 def signup(request):
     if request.method == 'POST':
-        user_form = UserCreationForm(request.POST)
+        user_form = UserSignupForm(request.POST)
         profile_form = UserProfileForm(request.POST)
         if user_form.is_valid() and profile_form.is_valid():
             user:User = user_form.save(commit=False)
@@ -34,9 +31,10 @@ def signup(request):
             profile_form = UserProfileForm(request.POST, instance=user.profile)
             profile_form.full_clean()
             profile_form.save()
-            return render(request, 'registration/post_signup.html', {'username': user.username})
+            greeting = user.first_name or user.username
+            return render(request, 'registration/post_signup.html', {'username': greeting})
     else:
-        user_form = UserCreationForm()
+        user_form = UserSignupForm()
         profile_form = UserProfileForm()
     return render(request, 'registration/signup.html', {'user_form': user_form, 'profile_form': profile_form})
 
