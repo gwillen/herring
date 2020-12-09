@@ -26,9 +26,11 @@ export default class RoundsComponent extends React.Component {
             <div>
                 <div className='row'>
                     <div className="col-xs-12">
-                        <Filters updateFulltextFilter={ this.changeFilter }
-                                 updateAnswerFilter={ this.toggleAnswerStatus }
-                                 toggleLinkType={ this.props.toggleLinkType }
+                        <Filters
+                            uiSettings={ this.props.uiSettings }
+                            updateFulltextFilter={ this.changeFilter }
+                            updateAnswerFilter={ this.toggleAnswerStatus }
+                            toggleLinkType={ this.props.toggleLinkType }
                         />
                     </div>
                 </div>

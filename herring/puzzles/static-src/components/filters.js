@@ -31,6 +31,7 @@ export default class Filters extends React.Component {
                 <div>
                     <label>
                         <input type="checkbox"
+                               checked={ this.props.uiSettings.app_links }
                                onChange={ this.props.toggleLinkType } />
                         Use app links
                     </label>
@@ -50,4 +51,5 @@ Filters.propTypes = {
     updateFulltextFilter: PropTypes.func.isRequired,
     updateAnswerFilter: PropTypes.func.isRequired,
     toggleLinkType: PropTypes.func.isRequired,
+    uiSettings: PropTypes.object.isRequired,
 };

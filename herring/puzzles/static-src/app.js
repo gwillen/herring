@@ -3,6 +3,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import request from 'then-request';
+import store from 'store';
 import NavHeaderComponent from './components/nav-header';
 import RoundsComponent from './components/rounds';
 
@@ -13,8 +14,11 @@ class Page extends React.Component {
     }
   };
   componentDidMount() {
+
+    this.setState({uiSettings: store.get('uiSettings', {app_links: false})});
     this.loadDataFromServer();
     setInterval(this.loadDataFromServer, this.props.pollInterval);
+
 
     // Request permission to send web notifications--this has to take place in
     // an event handler triggered by a user interaction, or modern browsers
@@ -28,6 +32,9 @@ class Page extends React.Component {
       });
     };
     document.addEventListener('click', askForPermissionToNotify);
+  }
+  componentDidUpdate() {
+    store.set('uiSettings', this.state.uiSettings);
   }
   render() {
     if (this.state.rounds) {
