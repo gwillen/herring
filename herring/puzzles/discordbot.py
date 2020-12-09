@@ -76,6 +76,10 @@ class HerringCog(commands.Cog):
         if message.author.id == self.bot.user.id:
             return
 
+        if message.guild.id != settings.HERRING_DISCORD_GUILD_ID:
+            # don't care about non-guild or other-guild messages
+            return
+
         context: commands.Context = await self.bot.get_context(message)
         if context.valid:
             # this is a command, not puzzle activity
