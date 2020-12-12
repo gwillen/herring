@@ -683,8 +683,8 @@ async def _make_puzzle_channels_inner(category: discord.CategoryChannel, puzzle:
     topic = _build_topic(puzzle)
     # setting position=0 doesn't work
     position = 1 if puzzle.is_meta else puzzle.number + 10
-    text_channel = await category.create_text_channel(puzzle.slug, topic=topic, position=position)
-    voice_channel = await category.create_voice_channel(puzzle.slug, position=position)
+    text_channel = get(category.text_channels, name=puzzle.slug) or await category.create_text_channel(puzzle.slug, topic=topic, position=position)
+    voice_channel = get(category.voice_channels, name=puzzle.slug) or await category.create_voice_channel(puzzle.slug, position=position)
     return text_channel, voice_channel
 
 
@@ -706,8 +706,8 @@ async def _make_category_inner(guild: discord.Guild, name: str):
         guild.default_role: discord.PermissionOverwrite(read_messages=False),
         guild.me: discord.PermissionOverwrite(read_messages=True)
     }
-
-    return await guild.create_category(name, overwrites=overwrites)
+    existing = get(guild.categories, name=name)
+    return existing or await guild.create_category(name, overwrites=overwrites)
 
 
 @sync_to_async

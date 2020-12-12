@@ -70,7 +70,7 @@ def do_in_discord(coro):
         # probably the discord bot is busted, try to make it rebuild
         logging.error("Invalidating discord announcer bot!")
         del DISCORD_ANNOUNCER.__target__
-        return None
+        raise
 
 
 def optional_task(t):
@@ -210,7 +210,11 @@ def create_puzzle_sheet_and_channel(self, slug):
     puzzle.save()
 
     if settings.HERRING_ACTIVATE_DISCORD:
-        do_in_discord(DISCORD_ANNOUNCER.make_puzzle_channels(puzzle))
+        try:
+            do_in_discord(DISCORD_ANNOUNCER.make_puzzle_channels(puzzle))
+        except RuntimeError:
+            raise self.retry()
+
 
 
 @optional_task
@@ -224,12 +228,13 @@ def create_round_category(self, round_id):
         except Exception as e:
             logging.error("tasks: Couldn't retrieve round %d to create a Discord category", round_id, exc_info=True)
             raise self.retry(exc=e)
-
-        category = do_in_discord(DISCORD_ANNOUNCER.make_category(round.name))
-        if category:
-            round.discord_categories = str(category.id)
-            round.save()
-
+        try:
+            category = do_in_discord(DISCORD_ANNOUNCER.make_category(round.name))
+            if category:
+                round.discord_categories = str(category.id)
+                round.save()
+        except RuntimeError:
+            raise self.retry()
 
 @shared_task(rate_limit=0.1)
 def scrape_activity_log():
