@@ -78,6 +78,9 @@ class HerringCog(commands.Cog):
         if message.author.id == self.bot.user.id:
             return
 
+        if message.type != discord.MessageType.default:
+            return
+
         if not message.guild or message.guild.id != settings.HERRING_DISCORD_GUILD_ID:
             # don't care about non-guild or other-guild messages
             return
@@ -98,7 +101,12 @@ class HerringCog(commands.Cog):
                 row.is_member = True
                 row.save(update_fields=['last_active', 'is_member'])
 
-        await _manipulate_puzzle(message.channel.name, record_activity)
+        puzzle = await _manipulate_puzzle(message.channel.name, record_activity)
+
+        if puzzle is not None:
+            for member in message.mentions:
+                # if someone got mentioned, invite them to the puzzle
+                await self.add_user_to_puzzle(member, puzzle.slug)
 
     @commands.command(brief="Join a puzzle channel")
     async def join(self, ctx:commands.Context, channel:typing.Optional[discord.TextChannel]):
@@ -725,6 +733,7 @@ def _manipulate_puzzle(puzzle:typing.Union[Puzzle, str], func):
                 puzzle = Puzzle.objects.select_for_update().get(slug=puzzle)
             func(puzzle)
             puzzle.save()
+            return puzzle
     except Puzzle.DoesNotExist:
         return
 
