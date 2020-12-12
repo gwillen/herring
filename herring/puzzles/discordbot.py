@@ -371,7 +371,8 @@ class HerringCog(commands.Cog):
                         await ctx.author.send(f"creating new category for {round.name} {idx}")
                 new_categories.append(category)
 
-            while len(puzzles_by_round[round.id]) > len(new_categories) * PUZZLES_PER_CATEGORY:
+            # pretend rounds with no puzzles have one puzzle, just in case
+            while max(1, len(puzzles_by_round[round.id])) > len(new_categories) * PUZZLES_PER_CATEGORY:
                 if really_do_it:
                     category = await _make_category_inner(self.guild, f"{round.name} {len(new_categories)}" if len(new_categories) > 0 else round.name)
                 else:
