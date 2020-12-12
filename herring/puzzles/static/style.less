@@ -233,6 +233,30 @@ button, a.button, input[type=submit] {
 	padding-left: @textSize + 14px;
 }
 
+.integration-status {
+	float:right;
+	text-align: right;
+	padding-right: @stdpadding;
+}
+
+.messaging-logo {
+	width: @textSize * 2;
+	margin-top: -@stdpadding/6;
+	position: relative;
+	display: inline-block;
+
+	&.broken:before {
+		content: " ";
+		z-index: 10;
+		display: block;
+		position: absolute;
+		height: 100%;
+		top: 0;
+		left: 0;
+		right: 0;
+		background: rgba(255, 0, 0, 0.5);
+	}
+}
 
 .puzzle {
 	line-height: 2;
@@ -250,9 +274,7 @@ button, a.button, input[type=submit] {
 	}
 
 	.messaging-logo {
-		width: @textSize * 2;
 		cursor: pointer;
-		margin-top: -@stdpadding/6;
 	}
 
 	.name {

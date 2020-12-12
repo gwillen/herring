@@ -40,7 +40,9 @@ class Page extends React.Component {
     if (this.state.rounds) {
         return (
           <div>
-            <NavHeaderComponent rounds={ this.state.rounds } />
+            <NavHeaderComponent rounds={ this.state.rounds }
+                                settings={ this.state.settings }
+            />
             <RoundsComponent rounds={ this.state.rounds }
                              changeMade={ this.loadDataFromServer }
                              settings={ this.state.settings }

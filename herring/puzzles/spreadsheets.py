@@ -63,3 +63,9 @@ class SheetChange:
     def datetime(self):
         return datetime.fromisoformat(
             self._change['time'].replace('Z', '+00:00'))
+
+
+def check_spreadsheet_service():
+    if settings.HERRING_ACTIVATE_GAPPS:
+        return service is not None
+    return None

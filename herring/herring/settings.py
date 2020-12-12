@@ -123,10 +123,10 @@ CELERY_BROKER_TRANSPORT_OPTIONS = dict(max_retries=3)
 CELERY_REDBEAT_REDIS_URL = REDIS_URL
 CELERY_BEAT_SCHEDULER = 'redbeat.RedBeatScheduler'
 CELERY_BEAT_SCHEDULE = {
-    # 'read-google-sheets-changes': {
-    #     'task': 'puzzles.tasks.process_google_sheets_changes',
-    #     'schedule': 15.0,
-    # },
+    'read-google-sheets-changes': {
+        'task': 'puzzles.tasks.process_google_sheets_changes',
+        'schedule': 15.0,
+    },
     'check-connection-to-messaging': {
         'task': 'puzzles.tasks.check_connection_to_messaging',
         'schedule': 60.0,

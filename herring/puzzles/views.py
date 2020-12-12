@@ -14,7 +14,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 
-from puzzles.tasks import add_user_to_puzzle, scrape_activity_log
+from puzzles.tasks import add_user_to_puzzle, get_service_status, scrape_activity_log
 from .forms import UserProfileForm, UserSignupForm
 from .models import ChannelParticipation, Puzzle, Round, UserProfile, to_json_value
 
@@ -67,8 +67,10 @@ def get_puzzles(request):
         'settings': {
             'slack': settings.HERRING_ACTIVATE_SLACK,
             'discord': settings.HERRING_ACTIVATE_DISCORD,
+            'gapps': settings.HERRING_ACTIVATE_GAPPS,
             'profile': profile,
-        }
+            'service_status': get_service_status(),
+        },
     }
     print("Serializing puzzle data.")
     return JsonResponse(add_metrics(to_json_value(data)))

@@ -64,6 +64,10 @@ export default class RoundComponent extends React.Component {
         if (this.props.settings.discord) {
             discordSpacer = (<span className="messaging-spacer" />);
         }
+        var gappsSpacer;
+        if (this.props.settings.gapps) {
+            gappsSpacer = (<span className="messaging-spacer" />);
+        }
         return (
             <div key={ round.id } className="row">
                 <div className="col-lg-12 round">
@@ -74,6 +78,7 @@ export default class RoundComponent extends React.Component {
                         {puzzleLinkSpacer}
                         {slackSpacer}
                         {discordSpacer}
+                        {gappsSpacer}
                         <span className="name-legend">
                           Name
                         </span>

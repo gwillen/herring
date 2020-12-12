@@ -1,0 +1,4 @@
+# These files need to have lf instead of crlf so that their shebang lines work in Docker
+*.sh eol=lf
+herring/manage.py eol=lf
+Procfile eol=lf

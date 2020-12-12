@@ -14,6 +14,7 @@ import UrlChangeModal from './url-editor';
 // and Django set up to talk to each other
 const slackIcon = '/static/Slack_Mark_Web.png';
 const discordIcon = '/static/Discord-Logo-Color.png';
+const gappsIcon = '/static/sheets_64dp.png';
 
 export default class PuzzleComponent extends React.Component {
     state = {
@@ -109,6 +110,17 @@ export default class PuzzleComponent extends React.Component {
             )
           }
         }
+        var gappsButton;
+        if (this.props.settings.gapps) {
+          gappsButton = (
+              <a
+                  title={ `#${puzzle.slug}` }
+                  href={ `/s/${puzzle.id}` }
+                  target="_blank" rel="noopener">
+                <img className="messaging-logo" src={ gappsIcon } alt={`Google Sheets`} />
+              </a>
+          )
+        }
         return (
             <div key={ puzzle.id } className="row">
               <div className="col-lg-12">
@@ -121,6 +133,7 @@ export default class PuzzleComponent extends React.Component {
                       { puzzlePageButton }
                       { slackButton }
                       { discordButton }
+                      { gappsButton }
                       <span className="name-text">{ puzzle.name }</span>
                     </div>
                     <RoundInfoComponent

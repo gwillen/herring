@@ -1,3 +1,5 @@
+from typing import Optional
+
 from asgiref.sync import sync_to_async
 from asyncio import run, sleep, wait, get_event_loop
 from cachetools.func import ttl_cache
@@ -8,9 +10,9 @@ from django.db import transaction
 import json
 import kombu.exceptions
 from lazy_object_proxy import Proxy as lazy_object
-from puzzles.discordbot import make_announcer_bot, run_listener_bot
+from puzzles.discordbot import HerringAnnouncerBot, make_announcer_bot, run_listener_bot
 from puzzles.models import Puzzle, Round, UserProfile
-from puzzles.spreadsheets import iterate_changes, make_sheet
+from puzzles.spreadsheets import check_spreadsheet_service, iterate_changes, make_sheet
 from redis import Redis
 import slacker
 import websockets
@@ -51,16 +53,24 @@ def REDIS():
     # Redis connections so quickly; it's possible this doesn't help at all.
     return Redis.from_url(settings.REDIS_URL, max_connections=1)
 
-
-def make_discord_announcer():
+@lazy_object
+def DISCORD_ANNOUNCER() -> Optional[HerringAnnouncerBot]:
     if not settings.HERRING_ACTIVATE_DISCORD:
         logging.warning("Running without Discord integration!")
         return None
     return make_announcer_bot(settings.HERRING_SECRETS['discord-bot-token'])
 
-DISCORD_ANNOUNCER = make_discord_announcer()
-
 _optional_tasks_enabled = None
+
+
+def do_in_discord(coro):
+    try:
+        return DISCORD_ANNOUNCER.do_in_loop(coro)
+    except RuntimeError:
+        # probably the discord bot is busted, try to make it rebuild
+        logging.error("Invalidating discord announcer bot!")
+        del DISCORD_ANNOUNCER.__target__
+        return None
 
 
 def optional_task(t):
@@ -112,7 +122,7 @@ def post_local_and_global(local_channel, local_message, global_message):
         SLACK.chat.post_message(global_channel_id, global_message, link_names=True, as_user=True)
 
     if settings.HERRING_ACTIVATE_DISCORD:
-        DISCORD_ANNOUNCER.do_in_loop(DISCORD_ANNOUNCER.post_local_and_global(local_channel, local_message, global_message))
+        do_in_discord(DISCORD_ANNOUNCER.post_local_and_global(local_channel, local_message, global_message))
 
 @optional_task
 @shared_task(rate_limit=0.5)
@@ -200,7 +210,7 @@ def create_puzzle_sheet_and_channel(self, slug):
     puzzle.save()
 
     if settings.HERRING_ACTIVATE_DISCORD:
-        DISCORD_ANNOUNCER.do_in_loop(DISCORD_ANNOUNCER.make_puzzle_channels(puzzle))
+        do_in_discord(DISCORD_ANNOUNCER.make_puzzle_channels(puzzle))
 
 
 @optional_task
@@ -215,7 +225,7 @@ def create_round_category(self, round_id):
             logging.error("tasks: Couldn't retrieve round %d to create a Discord category", round_id, exc_info=True)
             raise self.retry(exc=e)
 
-        category = DISCORD_ANNOUNCER.do_in_loop(DISCORD_ANNOUNCER.make_category(round.name))
+        category = do_in_discord(DISCORD_ANNOUNCER.make_category(round.name))
         if category:
             round.discord_categories = str(category.id)
             round.save()
@@ -460,8 +470,27 @@ def add_user_to_puzzle(user_id, puzzle_name):
     except UserProfile.DoesNotExist:
         # oh well, we tried
         return
-    channel = DISCORD_ANNOUNCER.do_in_loop(DISCORD_ANNOUNCER.add_user_to_puzzle(user, puzzle_name))
+    channel = do_in_discord(DISCORD_ANNOUNCER.add_user_to_puzzle(user, puzzle_name))
     if channel is None:
         # not sure what happened here
         return
     return channel.id
+
+
+@ttl_cache(ttl=10)
+def get_service_status():
+    slack = None
+    discord = None
+    gapps = None
+    if settings.HERRING_ACTIVATE_SLACK:
+        slack = (SLACK.auth.test().body['user_id'] == SLACK_USER_ID)
+    if settings.HERRING_ACTIVATE_DISCORD:
+        # this has the side effect of reifying DISCORD_ANNOUNCER
+        discord = do_in_discord(DISCORD_ANNOUNCER.wait_until_really_ready(5))
+    if settings.HERRING_ACTIVATE_GAPPS:
+        gapps = check_spreadsheet_service()
+    return {
+        'slack': slack,
+        'discord': discord,
+        'gapps': gapps,
+    }

@@ -1,5 +1,6 @@
 import asyncio
 import collections
+import concurrent.futures
 import logging
 import threading
 import typing
@@ -44,7 +45,8 @@ MENU_REACTION_LOOKUP = {reaction: index for index, reaction in enumerate(MENU_RE
 
 # Discord also limits a category to 50 channels, so we can only put 25 puzzles in a category and then we
 # have to make a new category for them
-PUZZLES_PER_CATEGORY = 25
+# making this less than 25 leaves a little elbow room for cleanup_channels if necessary
+PUZZLES_PER_CATEGORY = 20
 
 SIGNUP_EMOJI = "\N{RAISED HAND}"
 
@@ -76,7 +78,7 @@ class HerringCog(commands.Cog):
         if message.author.id == self.bot.user.id:
             return
 
-        if message.guild.id != settings.HERRING_DISCORD_GUILD_ID:
+        if not message.guild or message.guild.id != settings.HERRING_DISCORD_GUILD_ID:
             # don't care about non-guild or other-guild messages
             return
 
@@ -589,14 +591,22 @@ class HerringAnnouncerBot(discord.Client):
         self.guild = self.get_guild(settings.HERRING_DISCORD_GUILD_ID)
         self.announce_channel = get(self.guild.text_channels, name = settings.HERRING_DISCORD_PUZZLE_ANNOUNCEMENTS)
         self._really_ready.set()
+        logging.info("announcer bot is really ready")
 
-    def do_in_loop(self, coro):
+    def do_in_loop(self, coro, timeout=20):
         future = asyncio.run_coroutine_threadsafe(coro, self.loop)
         try:
-            return future.result(timeout=20)
-        except TimeoutError as e:
-            logging.error(f"Timed out running {coro.__name__} in bot", exc_info=True)
-            return None
+            return future.result(timeout=timeout)
+        except concurrent.futures.TimeoutError:
+            logging.error(f"Timed out running {coro} in bot from thread {threading.current_thread()}", exc_info=True)
+            raise RuntimeError("seems like the announcer bot is dead")
+
+    async def wait_until_really_ready(self, timeout=None):
+        try:
+            await asyncio.wait_for(self._really_ready.wait(), timeout)
+            return True
+        except asyncio.TimeoutError:
+            return False
 
     async def make_category(self, name):
         await self._really_ready.wait()
@@ -605,7 +615,6 @@ class HerringAnnouncerBot(discord.Client):
 
     async def make_puzzle_channels(self, puzzle: Puzzle):
         await self._really_ready.wait()
-        logging.info(f"making puzzle channels for {puzzle.name}")
 
         @sync_to_async
         def get_round():
@@ -743,28 +752,23 @@ async def run_listener_bot(loop):
 
 def make_announcer_bot(token):
     # create it in a new thread
-    cond = threading.Condition()
+    evt = threading.Event()
     bot = None
 
     def start_bot_thread():
-        async def start_bot():
-            nonlocal bot
-            with(cond):
-                # This is done in a silly way because asyncio.run() creates the event loop, and we need that
-                # event loop to be able to create the Bot object, which doesn't appreciate having its event loop
-                # changed out from under it after construction.
-                bot = HerringAnnouncerBot()
-                cond.notify(1)
-            await bot.start(token)
+        nonlocal bot
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        bot = HerringAnnouncerBot(loop=loop)
+        evt.set()
+        loop.create_task(bot.start(token))
+        loop.run_forever()
 
-        asyncio.run(start_bot())
-
-    with(cond):
-        # make it a daemon thread so it doesn't keep the process alive
-        bot_thread = threading.Thread(target=start_bot_thread, daemon=True)
-        bot_thread.start()
-        logging.info("about to wait for bot to be created")
-        cond.wait()
-        logging.info(f"got bot, it is a {type(bot)}")
-        return bot
+    # make it a daemon thread so it doesn't keep the process alive
+    bot_thread = threading.Thread(target=start_bot_thread, daemon=True)
+    bot_thread.start()
+    logging.info("about to wait for bot to be created")
+    evt.wait()
+    logging.info(f"got bot, it is a {type(bot)}")
+    return bot
 
