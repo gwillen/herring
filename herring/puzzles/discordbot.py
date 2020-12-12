@@ -326,7 +326,7 @@ class HerringCog(commands.Cog):
 
         rounds, puzzles = await get_rounds_and_puzzles()
 
-        rounds_by_category = {int(category_id): round for round in rounds for category_id in round.discord_categories.split(",")}
+        rounds_by_category = {int(category_id): round for round in rounds for category_id in (round.discord_categories or "").split(",")}
         puzzles_by_slug = {puzzle.slug: puzzle for puzzle in puzzles}
         puzzles_by_round = collections.defaultdict(list)
         metapuzzles_by_round = collections.defaultdict(list)
