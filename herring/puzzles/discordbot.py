@@ -104,9 +104,14 @@ class HerringCog(commands.Cog):
         puzzle = await _manipulate_puzzle(message.channel.name, record_activity)
 
         if puzzle is not None:
+            need_mentions = []
             for member in message.mentions:
                 # if someone got mentioned, invite them to the puzzle
-                await self.add_user_to_puzzle(member, puzzle.slug)
+                if await self.add_user_to_puzzle(member, puzzle.slug):
+                    need_mentions.append(member)
+            all_mentions = ", ".join(member.mention for member in need_mentions)
+            alert = await message.channel.send(f"Added {all_mentions} to puzzle by request")
+            await alert.delete()
 
     @commands.command(brief="Join a puzzle channel")
     async def join(self, ctx:commands.Context, channel:typing.Optional[discord.TextChannel]):
@@ -730,7 +735,7 @@ def _manipulate_puzzle(puzzle:typing.Union[Puzzle, str], func):
     try:
         with transaction.atomic():
             if isinstance(puzzle, str):
-                puzzle = Puzzle.objects.select_for_update().get(slug=puzzle)
+                puzzle = Puzzle.objects.select_for_update().get(slug=puzzle, hunt_id=settings.HERRING_HUNT_ID)
             func(puzzle)
             puzzle.save()
             return puzzle
@@ -738,9 +743,13 @@ def _manipulate_puzzle(puzzle:typing.Union[Puzzle, str], func):
         return
 
 
-async def _add_user_to_channels(member, text_channel, voice_channel):
-    await text_channel.set_permissions(member, read_messages=True)
-    await voice_channel.set_permissions(member, view_channel=True)
+async def _add_user_to_channels(member, text_channel:discord.TextChannel, voice_channel):
+    current_perms = text_channel.overwrites
+    if member not in current_perms:
+        await text_channel.set_permissions(member, read_messages=True)
+        await voice_channel.set_permissions(member, view_channel=True)
+        return True
+    return False
 
 
 def _update_channel_participation_inner(puzzle, membership):
