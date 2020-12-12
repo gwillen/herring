@@ -4,7 +4,7 @@
 <div id="react-root"></div>
 <div class="footer">
 	<p>Need puzzles added? Other site problems? Admins are: {% for admin in admins %}<a href="mailto:{{ admin.email }}">{% if admin.get_full_name %}{{ admin.get_full_name }}{% else %}{{ admin }}{% endif %}</a> {% endfor %}</p>
-	<h4>Powered by <a href="https://github.com/aldeka/herring">Herring</a></h4>
+	<h4>Powered by <a href="https://github.com/gwillen/herring">Herring</a></h4>
 </div>
 <script type="text/javascript">
 	var csrfToken = "{{ csrf_token }}";
