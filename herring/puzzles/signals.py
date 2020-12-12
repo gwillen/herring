@@ -31,6 +31,6 @@ def on_round_save(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=User)
 def on_user_save(sender, instance, created, **kwargs):
-    if created:
+    if created or not hasattr(instance, 'profile'):
         UserProfile.objects.create(user=instance)
     instance.profile.save()
