@@ -109,9 +109,10 @@ class HerringCog(commands.Cog):
                 # if someone got mentioned, invite them to the puzzle
                 if await self.add_user_to_puzzle(member, puzzle.slug):
                     need_mentions.append(member)
-            all_mentions = ", ".join(member.mention for member in need_mentions)
-            alert = await message.channel.send(f"Added {all_mentions} to puzzle by request")
-            await alert.delete()
+            if len(need_mentions) > 0:
+                all_mentions = ", ".join(member.mention for member in need_mentions)
+                alert = await message.channel.send(f"Added {all_mentions} to puzzle by request")
+                await alert.delete()
 
     @commands.command(brief="Join a puzzle channel")
     async def join(self, ctx:commands.Context, channel:typing.Optional[discord.TextChannel]):
