@@ -326,7 +326,13 @@ class HerringCog(commands.Cog):
 
         rounds, puzzles = await get_rounds_and_puzzles()
 
-        rounds_by_category = {int(category_id): round for round in rounds if round.discord_categories is not None for category_id in round.discord_categories.split(",") if category_id}
+        def split_categories(round):
+            if round.discord_categories is None:
+                return []
+            categories = round.discord_categories.split(",")
+            return [int(category_id) for category_id in categories if category_id]
+
+        rounds_by_category = {category_id: round for round in rounds for category_id in split_categories(round)}
         puzzles_by_slug = {puzzle.slug: puzzle for puzzle in puzzles}
         puzzles_by_round = collections.defaultdict(list)
         metapuzzles_by_round = collections.defaultdict(list)
@@ -356,8 +362,8 @@ class HerringCog(commands.Cog):
         for round in rounds:
             # next, create any categories that don't seem to exist for whatever reason
             new_categories = []
-            for idx, category_id in enumerate(round.discord_categories.split(",")):
-                category = self.guild.get_channel(int(category_id))
+            for idx, category_id in enumerate(split_categories(round)):
+                category = self.guild.get_channel(category_id)
                 if category is None:
                     if really_do_it:
                         category = await _make_category_inner(self.guild, f"{round.name} {idx}" if idx > 0 else round.name)
