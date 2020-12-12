@@ -117,7 +117,7 @@ class HerringCog(commands.Cog):
             return
 
         # this is the most ridiculous thing ever. i feel dirty for writing this
-        rounds = await sync_to_async(lambda: list(Round.objects.all()))()
+        rounds = await sync_to_async(lambda: list(Round.objects.filter(hunt_id = settings.HERRING_HUNT_ID)))()
         if len(rounds) == 0:
             await ctx.author.send("Sorry, there are no rounds available!")
             return
@@ -273,7 +273,7 @@ class HerringCog(commands.Cog):
                 pass
             return
 
-        rounds = await sync_to_async(lambda: list(Round.objects.all()))()
+        rounds = await sync_to_async(lambda: list(Round.objects.filter(hunt_id = settings.HERRING_HUNT_ID)))()
         if len(rounds) == 0:
             await ctx.author.send("Sorry, there are no rounds available!")
             return
@@ -320,8 +320,8 @@ class HerringCog(commands.Cog):
 
         @sync_to_async
         def get_rounds_and_puzzles():
-            rounds = list(Round.objects.all())
-            puzzles = list(Puzzle.objects.all())
+            rounds = list(Round.objects.filter(hunt_id=settings.HERRING_HUNT_ID))
+            puzzles = list(Puzzle.objects.filter(hunt_id=settings.HERRING_HUNT_ID))
             return rounds, puzzles
 
         rounds, puzzles = await get_rounds_and_puzzles()
