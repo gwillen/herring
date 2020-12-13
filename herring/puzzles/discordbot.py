@@ -2,6 +2,7 @@ import asyncio
 import collections
 import concurrent.futures
 import logging
+import re
 import threading
 import typing
 from datetime import timezone
@@ -563,10 +564,15 @@ class SolvertoolsCog(commands.Cog):
     async def api_passthrough_command(self, ctx, url, args):
         # this might take a while
         await ctx.trigger_typing()
+        backticks_match = re.fullmatch(r"`(.*)`", args)
+        if backticks_match:
+            args = args.group(1)
         try:
             async with self.client_session.get(url, params={"text": args}) as response:
                 result = await response.text()
-                await ctx.send(result[:1500])
+
+                embed = discord.Embed(description=discord.utils.escape_markdown(result[:1500]))
+                await ctx.send("", embed=embed)
         except aiohttp.ClientError:
             await ctx.send("Sorry, the connection to ireproof.org doesn't seem to be working today.")
 
