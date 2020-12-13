@@ -566,7 +566,7 @@ class SolvertoolsCog(commands.Cog):
         await ctx.trigger_typing()
         backticks_match = re.fullmatch(r"`(.*)`", args)
         if backticks_match:
-            args = args.group(1)
+            args = backticks_match.group(1)
         try:
             async with self.client_session.get(url, params={"text": args}) as response:
                 result = await response.text()
