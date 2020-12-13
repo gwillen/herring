@@ -58,6 +58,11 @@ class PuzzleAdmin(admin.ModelAdmin):
     list_filter = (HuntIdListFilter,)
     search_fields = ['name']
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "parent":
+            kwargs["queryset"] = Round.objects.filter(hunt_id=settings.HERRING_HUNT_ID)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 
 class UserProfileAdmin(admin.ModelAdmin):
     pass
