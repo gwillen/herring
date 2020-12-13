@@ -171,7 +171,7 @@ def create_puzzle_sheet_and_channel(self, slug):
         raise self.retry(exc=e)
 
     if settings.HERRING_ACTIVATE_GAPPS:
-        sheet_title = '{} - {}'.format(puzzle.identifier(), puzzle.name)
+        sheet_title = '{} - {}'.format(puzzle.round_prefix(), puzzle.name)
         sheet_id = make_sheet(sheet_title)
 
         puzzle.sheet_id = sheet_id

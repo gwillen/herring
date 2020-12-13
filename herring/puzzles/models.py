@@ -50,7 +50,7 @@ class Round(models.Model,JSONMixin):
     discord_categories = models.CharField(max_length=1000, editable=False, **optional)
 
     def __str__(self):
-        return 'R' + str(self.number)
+        return f"R{self.number} {self.name}"
 
     class Meta:
         ordering = ['number', 'id']
@@ -89,12 +89,12 @@ class Puzzle(models.Model,JSONMixin):
     class Json:
         include_fields = ['id', 'name', 'number', 'answer', 'note', 'tags', 'is_meta', 'hunt_url', 'slug', 'channel_count', 'activity_histo', 'last_active', 'slack_channel_id']
 
-    # XXX: This is arguably misnamed now that it no longer includes the puzzle number. It's just a prefix.
-    def identifier(self):
+    def round_prefix(self):
         meta_marker = ''
         if self.is_meta:
             meta_marker = 'M'
-        return str(self.parent) + meta_marker
+
+        return f"R{self.parent.number}{meta_marker}"
 
     def __str__(self):
         return '#%s %s' % (self.slug, self.name)
