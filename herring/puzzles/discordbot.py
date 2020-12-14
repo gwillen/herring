@@ -55,7 +55,7 @@ SIGNUP_EMOJI = "\N{RAISED HAND}"
 class HerringCog(commands.Cog):
     def __init__(self, bot:commands.Bot):
         self.bot = bot
-        self.guild = None
+        self.guild: typing.Optional[discord.Guild] = None
         self.announce_channel = None
 
     @commands.Cog.listener()
@@ -71,6 +71,7 @@ class HerringCog(commands.Cog):
         if payload.channel_id == self.announce_channel.id and payload.emoji.name == SIGNUP_EMOJI:
             # add someone to the puzzle
             message: discord.Message = await self.announce_channel.fetch_message(payload.message_id)
+            await message.remove_reaction(SIGNUP_EMOJI, payload.member)
             target_channel = message.channel_mentions[0]
             await self.add_user_to_puzzle(payload.member, target_channel.name)
 
@@ -273,8 +274,10 @@ class HerringCog(commands.Cog):
 
         def puzzle_printerizer(puzzle):
             text_channel, voice_channel = self.get_channel_pair(puzzle.slug)
-            # -2 for @everyone and the bot
-            watching = len(text_channel.overwrites) - 2
+            overwrites = text_channel.overwrites
+            overwrites.remove(self.guild.me)
+            overwrites.remove(self.guild.default_role)
+            watching = ", ".join(member.mention for member in overwrites)
             in_voice = ", ".join(member.mention for member in voice_channel.members) or "no one"
             solved = " (SOLVED!)" if puzzle.answer else ""
             return f"{_abbreviate_name(puzzle)} ({text_channel.mention}){solved}: {watching} watching, {in_voice} currently solving"
@@ -321,6 +324,9 @@ class HerringCog(commands.Cog):
     @commands.command(hidden=True)
     async def cleanup_channels(self, ctx):
         await self.delete_message_if_possible(ctx.message)
+
+        if ctx.author.id != self.guild.owner_id:
+            return
 
         really_do_it = await self.do_menu(
             ctx.author,
