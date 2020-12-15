@@ -8,10 +8,16 @@ const B = 6;       // number of periods in a bucket
 
 export default function ActivityComponent(props) {
     const { className, activity } = props;
-    const { channelCount, channelActiveCount, activityHisto, lastActive } = activity;
+    const { channelCount, channelActive, activityHisto, lastActive } = activity;
     const now = new Date();
     const buckets = histoToBuckets(activityHisto, lastActive, now);
-    const activeInvisible = channelActiveCount === 0 ? 'invisible' : '';
+    const activeInvisible = channelActive.length === 0 ? 'invisible' : '';
+    function fixUsername(name) {
+        const hash = name.indexOf('#');
+        if (hash < 0) return name;
+        return name.substring(0, hash);
+    }
+    const activeUsers = channelActive.map(fixUsername).join(', ');
     return (
         <div className={className}>
             <span className="allMembers">
@@ -19,8 +25,8 @@ export default function ActivityComponent(props) {
                 <span className="glyphicon glyphicon-user" aria-hidden="true"></span>
             </span>
             &nbsp;
-            <span className={`activeMembers ${activeInvisible}`}>
-                {pad(channelActiveCount)}
+            <span className={`activeMembers ${activeInvisible}`} title={activeUsers}>
+                {pad(channelActive.length)}
                 <span className="glyphicon glyphicon-user" aria-hidden="true"></span>
             </span> {
             buckets && <BarChart data={buckets} max={B} width={30} height={13} />} {

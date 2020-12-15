@@ -1,9 +1,11 @@
 import json
 import logging
 import re
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 import django.contrib.auth
+import typing
 from cachetools.func import ttl_cache
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -173,15 +175,19 @@ def add_metrics(json):
     active_users_by_slug = compute_active_users()
     for r in json['rounds']:
         for p in r['puzzle_set']:
-            p['channel_active_count'] = active_users_by_slug.get(p['slug'], 0)
+            p['channel_active'] = active_users_by_slug.get(p['slug'], [])
     return json
 
 
 @ttl_cache(ttl=5)
 def compute_active_users():
     now = datetime.utcnow().replace(tzinfo=timezone.utc)
-    results = ChannelParticipation.objects\
-        .filter(is_member=True, last_active__gt=now - timedelta(hours=2))\
-        .values(slug=F('channel_puzzle__slug'))\
-        .annotate(active=Count('user_id'))
-    return {result['slug']: result['active'] for result in results}
+    results:typing.Sequence[ChannelParticipation] = ChannelParticipation.objects\
+        .filter(is_member=True, last_active__gt=now - timedelta(hours=2))
+
+    # I still don't know a really pythonic way to do this
+    channel_users = defaultdict(list)
+    for result in results:
+        channel_users[result.channel_puzzle.slug].append(result.user_id)
+
+    return channel_users

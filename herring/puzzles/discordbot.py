@@ -14,6 +14,7 @@ from asgiref.sync import sync_to_async
 from discord.ext import commands
 from discord.utils import get
 from django.db import transaction
+from django.db.models import Q
 
 from herring import settings
 from puzzles.models import Round, Puzzle, UserProfile
@@ -95,13 +96,15 @@ class HerringCog(commands.Cog):
         def record_activity(puzzle: Puzzle):
             dt = message.created_at.replace(tzinfo=timezone.utc)
             puzzle.record_activity(dt)
-            row, created = puzzle.channelparticipation_set.get_or_create(
-                user_id=message.author.id,
-                defaults=dict(last_active=dt, is_member=True))
+            query = Q(user_id=str(message.author)) | Q(user_id=str(message.author.id))
+            row, created = puzzle.channelparticipation_set\
+                .filter(query)\
+                .get_or_create(defaults=dict(user_id=str(message.author), last_active=dt, is_member=True))
             if not created and (row.last_active is None or row.last_active < dt):
                 row.last_active = dt
+                row.user_id = str(message.author)
                 row.is_member = True
-                row.save(update_fields=['last_active', 'is_member'])
+                row.save(update_fields=['user_id', 'last_active', 'is_member'])
 
         puzzle = await _manipulate_puzzle(message.channel.name, record_activity)
 
@@ -257,10 +260,7 @@ class HerringCog(commands.Cog):
     # not async! deals with database mostly; intended to be called from inside a _manipulate_puzzle
     def _update_channel_participation(self, puzzle):
         text_channel, _ = self.get_channel_pair(puzzle.slug)
-        membership = set(member.id for member in text_channel.overwrites)
-        membership.remove(self.bot.user.id)
-        membership.remove(self.guild.default_role.id)
-        membership = [str(id) for id in membership]
+        membership = [member for member in text_channel.overwrites if member.id != self.guild.me.id and member.id != self.guild.default_role.id]
         _update_channel_participation_inner(puzzle, membership)
 
     @commands.command(aliases=["status"], brief="Show stats about puzzles")
@@ -567,20 +567,18 @@ class SolvertoolsCog(commands.Cog):
         url = urljoin(settings.HERRING_SOLVERTOOLS_URL, "/api/pattern")
         await self.api_passthrough_command(ctx, url, arg)
 
-    async def api_passthrough_command(self, ctx, url, args):
+    async def api_passthrough_command(self, ctx:commands.Context, url, args):
         # this might take a while
-        await ctx.trigger_typing()
-        backticks_match = re.fullmatch(r"`(.*)`", args)
-        if backticks_match:
-            args = backticks_match.group(1)
-        try:
-            async with self.client_session.get(url, params={"text": args}) as response:
-                result = await response.text()
+        async with ctx.typing():
+            args = re.sub(r"`(.*)`", r"\1", args)
+            try:
+                async with self.client_session.get(url, params={"text": args}) as response:
+                    result = await response.text()
 
-                embed = discord.Embed(description=discord.utils.escape_markdown(result[:1500]))
-                await ctx.send("", embed=embed)
-        except aiohttp.ClientError:
-            await ctx.send("Sorry, the connection to ireproof.org doesn't seem to be working today.")
+                    embed = discord.Embed(description=discord.utils.escape_markdown(result[:1500]))
+                    await ctx.send("", embed=embed)
+            except aiohttp.ClientError:
+                await ctx.send("Sorry, the connection to ireproof.org doesn't seem to be working today.")
 
 
 def command_prefix(bot, message:discord.Message):
@@ -697,11 +695,7 @@ class HerringAnnouncerBot(discord.Client):
             logging.warning(f"couldn't find member named {user_profile.discord_identifier}")
             return
         await _add_user_to_channels(member, text_channel, voice_channel)
-        membership = set(member.id for member in text_channel.overwrites)
-        membership.remove(self.guild.default_role.id)
-        membership.remove(self.user.id)
-        membership = [str(id) for id in membership]
-
+        membership = [member for member in text_channel.overwrites if member.id != self.guild.me.id and member.id != self.guild.default_role.id]
         await _manipulate_puzzle(puzzle_name, lambda puzzle: _update_channel_participation_inner(puzzle, membership))
         return text_channel
 
@@ -770,14 +764,16 @@ def _update_channel_participation_inner(puzzle, membership):
     logging.info(f"updating membership for {puzzle.slug} to {membership}")
     puzzle.channel_count = n
     puzzle.channelparticipation_set \
-        .exclude(user_id__in=membership) \
+        .exclude(user_id__in=[str(member.id) for member in membership]) \
+        .exclude(user_id__in=[str(member) for member in membership]) \
         .update(is_member=False)
     for row in puzzle.channelparticipation_set.filter(is_member=True):
         membership.remove(row.user_id)
-    for user_id in membership:
-        puzzle.channelparticipation_set.update_or_create(
-            user_id=user_id,
-            defaults=dict(is_member=True))
+    for member in membership:
+        query = Q(user_id=str(member.id)) | Q(user_id=str(member))
+        puzzle.channelparticipation_set\
+            .filter(query)\
+            .update_or_create(defaults=dict(user_id=str(member), is_member=True))
 
 
 # Public factory methods

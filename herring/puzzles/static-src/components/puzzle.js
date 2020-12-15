@@ -155,7 +155,7 @@ export default class PuzzleComponent extends React.Component {
                         className="visible-lg-block col-lg-2 activity"
                         activity={ {
                             channelCount: puzzle.channel_count,
-                            channelActiveCount: puzzle.channel_active_count,
+                            channelActive: puzzle.channel_active,
                             activityHisto: puzzle.activity_histo,
                             lastActive: new Date(puzzle.last_active),
                         } }
