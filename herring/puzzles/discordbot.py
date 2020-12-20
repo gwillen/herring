@@ -120,7 +120,8 @@ class HerringCog(commands.Cog):
             need_mentions = []
             for member in message.mentions:
                 # if someone got mentioned, invite them to the puzzle
-                if await self.add_user_to_puzzle(member, puzzle.slug):
+                _, changed = await self.add_user_to_puzzle(member, puzzle.slug)
+                if changed:
                     need_mentions.append(member)
             if len(need_mentions) > 0:
                 all_mentions = ", ".join(member.mention for member in need_mentions)
@@ -184,7 +185,7 @@ class HerringCog(commands.Cog):
             return
 
         logging.info(f"adding {member} to {puzzle_chosen.slug}")
-        channel = await self.add_user_to_puzzle(member, puzzle_chosen.slug)
+        channel, _ = await self.add_user_to_puzzle(member, puzzle_chosen.slug)
         await ctx.author.send(f"Welcome to the puzzle {puzzle_chosen.name} in {channel.mention}! Happy solving!")
 
     @commands.command(aliases=["part"], brief="Leave a puzzle channel")
@@ -282,13 +283,11 @@ class HerringCog(commands.Cog):
 
         def puzzle_printerizer(puzzle):
             text_channel, voice_channel = self.get_channel_pair(puzzle.slug)
-            overwrites = text_channel.overwrites
-            overwrites.remove(self.guild.me)
-            overwrites.remove(self.guild.default_role)
-            if len(overwrites) > MAX_USER_LIST:
-                watching = len(overwrites)
+            membership = [member for member in text_channel.overwrites if member.id != self.guild.me.id and member.id != self.guild.default_role.id]
+            if len(membership) > MAX_USER_LIST:
+                watching = len(membership)
             else:
-                watching = ", ".join(member.mention for member in overwrites) or "no one"
+                watching = ", ".join(member.mention for member in membership) or "no one"
             if len(voice_channel.members) > MAX_USER_LIST:
                 in_voice = len(voice_channel.members)
             else:
@@ -491,7 +490,7 @@ class HerringCog(commands.Cog):
 
         if changed:
             await _manipulate_puzzle(puzzle_name, self._update_channel_participation)
-        return text_channel
+        return text_channel, changed
 
     def get_channel_pair(self, puzzle_name):
         text_channel: discord.TextChannel = get(self.guild.text_channels, name=puzzle_name)
