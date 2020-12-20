@@ -105,7 +105,7 @@ class HerringCog(commands.Cog):
                         user_id=str(message.author),
                         last_active=dt, is_member=True,
                         display_name=message.author.display_name,
-                        channel_name=puzzle.slug,
+                        channel_puzzle=puzzle,
                 ))
             if not created and (row.last_active is None or row.last_active < dt):
                 row.last_active = dt
@@ -487,9 +487,10 @@ class HerringCog(commands.Cog):
     async def add_user_to_puzzle(self, member: discord.Member, puzzle_name: str):
         text_channel, voice_channel = self.get_channel_pair(puzzle_name)
 
-        await _add_user_to_channels(member, text_channel, voice_channel)
+        changed = await _add_user_to_channels(member, text_channel, voice_channel)
 
-        await _manipulate_puzzle(puzzle_name, self._update_channel_participation)
+        if changed:
+            await _manipulate_puzzle(puzzle_name, self._update_channel_participation)
         return text_channel
 
     def get_channel_pair(self, puzzle_name):
@@ -789,7 +790,7 @@ def _update_channel_participation_inner(puzzle, membership):
                     user_id=str(member),
                     is_member=True,
                     display_name=member.display_name,
-                    channel_name=puzzle.slug,
+                    channel_puzzle=puzzle,
             ))
 
 
