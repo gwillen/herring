@@ -187,6 +187,7 @@ class ChannelParticipation(models.Model):
     user_id = models.CharField(max_length=30)
     last_active = models.DateTimeField(null=True)
     is_member = models.BooleanField()
+    display_name = models.CharField(max_length=50, **optional)
 
     class Meta:
         indexes = [models.Index(fields=['channel_puzzle', 'user_id'])]

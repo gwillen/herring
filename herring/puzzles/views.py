@@ -188,6 +188,13 @@ def compute_active_users():
     # I still don't know a really pythonic way to do this
     channel_users = defaultdict(list)
     for result in results:
-        channel_users[result.channel_puzzle.slug].append(result.user_id)
+        name = result.display_name
+        if not name:
+            hash_pos = result.user_id.rfind('#')
+            if hash_pos >= 0:
+                name = result.user_id[:hash_pos]
+            else:
+                name = result.user_id
+        channel_users[result.channel_puzzle.slug].append(name)
 
     return channel_users

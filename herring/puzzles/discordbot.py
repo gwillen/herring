@@ -52,6 +52,8 @@ PUZZLES_PER_CATEGORY = 20
 
 SIGNUP_EMOJI = "\N{RAISED HAND}"
 
+# this is the most users we'll try to mention during an hb!who; more than this and you just get the number
+MAX_USER_LIST = 10
 
 class HerringCog(commands.Cog):
     def __init__(self, bot:commands.Bot):
@@ -99,12 +101,13 @@ class HerringCog(commands.Cog):
             query = Q(user_id=str(message.author)) | Q(user_id=str(message.author.id))
             row, created = puzzle.channelparticipation_set\
                 .filter(query)\
-                .get_or_create(defaults=dict(user_id=str(message.author), last_active=dt, is_member=True))
+                .get_or_create(defaults=dict(user_id=str(message.author), last_active=dt, is_member=True, display_name=message.author.display_name))
             if not created and (row.last_active is None or row.last_active < dt):
                 row.last_active = dt
                 row.user_id = str(message.author)
+                row.display_name = message.author.display_name
                 row.is_member = True
-                row.save(update_fields=['user_id', 'last_active', 'is_member'])
+                row.save(update_fields=['user_id', 'last_active', 'is_member', 'display_name'])
 
         puzzle = await _manipulate_puzzle(message.channel.name, record_activity)
 
@@ -277,8 +280,14 @@ class HerringCog(commands.Cog):
             overwrites = text_channel.overwrites
             overwrites.remove(self.guild.me)
             overwrites.remove(self.guild.default_role)
-            watching = ", ".join(member.mention for member in overwrites)
-            in_voice = ", ".join(member.mention for member in voice_channel.members) or "no one"
+            if len(overwrites) > MAX_USER_LIST:
+                watching = len(overwrites)
+            else:
+                watching = ", ".join(member.mention for member in overwrites) or "no one"
+            if len(voice_channel.members) > MAX_USER_LIST:
+                in_voice = len(voice_channel.members)
+            else:
+                in_voice = ", ".join(member.mention for member in voice_channel.members) or "no one"
             solved = " (SOLVED!)" if puzzle.answer else ""
             return f"{_abbreviate_name(puzzle)} ({text_channel.mention}){solved}: {watching} watching, {in_voice} currently solving"
 
@@ -767,13 +776,11 @@ def _update_channel_participation_inner(puzzle, membership):
         .exclude(user_id__in=[str(member.id) for member in membership]) \
         .exclude(user_id__in=[str(member) for member in membership]) \
         .update(is_member=False)
-    for row in puzzle.channelparticipation_set.filter(is_member=True):
-        membership.remove(row.user_id)
     for member in membership:
         query = Q(user_id=str(member.id)) | Q(user_id=str(member))
         puzzle.channelparticipation_set\
             .filter(query)\
-            .update_or_create(defaults=dict(user_id=str(member), is_member=True))
+            .update_or_create(defaults=dict(user_id=str(member), is_member=True, display_name=member.display_name))
 
 
 # Public factory methods

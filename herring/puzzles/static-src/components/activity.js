@@ -12,12 +12,7 @@ export default function ActivityComponent(props) {
     const now = new Date();
     const buckets = histoToBuckets(activityHisto, lastActive, now);
     const activeInvisible = channelActive.length === 0 ? 'invisible' : '';
-    function fixUsername(name) {
-        const hash = name.indexOf('#');
-        if (hash < 0) return name;
-        return name.substring(0, hash);
-    }
-    const activeUsers = channelActive.map(fixUsername).join(', ');
+    const activeUsers = channelActive.join(', ');
     return (
         <div className={className}>
             <span className="allMembers">
