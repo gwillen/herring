@@ -101,7 +101,12 @@ class HerringCog(commands.Cog):
             query = Q(user_id=str(message.author)) | Q(user_id=str(message.author.id))
             row, created = puzzle.channelparticipation_set\
                 .filter(query)\
-                .get_or_create(defaults=dict(user_id=str(message.author), last_active=dt, is_member=True, display_name=message.author.display_name))
+                .get_or_create(defaults=dict(
+                        user_id=str(message.author),
+                        last_active=dt, is_member=True,
+                        display_name=message.author.display_name,
+                        channel_name=puzzle.slug,
+                ))
             if not created and (row.last_active is None or row.last_active < dt):
                 row.last_active = dt
                 row.user_id = str(message.author)
@@ -780,7 +785,12 @@ def _update_channel_participation_inner(puzzle, membership):
         query = Q(user_id=str(member.id)) | Q(user_id=str(member))
         puzzle.channelparticipation_set\
             .filter(query)\
-            .update_or_create(defaults=dict(user_id=str(member), is_member=True, display_name=member.display_name))
+            .update_or_create(defaults=dict(
+                    user_id=str(member),
+                    is_member=True,
+                    display_name=member.display_name,
+                    channel_name=puzzle.slug,
+            ))
 
 
 # Public factory methods
