@@ -283,17 +283,17 @@ class HerringCog(commands.Cog):
 
         def puzzle_printerizer(puzzle):
             text_channel, voice_channel = self.get_channel_pair(puzzle.slug)
-            membership = [member for member in text_channel.overwrites if member.id != self.guild.me.id and member.id != self.guild.default_role.id]
+            membership: typing.Sequence[discord.Member] = [member for member in text_channel.overwrites if member.id != self.guild.me.id and member.id != self.guild.default_role.id]
             if len(membership) > MAX_USER_LIST:
                 watching = len(membership)
             else:
-                watching = ", ".join(member.mention for member in membership) or "no one"
+                watching = ", ".join(member.display_name for member in membership) or "no one"
             if len(voice_channel.members) > MAX_USER_LIST:
                 in_voice = len(voice_channel.members)
             else:
-                in_voice = ", ".join(member.mention for member in voice_channel.members) or "no one"
+                in_voice = ", ".join(member.display_name for member in voice_channel.members) or "no one"
             solved = " (SOLVED!)" if puzzle.answer else ""
-            return f"{_abbreviate_name(puzzle)} ({text_channel.mention}){solved}: {watching} watching, {in_voice} currently solving"
+            return f"{_abbreviate_name(puzzle)} ({text_channel.mention}){solved}: {watching} watching, {in_voice} in voice chat"
 
         if puzzle_name is not None:
             try:
