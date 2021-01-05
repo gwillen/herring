@@ -16,12 +16,13 @@ Including another URLconf
 from django.urls import include, path
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
+from django.conf import settings
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     # if we hooked up email we could just include all of these
     # path('accounts/', include('django.contrib.auth.urls')),
-    path('accounts/login/', auth_views.LoginView.as_view(), name='login'),
+    path('accounts/login/', auth_views.LoginView.as_view(extra_context={'team_name': settings.HERRING_TEAM_NAME}), name='login'),
     path('accounts/logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('', include('puzzles.urls')),
 ]

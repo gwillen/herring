@@ -158,6 +158,7 @@ HERRING_FUCK_OAUTH = json.loads(env.get_value('FUCK_OAUTH', default='{}'))
 
 # This should be more dynamic in the future.
 HERRING_HUNT_ID = int(env.get_value('HUNT_ID', default=0))
+HERRING_TEAM_NAME = env.get_value('TEAM_NAME', default="Non-Abelian Rage Theory")
 
 HERRING_ACTIVATE_GAPPS = env.bool('ACTIVATE_GAPPS', default=True)
 HERRING_ACTIVATE_SLACK = env.bool('ACTIVATE_SLACK', default=True)

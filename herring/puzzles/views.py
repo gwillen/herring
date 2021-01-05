@@ -27,14 +27,14 @@ def signup(request):
         profile_form = UserProfileForm(request.POST)
         if user_form.is_valid() and profile_form.is_valid():
             user:User = user_form.save(commit=False)
-            user.is_active = False
+            user.is_active = (user_form.cleaned_data['magic_secret'] == settings.HERRING_SECRETS['magic-secret'])
             user.save()
             user.refresh_from_db()  # load the profile instance created by the signal
             profile_form = UserProfileForm(request.POST, instance=user.profile)
             profile_form.full_clean()
             profile_form.save()
             greeting = user.first_name or user.username
-            return render(request, 'registration/post_signup.html', {'username': greeting})
+            return render(request, 'registration/post_signup.html', {'username': greeting, 'active': user.is_active})
     else:
         user_form = UserSignupForm()
         profile_form = UserProfileForm()
