@@ -354,16 +354,20 @@ class HerringCog(commands.Cog):
         pronoun_role = await self.do_menu(
             ctx.author,
             self.pronoun_roles,
-            "Which pronouns would you like to use?",
+            "Which pronouns would you like to use? If your preference doesn't appear, just pick something and get a czar to fix it.",
             lambda role: role.name
         )
+        if not pronoun_role:
+            return
 
         timezone_role = await self.do_menu(
             ctx.author,
             self.timezone_roles,
-            "Which time zone are you solving in?",
+            "Which time zone are you solving in? Again, if you don't like any of these, get a czar to fix it for you.",
             lambda role: role.name
         )
+        if not timezone_role:
+            return
 
         current_roles = member.roles
         roles_to_remove = []
