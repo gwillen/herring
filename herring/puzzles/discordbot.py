@@ -347,27 +347,31 @@ class HerringCog(commands.Cog):
         await self.delete_message_if_possible(ctx.message)
 
         member:discord.Member = self.guild.get_member(ctx.author.id)
-
+        roles_to_add = []
         if not member:
             return
 
         pronoun_role = await self.do_menu(
             ctx.author,
-            self.pronoun_roles,
+            self.pronoun_roles + ["Don't set"],
             "Which pronouns would you like to use? If your preference doesn't appear, just pick something and get a czar to fix it.",
-            lambda role: role.name
+            str
         )
         if not pronoun_role:
             return
+        if isinstance(pronoun_role, discord.Role):
+            roles_to_add.append(pronoun_role)
 
         timezone_role = await self.do_menu(
             ctx.author,
-            self.timezone_roles,
+            self.timezone_roles + ["Don't set"],
             "Which time zone are you solving in? Again, if you don't like any of these, get a czar to fix it for you.",
-            lambda role: role.name
+            str
         )
         if not timezone_role:
             return
+        if isinstance(timezone_role, discord.Role):
+            roles_to_add.append(timezone_role)
 
         current_roles = member.roles
         roles_to_remove = []
@@ -380,8 +384,8 @@ class HerringCog(commands.Cog):
                 roles_to_remove.append(role)
 
         await member.remove_roles(*roles_to_remove)
-        await member.add_roles(pronoun_role, timezone_role)
-        await member.send(f"You will now be referred to as {pronoun_role.name}, and you're solving in {timezone_role.name}")
+        await member.add_roles(*roles_to_add)
+        await member.send(f"You've been set up! Please ensure that your roles are set the way you wanted them to be.")
 
     @commands.command(hidden=True)
     async def cleanup_channels(self, ctx):
