@@ -60,11 +60,15 @@ class HerringCog(commands.Cog):
         self.bot = bot
         self.guild: typing.Optional[discord.Guild] = None
         self.announce_channel = None
+        self.pronoun_roles = []
+        self.timezone_roles = []
 
     @commands.Cog.listener()
     async def on_ready(self):
         self.guild = self.bot.get_guild(settings.HERRING_DISCORD_GUILD_ID)
         self.announce_channel = get(self.guild.text_channels, name = settings.HERRING_DISCORD_PUZZLE_ANNOUNCEMENTS)
+        self.pronoun_roles = [self.guild.get_role(role_id) for role_id in settings.HERRING_DISCORD_PRONOUN_ROLES]
+        self.timezone_roles = [self.guild.get_role(role_id) for role_id in settings.HERRING_DISCORD_TIMEZONE_ROLES]
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
@@ -333,6 +337,47 @@ class HerringCog(commands.Cog):
             else:
                 description += "\n" + puzzle_line
         await ctx.author.send("", embed=discord.Embed(description=description))
+
+    @commands.command(brief="Set your pronoun and timezone roles")
+    async def role(self, ctx):
+        """
+        Ask the bot to set your preferred pronoun and timezone roles, from the standard lists of choices. If you
+        want something that isn't in the lists, please contact a czar directly and they can make it and assign it to you.
+        """
+        await self.delete_message_if_possible(ctx.message)
+
+        member:discord.Member = self.guild.get_member(ctx.author.id)
+
+        if not member:
+            return
+
+        pronoun_role = await self.do_menu(
+            ctx.author,
+            self.pronoun_roles,
+            "Which pronouns would you like to use?",
+            lambda role: role.name
+        )
+
+        timezone_role = await self.do_menu(
+            ctx.author,
+            self.timezone_roles,
+            "Which time zone are you solving in?",
+            lambda role: role.name
+        )
+
+        current_roles = member.roles
+        roles_to_remove = []
+        for role in self.pronoun_roles:
+            if role in current_roles:
+                roles_to_remove.append(role)
+
+        for role in self.timezone_roles:
+            if role in current_roles:
+                roles_to_remove.append(role)
+
+        await member.remove_roles(*roles_to_remove)
+        await member.add_roles(pronoun_role, timezone_role)
+        await member.send(f"You will now be referred to as {pronoun_role.name}, and you're solving in {timezone_role.name}")
 
     @commands.command(hidden=True)
     async def cleanup_channels(self, ctx):
