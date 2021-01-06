@@ -778,7 +778,7 @@ async def _make_puzzle_channels_inner(category: discord.CategoryChannel, puzzle:
     # setting position=0 doesn't work
     position = 1 if puzzle.is_meta else puzzle.number + 10
     text_channel = get(category.text_channels, name=puzzle.slug) or await category.create_text_channel(puzzle.slug, topic=topic, position=position)
-    voice_channel = get(category.voice_channels, name=puzzle.slug) or await category.create_voice_channel(puzzle.slug, position=position)
+    voice_channel = get(category.voice_channels, name=puzzle.slug) or await category.create_voice_channel(puzzle.slug, position=position, bitrate=settings.HERRING_DISCORD_BITRATE)
     return text_channel, voice_channel
 
 
