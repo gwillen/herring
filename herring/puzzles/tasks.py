@@ -421,6 +421,8 @@ def update_slack_channel_membership(channel_id):
 
 @ttl_cache(maxsize=512, ttl=3600)
 def channel_name(channel_id):
+    if not settings.HERRING_ACTIVATE_SLACK:
+        return None
     result = SLACK.conversations.info(channel_id)
     if result.successful:
         return result.body['channel']['name']
