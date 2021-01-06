@@ -162,9 +162,9 @@ HERRING_FUCK_OAUTH = json.loads(env.get_value('FUCK_OAUTH', default='{}'))
 HERRING_HUNT_ID = int(env.get_value('HUNT_ID', default=0))
 HERRING_TEAM_NAME = env.get_value('TEAM_NAME', default="Non-Abelian Rage Theory")
 
-HERRING_ACTIVATE_GAPPS = env.bool('ACTIVATE_GAPPS', default=True)
-HERRING_ACTIVATE_SLACK = env.bool('ACTIVATE_SLACK', default=True)
-HERRING_ACTIVATE_DISCORD = env.bool('ACTIVATE_DISCORD', default=True)
+HERRING_ACTIVATE_GAPPS = env.bool('ACTIVATE_GAPPS', default=False)
+HERRING_ACTIVATE_SLACK = env.bool('ACTIVATE_SLACK', default=False)
+HERRING_ACTIVATE_DISCORD = env.bool('ACTIVATE_DISCORD', default=False)
 
 HERRING_SOLVERTOOLS_URL = env.get_value('SOLVERTOOLS_URL', default="http://ireproof.org/")
 
