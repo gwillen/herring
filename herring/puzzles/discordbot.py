@@ -723,6 +723,9 @@ class HerringAnnouncerBot(discord.Client):
         round, num_puzzles = await get_round()
         categories = [int(i) for i in round.discord_categories.split(",")]
 
+        if len(categories) == 0:
+            raise ValueError(f"round {round.name} has no categories yet, try again soon")
+
         if num_puzzles > len(categories) * PUZZLES_PER_CATEGORY:
             # need to make a new category
             category = await self.make_category(f"{round.name} {len(categories)}")

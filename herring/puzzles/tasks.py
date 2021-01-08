@@ -171,10 +171,11 @@ def create_puzzle_sheet_and_channel(self, slug):
         raise self.retry(exc=e)
 
     if settings.HERRING_ACTIVATE_GAPPS:
-        sheet_title = '{} - {}'.format(puzzle.round_prefix(), puzzle.name)
-        sheet_id = make_sheet(sheet_title)
+        if not puzzle.sheet_id:
+            sheet_title = '{} - {}'.format(puzzle.round_prefix(), puzzle.name)
+            sheet_id = make_sheet(sheet_title)
 
-        puzzle.sheet_id = sheet_id
+            puzzle.sheet_id = sheet_id
 
     if settings.HERRING_ACTIVATE_SLACK:
         try:
@@ -212,7 +213,7 @@ def create_puzzle_sheet_and_channel(self, slug):
     if settings.HERRING_ACTIVATE_DISCORD:
         try:
             do_in_discord(DISCORD_ANNOUNCER.make_puzzle_channels(puzzle))
-        except RuntimeError:
+        except (RuntimeError, ValueError):
             raise self.retry()
 
 
