@@ -55,6 +55,10 @@ SIGNUP_EMOJI = "\N{RAISED HAND}"
 # this is the most users we'll try to mention during an hb!who; more than this and you just get the number
 MAX_USER_LIST = 10
 
+# for safety's sake, we will only allow auto-assignment of roles below this role, to prevent bugs allowing
+# auto-assignment of powerful roles.
+AUTOROLE_MARKER = "-autoroles below-"
+
 class HerringCog(commands.Cog):
     def __init__(self, bot:commands.Bot):
         self.bot = bot
@@ -63,12 +67,40 @@ class HerringCog(commands.Cog):
         self.pronoun_roles = []
         self.timezone_roles = []
 
+    def get_pronoun_roles(self):
+        result = []
+
+        for role in self.guild.roles:
+            found_autoroles = False
+            if not found_autoroles and role.name != AUTOROLE_MARKER:
+                continue
+            found_autoroles = True
+
+            # You know what, it's close enough.
+            if "/" in role.name:
+                result.append(role)
+        return result
+
+    def get_timezone_roles(self):
+        result = []
+
+        for role in self.guild.roles:
+            found_autoroles = False
+            if not found_autoroles and role.name != AUTOROLE_MARKER:
+                continue
+            found_autoroles = True
+
+            if "UTC" in role.name:
+                result.append(role)
+        return result
+
     @commands.Cog.listener()
     async def on_ready(self):
         self.guild = self.bot.get_guild(settings.HERRING_DISCORD_GUILD_ID)
         self.announce_channel = get(self.guild.text_channels, name = settings.HERRING_DISCORD_PUZZLE_ANNOUNCEMENTS)
-        self.pronoun_roles = [self.guild.get_role(role_id) for role_id in settings.HERRING_DISCORD_PRONOUN_ROLES]
-        self.timezone_roles = [self.guild.get_role(role_id) for role_id in settings.HERRING_DISCORD_TIMEZONE_ROLES]
+        self.debug_channel = get(self.guild.text_channels, name = settings.HERRING_DISCORD_DEBUG_CHANNEL)
+        self.pronoun_roles = self.get_pronoun_roles()
+        self.timezone_roles = self.get_timezone_roles()
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
