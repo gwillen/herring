@@ -10,7 +10,7 @@ from django.db import transaction
 import json
 import kombu.exceptions
 from lazy_object_proxy import Proxy as lazy_object
-from puzzles.discordbot import HerringAnnouncerBot, make_announcer_bot, run_listener_bot
+from puzzles.discordbot import run_listener_bot, DISCORD_ANNOUNCER, do_in_discord
 from puzzles.models import Puzzle, Round, UserProfile
 from puzzles.spreadsheets import check_spreadsheet_service, iterate_changes, make_sheet
 from redis import Redis
@@ -53,25 +53,7 @@ def REDIS():
     # Redis connections so quickly; it's possible this doesn't help at all.
     return Redis.from_url(settings.REDIS_URL, max_connections=1)
 
-@lazy_object
-def DISCORD_ANNOUNCER() -> Optional[HerringAnnouncerBot]:
-    if not settings.HERRING_ACTIVATE_DISCORD:
-        logging.warning("Running without Discord integration!")
-        return None
-    return make_announcer_bot(settings.HERRING_SECRETS['discord-bot-token'])
-
 _optional_tasks_enabled = None
-
-
-def do_in_discord(coro):
-    try:
-        return DISCORD_ANNOUNCER.do_in_loop(coro)
-    except RuntimeError:
-        # probably the discord bot is busted, try to make it rebuild
-        logging.error("Invalidating discord announcer bot!")
-        del DISCORD_ANNOUNCER.__target__
-        raise
-
 
 def optional_task(t):
     """

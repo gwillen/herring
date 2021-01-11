@@ -148,8 +148,8 @@ HERRING_HOST = env.get_value('HOST', default='http://localhost:8000')
 HERRING_PUZZLE_ACTIVITY_LOG_URL = env.get_value('PUZZLE_ACTIVITY_LOG_URL', default=None)
 HERRING_PUZZLE_SITE_SESSION_COOKIE = env.get_value('PUZZLE_SITE_SESSION_COOKIE', default=None)
 
-HERRING_DISCORD_GUILD_ID = int(env.get_value('DISCORD_GUILD', default=None))
-HERRING_DISCORD_PROTECTED_CATEGORIES = set(json.loads(env.get_value('DISCORD_PROTECTED_CATEGORIES', default=None)))
+HERRING_DISCORD_GUILD_ID = int(env.get_value('DISCORD_GUILD', default=0))
+HERRING_DISCORD_PROTECTED_CATEGORIES = set(json.loads(env.get_value('DISCORD_PROTECTED_CATEGORIES', default='[]')))
 HERRING_DISCORD_PUZZLE_ANNOUNCEMENTS = env.get_value('DISCORD_ANNOUNCEMENTS', default='puzzle-announcements')
 HERRING_DISCORD_DEBUG_CHANNEL = env.get_value('DISCORD_DEBUG_CHANNEL', default='herringbot-debug')
 HERRING_DISCORD_BITRATE = env.int('DISCORD_BITRATE', default=128000)
@@ -168,6 +168,11 @@ HERRING_ACTIVATE_DISCORD = env.bool('ACTIVATE_DISCORD', default=False)
 
 HERRING_SOLVERTOOLS_URL = env.get_value('SOLVERTOOLS_URL', default="http://ireproof.org/")
 
+# https://devcenter.heroku.com/articles/dyno-metadata
+HEROKU_APP_NAME = env.get_value('HEROKU_APP_NAME', default='<unknown>')
+# https://devcenter.heroku.com/articles/dynos#local-environment-variables
+HEROKU_DYNO_NAME = env.get_value('DYNO', default='<unknown>')
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -175,14 +180,18 @@ LOGGING = {
         'console': {
             'class': 'logging.StreamHandler',
         },
+        'chat': {
+            'class': 'herring.log_custom.ChatLogHandler',
+            'level': 'ERROR',
+        },
     },
     'root': {
-        'handlers': ['console'],
+        'handlers': ['console', 'chat'],
         'level': env.get_value('LOG_LEVEL', default='INFO'),
     },
     'loggers': {
         'django.db.backends': {
-            'handlers': ['console'],
+            'handlers': ['console', 'chat'],
             'level': env.get_value(
                 'DJANGO_DB_LOG_LEVEL',
                 default='DEBUG' if DEBUG else 'INFO'),

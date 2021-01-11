@@ -8,6 +8,9 @@ import typing
 from datetime import timezone
 from urllib.parse import urljoin
 import aiohttp
+from lazy_object_proxy import Proxy as lazy_object
+
+from typing import Optional
 
 import discord
 from asgiref.sync import async_to_sync, sync_to_async
@@ -686,6 +689,56 @@ class SolvertoolsCog(commands.Cog):
             except aiohttp.ClientError:
                 await ctx.send("Sorry, the connection to ireproof.org doesn't seem to be working today.")
 
+# Copied from https://gist.github.com/EvieePy/7822af90858ef65012ea500bcecf1612
+class CommandErrorHandler(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx, error):
+        """The event triggered when an error is raised while invoking a command.
+        Parameters
+        ------------
+        ctx: commands.Context
+            The context used for command invocation.
+        error: commands.CommandError
+            The Exception raised.
+        """
+
+        # This prevents any commands with local handlers being handled here in on_command_error.
+        if hasattr(ctx.command, 'on_error'):
+            return
+
+        # This prevents any cogs with an overwritten cog_command_error being handled here.
+        cog = ctx.cog
+        if cog:
+            if cog._get_overridden_method(cog.cog_command_error) is not None:
+                return
+
+        ignored = (commands.CommandNotFound, )
+
+        # Allows us to check for original exceptions raised and sent to CommandInvokeError.
+        # If nothing is found. We keep the exception passed to on_command_error.
+        error = getattr(error, 'original', error)
+
+        # Anything in ignored will return and prevent anything happening.
+        if isinstance(error, ignored):
+            return
+
+        if isinstance(error, commands.DisabledCommand):
+            await ctx.send(f'{ctx.command} has been disabled.')
+
+        elif isinstance(error, commands.NoPrivateMessage):
+            try:
+                await ctx.author.send(f'{ctx.command} can not be used in Private Messages.')
+            except discord.HTTPException:
+                pass
+
+        else:
+            # All other Errors not returned come here. And we can just print the default TraceBack.
+            traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+            do_in_discord(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, self.format(record)))
+
 
 def command_prefix(bot, message:discord.Message):
     if message.channel.type == discord.ChannelType.private:
@@ -784,6 +837,14 @@ class HerringAnnouncerBot(discord.Client):
         announcement = await self.announce_channel.send(f"New puzzle {puzzle.name} opened! {SIGNUP_EMOJI} this message to join, then head to {text_channel.mention}.")
         await announcement.add_reaction(SIGNUP_EMOJI)
 
+    async def post_message(self, channel_name, message):
+        await self._really_ready.wait()
+        channel: discord.TextChannel = get(self.guild.text_channels, name=channel_name)
+        if channel is None:
+            logging.error(f"Couldn't get Discord channel {puzzle_name} in post_local_and_global!")
+            return
+        await channel.send(message)
+
     async def post_local_and_global(self, puzzle_name, local_message, global_message:str):
         await self._really_ready.wait()
         channel: discord.TextChannel = get(self.guild.text_channels, name=puzzle_name)
@@ -813,6 +874,24 @@ class HerringAnnouncerBot(discord.Client):
         text_channel: discord.TextChannel = get(self.guild.text_channels, name=puzzle_name)
         voice_channel: discord.VoiceChannel = get(self.guild.voice_channels, name=puzzle_name)
         return text_channel, voice_channel
+
+@lazy_object
+def DISCORD_ANNOUNCER() -> Optional[HerringAnnouncerBot]:
+    if not settings.HERRING_ACTIVATE_DISCORD:
+        logging.warning("Running without Discord integration!")
+        return None
+    bot = make_announcer_bot(settings.HERRING_SECRETS['discord-bot-token'])
+    bot.do_in_loop(bot.post_message(settings.HERRING_DISCORD_DEBUG_CHANNEL, f"Discord announcer bot created in app: {settings.HEROKU_APP_NAME} / dyno {settings.HEROKU_DYNO_NAME}"))
+    return bot
+
+def do_in_discord(coro):
+    try:
+        return DISCORD_ANNOUNCER.do_in_loop(coro)
+    except RuntimeError:
+        # probably the discord bot is busted, try to make it rebuild
+        logging.error("Invalidating discord announcer bot!")
+        del DISCORD_ANNOUNCER.__target__
+        raise
 
 
 # Shared utilities that both bots use
