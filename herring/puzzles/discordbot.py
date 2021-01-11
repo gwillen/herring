@@ -761,6 +761,7 @@ class HerringListenerBot(commands.Bot):
         super().__init__(command_prefix, *args, loop=loop, intents=intents, **kwargs)
         self.add_cog(HerringCog(self))
         self.add_cog(SolvertoolsCog(self, client))
+        self.add_cog(CommandErrorHandler(self))
 
 
 class HerringAnnouncerBot(discord.Client):
@@ -894,6 +895,8 @@ def do_in_discord(coro):
         del DISCORD_ANNOUNCER.__target__
         raise
 
+def log_to_discord(message):
+    do_in_discord(DISCORD_ANNOUNCER.post_message(settings.HERRING_DISCORD_DEBUG_CHANNEL, message))
 
 # Shared utilities that both bots use
 
