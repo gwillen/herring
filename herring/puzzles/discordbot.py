@@ -479,56 +479,54 @@ class HerringCog(commands.Cog):
                 else:
                     await ctx.author.send(f"saving {new_categories_value} to round {round.name}")
 
+            def fixup_puzzle(puzzle, category_idx):
+                text_channel, voice_channel = self.get_channel_pair(puzzle.slug)
+                if text_channel is None or voice_channel is None:
+                    if really_do_it:
+                        text_channel, voice_channel = await _make_puzzle_channels_inner(new_categories[category_idx], puzzle)
+                    else:
+                        await ctx.author.send(f"creating channels for {puzzle.name} in {round.name} {category_idx}")
+                if text_channel is not None and text_channel.category != new_categories[category_idx]:
+                    if really_do_it:
+                        await text_channel.edit(category=new_categories[category_idx])
+                    else:
+                        await ctx.author.send(f"Moving {puzzle.name} (text) to category {round.name} {category_idx}")
+                if voice_channel is not None and voice_channel.category != new_categories[category_idx]:
+                    if really_do_it:
+                        await voice_channel.edit(category=new_categories[category_idx])
+                    else:
+                        await ctx.author.send(f"Moving {puzzle.name} (voice) to category {round.name} {category_idx}")
+
+                new_topic = _build_topic(puzzle)
+                if text_channel is not None and text_channel.topic != new_topic:
+                    if really_do_it:
+                        await text_channel.edit(topic=new_topic)
+                    else:
+                        await ctx.author.send(f"Fixing topic of {puzzle.name}")
+                # by this point if we're not doing a dry run, the channel should be safe to _update_channel_participation
+                if really_do_it:
+                    await _manipulate_puzzle(puzzle, self._update_channel_participation)
+
             # now, rearrange puzzle channels into categories
             # first, stash metapuzzles somewhere else, to give us a little elbow room
             for puzzle in metapuzzles_by_round[round.id]:
-                text_channel, voice_channel = self.get_channel_pair(puzzle.slug)
-                if text_channel is None:
-                    # we'll fix this later
-                    continue
                 if really_do_it:
-                    await text_channel.edit(category=None)
-                    await voice_channel.edit(category=None)
+                    # if either are None we'll fix it later
+                    text_channel, voice_channel = self.get_channel_pair(puzzle.slug)
+                    if text_channel is not None:
+                        await text_channel.edit(category=None)
+                    if voice_channel is not None:
+                        await voice_channel.edit(category=None)
+
             # then, move and/or create the normal puzzles where they're supposed to be
             for idx, puzzle in enumerate(puzzles_by_round[round.id]):
                 if puzzle.is_meta:
                     continue
-                text_channel, voice_channel = self.get_channel_pair(puzzle.slug)
-                intended_category_idx = idx // PUZZLES_PER_CATEGORY
-                if text_channel is None:
-                    if really_do_it:
-                        await _make_puzzle_channels_inner(new_categories[intended_category_idx], puzzle)
-                    else:
-                        await ctx.author.send(f"creating channels for {puzzle.name} in {round.name} {intended_category_idx}")
-                else:
-                    if text_channel.category != new_categories[intended_category_idx]:
-                        if really_do_it:
-                            await text_channel.edit(category=new_categories[intended_category_idx])
-                            await voice_channel.edit(category=new_categories[intended_category_idx])
-                        else:
-                            await ctx.author.send(f"Moving {puzzle.name} to category {round.name} {intended_category_idx}")
-                    new_topic = _build_topic(puzzle)
-                    if text_channel.topic != new_topic:
-                        await text_channel.edit(topic=new_topic)
-                await _manipulate_puzzle(puzzle, self._update_channel_participation)
+                fixup_puzzle(puzzle, new_categories[idx // PUZZLES_PER_CATEGORY])
+
             # finally, put the metapuzzles back
             for puzzle in metapuzzles_by_round[round.id]:
-                text_channel, voice_channel = self.get_channel_pair(puzzle.slug)
-                if text_channel is None:
-                    if really_do_it:
-                        await _make_puzzle_channels_inner(new_categories[0], puzzle)
-                    else:
-                        await ctx.author.send(f"creating channels for meta {puzzle.name} in {round.name}")
-                else:
-                    if really_do_it:
-                        await text_channel.edit(category=new_categories[0])
-                        await voice_channel.edit(category=new_categories[0])
-                    else:
-                        await ctx.author.send(f"Moving meta {puzzle.name} to category {round.name}")
-                    new_topic = _build_topic(puzzle)
-                    if text_channel.topic != new_topic:
-                        await text_channel.edit(topic=new_topic)
-                await _manipulate_puzzle(puzzle, self._update_channel_participation)
+                fixup_puzzle(puzzle, 0)
 
     @staticmethod
     async def delete_message_if_possible(request_message):
