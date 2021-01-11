@@ -166,6 +166,8 @@ HERRING_ACTIVATE_GAPPS = env.bool('ACTIVATE_GAPPS', default=False)
 HERRING_ACTIVATE_SLACK = env.bool('ACTIVATE_SLACK', default=False)
 HERRING_ACTIVATE_DISCORD = env.bool('ACTIVATE_DISCORD', default=False)
 
+HERRING_ERRORS_TO_DISCORD = env.bool('ERRORS_TO_DISCORD', default=False)
+
 HERRING_SOLVERTOOLS_URL = env.get_value('SOLVERTOOLS_URL', default="http://ireproof.org/")
 
 # https://devcenter.heroku.com/articles/dyno-metadata
@@ -186,12 +188,12 @@ LOGGING = {
         },
     },
     'root': {
-        'handlers': ['console', 'chat'],
+        'handlers': ['console'],
         'level': env.get_value('LOG_LEVEL', default='INFO'),
     },
     'loggers': {
         'django.db.backends': {
-            'handlers': ['console', 'chat'],
+            'handlers': ['console'],
             'level': env.get_value(
                 'DJANGO_DB_LOG_LEVEL',
                 default='DEBUG' if DEBUG else 'INFO'),
@@ -199,3 +201,8 @@ LOGGING = {
         },
     },
 }
+
+# Only turn this on if explicitly enabled, since it's kind of hazardous.
+if HERRING_ERRORS_TO_DISCORD:
+    LOGGING['root']['handlers'].append('chat')
+    LOGGING['loggers']['django.db.backends']['handlers'].append('chat')

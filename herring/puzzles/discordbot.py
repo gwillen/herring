@@ -737,7 +737,8 @@ class CommandErrorHandler(commands.Cog):
         else:
             # All other Errors not returned come here. And we can just print the default TraceBack.
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-            do_in_discord(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, self.format(record)))
+            if settings.HERRING_ERRORS_TO_DISCORD:
+                do_in_discord(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, self.format(record)))
 
 
 def command_prefix(bot, message:discord.Message):
