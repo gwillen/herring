@@ -4,6 +4,7 @@ from django.conf import settings
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from lazy_object_proxy import Proxy as lazy_object
+from puzzles.discordbot import log_to_discord
 
 
 @lazy_object
@@ -26,9 +27,14 @@ def make_sheet(title):
     body = {
         'mimeType': 'application/vnd.google-apps.spreadsheet',
         'name': title,
-        'parents': [settings.HERRING_SECRETS['gapps-folder']]
+        'parents': [settings.HERRING_SECRETS['gapps-folder']],
+        'contentRestrictions': {
+            'readOnly': False,  # Not sure if this is necessary or sufficient
+        },
     }
-    got = service.files().create(body=body).execute()
+    log_to_discord(f"make_sheet: {title}, {body}")
+    got = service.files().copy(fileId=settings.HERRING_SECRETS['gapps-doc-to-clone'], body=body).execute()
+    log_to_discord(f"result of copy is: {got}")
     return got['id']
 
 

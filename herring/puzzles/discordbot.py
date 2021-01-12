@@ -911,7 +911,7 @@ async def _make_puzzle_channels_inner(category: discord.CategoryChannel, puzzle:
         voice_channel = get(category.guild.voice_channels, name=locked_puzzle.slug) or \
                         await category.create_voice_channel(locked_puzzle.slug, position=position, bitrate=settings.HERRING_DISCORD_BITRATE)
         return text_channel, voice_channel
-    return _manipulate_puzzle(puzzle, do_make_channels)
+    return await _manipulate_puzzle(puzzle, do_make_channels)
 
 
 def _build_topic(puzzle):
