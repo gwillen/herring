@@ -213,7 +213,7 @@ def create_puzzle_sheet_and_channel(self, slug):
     if settings.HERRING_ACTIVATE_DISCORD:
         try:
             do_in_discord(DISCORD_ANNOUNCER.make_puzzle_channels(puzzle))
-        except (RuntimeError, ValueError):
+        except Exception:
             raise self.retry()
 
 
@@ -224,18 +224,19 @@ def create_round_category(self, round_id):
     logging.warning("tasks: create_round_category(%d)", round_id)
 
     if settings.HERRING_ACTIVATE_DISCORD:
-        try:
-            round = Round.objects.get(id=round_id)
-        except Exception as e:
-            logging.error("tasks: Couldn't retrieve round %d to create a Discord category", round_id, exc_info=True)
-            raise self.retry(exc=e)
-        try:
-            category = do_in_discord(DISCORD_ANNOUNCER.make_category(round.name))
-            if category:
-                round.discord_categories = str(category.id)
-                round.save()
-        except RuntimeError:
-            raise self.retry()
+        with transaction.atomic():
+            try:
+                round = Round.objects.select_for_update().get(id=round_id)
+            except Exception as e:
+                logging.error("tasks: Couldn't retrieve round %d to create a Discord category", round_id, exc_info=True)
+                raise self.retry(exc=e)
+            try:
+                category = do_in_discord(DISCORD_ANNOUNCER.make_category(round.name))
+                if category:
+                    round.discord_categories = str(category.id)
+                    round.save()
+            except Exception:
+                raise self.retry()
 
 @shared_task(rate_limit=0.1)
 def scrape_activity_log():
@@ -300,7 +301,6 @@ def check_connection_to_messaging():
             mutex.reacquire()
 
     try:
-        logging.info("herring secrets: %s", settings.HERRING_SECRETS)
         run(wait([process_slack_messages_forever(), run_discord_listener_bot(), keep_mutex()]))
     finally:
         mutex.release()

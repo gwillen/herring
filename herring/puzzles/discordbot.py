@@ -10,7 +10,7 @@ from urllib.parse import urljoin
 import aiohttp
 
 import discord
-from asgiref.sync import sync_to_async
+from asgiref.sync import async_to_sync, sync_to_async
 from discord.ext import commands
 from discord.utils import get
 from django.db import transaction
@@ -721,31 +721,32 @@ class HerringAnnouncerBot(discord.Client):
     async def make_puzzle_channels(self, puzzle: Puzzle):
         await self._really_ready.wait()
 
+        # don't get these swapped! they have to be in this order, with sync_to_async applying last (appearing first)
         @sync_to_async
-        def get_round():
-            round: Round = puzzle.parent
+        @transaction.atomic
+        def ensure_category_ready():
+            round: Round = Round.objects.select_for_update().get(id=puzzle.parent_id)
+            if round.discord_categories is None or len(round.discord_categories) == 0:
+                raise ValueError(f"round {round.name} has no categories yet, try again soon")
+
             num_puzzles = round.puzzle_set.count()
-            return round, num_puzzles
-
-        round, num_puzzles = await get_round()
-        categories = [int(i) for i in round.discord_categories.split(",")]
-
-        if len(categories) == 0:
-            raise ValueError(f"round {round.name} has no categories yet, try again soon")
-
-        if num_puzzles > len(categories) * PUZZLES_PER_CATEGORY:
-            # need to make a new category
-            category = await self.make_category(f"{round.name} {len(categories)}")
-            @sync_to_async
-            def add_round_category(category):
+            categories = [int(i) for i in round.discord_categories.split(",")]
+            if num_puzzles > len(categories) * PUZZLES_PER_CATEGORY:
+                # need to make a new category, which means getting back to async-land
+                @async_to_sync
+                async def make_category():
+                    return await self.make_category(f"{round.name} {len(categories)}")
+                category = make_category()
                 round.discord_categories += "," + str(category.id)
                 round.save()
-            await add_round_category(category)
-        else:
-            category = self.get_channel(categories[-1])
-            if category is None:
-                raise ValueError(f"category {categories[-1]} not found!")
-            logging.debug(f"found category {category.name}")
+            else:
+                category = self.get_channel(categories[-1])
+                if category is None:
+                    raise ValueError(f"category {categories[-1]} not found!")
+                logging.debug(f"found category {category.name}")
+            return round, category
+
+        round, category = await ensure_category_ready()
 
         text_channel, voice_channel = await _make_puzzle_channels_inner(category, puzzle)
         announcement = await self.announce_channel.send(f"New puzzle {puzzle.name} opened! {SIGNUP_EMOJI} this message to join, then head to {text_channel.mention}.")
@@ -781,15 +782,21 @@ class HerringAnnouncerBot(discord.Client):
         voice_channel: discord.VoiceChannel = get(self.guild.voice_channels, name=puzzle_name)
         return text_channel, voice_channel
 
+
 # Shared utilities that both bots use
 
 async def _make_puzzle_channels_inner(category: discord.CategoryChannel, puzzle: Puzzle):
-    topic = _build_topic(puzzle)
-    # setting position=0 doesn't work
-    position = 1 if puzzle.is_meta else puzzle.number + 10
-    text_channel = get(category.text_channels, name=puzzle.slug) or await category.create_text_channel(puzzle.slug, topic=topic, position=position)
-    voice_channel = get(category.voice_channels, name=puzzle.slug) or await category.create_voice_channel(puzzle.slug, position=position, bitrate=settings.HERRING_DISCORD_BITRATE)
-    return text_channel, voice_channel
+    @async_to_sync
+    async def do_make_channels(locked_puzzle):
+        topic = _build_topic(locked_puzzle)
+        # setting position=0 doesn't work
+        position = 1 if locked_puzzle.is_meta else (locked_puzzle.number or locked_puzzle.id) + 10
+        text_channel = get(category.guild.text_channels, name=locked_puzzle.slug) or \
+                       await category.create_text_channel(locked_puzzle.slug, topic=topic, position=position)
+        voice_channel = get(category.guild.voice_channels, name=locked_puzzle.slug) or \
+                        await category.create_voice_channel(locked_puzzle.slug, position=position, bitrate=settings.HERRING_DISCORD_BITRATE)
+        return text_channel, voice_channel
+    return _manipulate_puzzle(puzzle, do_make_channels)
 
 
 def _build_topic(puzzle):
@@ -819,10 +826,12 @@ def _manipulate_puzzle(puzzle:typing.Union[Puzzle, str], func):
     try:
         with transaction.atomic():
             if isinstance(puzzle, str):
-                puzzle = Puzzle.objects.select_for_update().get(slug=puzzle, hunt_id=settings.HERRING_HUNT_ID)
-            func(puzzle)
-            puzzle.save()
-            return puzzle
+                locked_puzzle = Puzzle.objects.select_for_update().get(slug=puzzle, hunt_id=settings.HERRING_HUNT_ID)
+            else:
+                locked_puzzle = Puzzle.objects.select_for_update().get(id=puzzle.id)
+            func(locked_puzzle)
+            locked_puzzle.save()
+            return locked_puzzle
     except Puzzle.DoesNotExist:
         return
 
