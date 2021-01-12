@@ -153,7 +153,8 @@ class HerringCog(commands.Cog):
                 row.is_member = True
                 row.save(update_fields=['user_id', 'last_active', 'is_member', 'display_name'])
 
-        puzzle = await _manipulate_puzzle(message.channel.name, record_activity)
+        await _manipulate_puzzle(message.channel.name, record_activity)
+        puzzle = Puzzle.objects.select_for_update().get(slug=message.channel.name, hunt_id=settings.HERRING_HUNT_ID)
 
         if puzzle is not None:
             need_mentions = []
@@ -944,9 +945,9 @@ def _manipulate_puzzle(puzzle:typing.Union[Puzzle, str], func):
                 locked_puzzle = Puzzle.objects.select_for_update().get(slug=puzzle, hunt_id=settings.HERRING_HUNT_ID)
             else:
                 locked_puzzle = Puzzle.objects.select_for_update().get(id=puzzle.id)
-            func(locked_puzzle)
+            result = func(locked_puzzle)
             locked_puzzle.save()
-            return locked_puzzle
+            return result
     except Puzzle.DoesNotExist:
         return
 
