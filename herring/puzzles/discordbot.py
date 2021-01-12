@@ -273,6 +273,8 @@ class HerringCog(commands.Cog):
     # not async! deals with database mostly; intended to be called from inside a _manipulate_puzzle
     def _update_channel_participation(self, puzzle):
         text_channel, _ = self.get_channel_pair(puzzle.slug)
+        if text_channel is None:
+            return
         membership = [member for member in text_channel.overwrites if member.id != self.guild.me.id and member.id != self.guild.default_role.id]
         _update_channel_participation_inner(puzzle, membership)
 
@@ -394,16 +396,24 @@ class HerringCog(commands.Cog):
         if ctx.author.id != self.guild.owner_id:
             return
 
-        really_do_it = await self.do_menu(
+        run_modes = {
+            "Full Rebuild": (True, True, True),
+            "Create and Fix Only": (True, True, False),
+            "Fix Only": (True, False, False),
+            "Dry Run": (False, False, False)
+        }
+
+        run_mode = await self.do_menu(
             ctx.author,
-            [True, False],
+            run_modes.keys(),
             "This will rebuild all puzzle categories and channels, deleting any whose puzzles have been deleted!\n"
-            "Are you sure you want to do this?",
-            lambda b: "Yes" if b else "Dry Run"
+            "Are you sure you want to do this?"
         )
-        if really_do_it is None:
+        if run_mode is None:
             # timed out, bail
             return
+
+        fix, create, delete = run_modes[run_mode]
 
         @sync_to_async
         def get_rounds_and_puzzles():
@@ -435,13 +445,13 @@ class HerringCog(commands.Cog):
                 continue
             for channel in category.channels:
                 if channel.name not in puzzles_by_slug:
-                    if really_do_it:
+                    if delete:
                         await channel.delete()
                     else:
                         await ctx.author.send(f"Deleting {channel.type} channel {channel.name} in {category.name}")
 
             if category.id not in rounds_by_category:
-                if really_do_it:
+                if delete:
                     await category.delete()
                 else:
                     await ctx.author.send(f"Deleting category {category.name}")
@@ -452,7 +462,7 @@ class HerringCog(commands.Cog):
             for idx, category_id in enumerate(split_categories(round)):
                 category = self.guild.get_channel(category_id)
                 if category is None:
-                    if really_do_it:
+                    if create:
                         category = await _make_category_inner(self.guild, f"{round.name} {idx}" if idx > 0 else round.name)
                     else:
                         await ctx.author.send(f"creating new category for {round.name} {idx}")
@@ -460,7 +470,7 @@ class HerringCog(commands.Cog):
 
             # pretend rounds with no puzzles have one puzzle, just in case
             while max(1, len(puzzles_by_round[round.id])) > len(new_categories) * PUZZLES_PER_CATEGORY:
-                if really_do_it:
+                if create:
                     category = await _make_category_inner(self.guild, f"{round.name} {len(new_categories)}" if len(new_categories) > 0 else round.name)
                 else:
                     await ctx.author.send(f"creating new category for {round.name} {len(new_categories)}")
@@ -474,43 +484,42 @@ class HerringCog(commands.Cog):
 
             new_categories_value = ",".join(str(category.id) for category in new_categories)
             if new_categories_value != round.discord_categories:
-                if really_do_it:
+                if create:
                     await save_categories(round, new_categories_value)
                 else:
                     await ctx.author.send(f"saving {new_categories_value} to round {round.name}")
 
-            def fixup_puzzle(puzzle, category_idx):
+            async def fixup_puzzle(puzzle, category_idx):
                 text_channel, voice_channel = self.get_channel_pair(puzzle.slug)
                 if text_channel is None or voice_channel is None:
-                    if really_do_it:
+                    if create:
                         text_channel, voice_channel = await _make_puzzle_channels_inner(new_categories[category_idx], puzzle)
                     else:
                         await ctx.author.send(f"creating channels for {puzzle.name} in {round.name} {category_idx}")
                 if text_channel is not None and text_channel.category != new_categories[category_idx]:
-                    if really_do_it:
+                    if fix:
                         await text_channel.edit(category=new_categories[category_idx])
                     else:
                         await ctx.author.send(f"Moving {puzzle.name} (text) to category {round.name} {category_idx}")
                 if voice_channel is not None and voice_channel.category != new_categories[category_idx]:
-                    if really_do_it:
+                    if fix:
                         await voice_channel.edit(category=new_categories[category_idx])
                     else:
                         await ctx.author.send(f"Moving {puzzle.name} (voice) to category {round.name} {category_idx}")
 
                 new_topic = _build_topic(puzzle)
                 if text_channel is not None and text_channel.topic != new_topic:
-                    if really_do_it:
+                    if fix:
                         await text_channel.edit(topic=new_topic)
                     else:
                         await ctx.author.send(f"Fixing topic of {puzzle.name}")
-                # by this point if we're not doing a dry run, the channel should be safe to _update_channel_participation
-                if really_do_it:
+                if fix and text_channel is not None:
                     await _manipulate_puzzle(puzzle, self._update_channel_participation)
 
             # now, rearrange puzzle channels into categories
             # first, stash metapuzzles somewhere else, to give us a little elbow room
             for puzzle in metapuzzles_by_round[round.id]:
-                if really_do_it:
+                if fix:
                     # if either are None we'll fix it later
                     text_channel, voice_channel = self.get_channel_pair(puzzle.slug)
                     if text_channel is not None:
@@ -522,11 +531,11 @@ class HerringCog(commands.Cog):
             for idx, puzzle in enumerate(puzzles_by_round[round.id]):
                 if puzzle.is_meta:
                     continue
-                fixup_puzzle(puzzle, new_categories[idx // PUZZLES_PER_CATEGORY])
+                await fixup_puzzle(puzzle, new_categories[idx // PUZZLES_PER_CATEGORY])
 
             # finally, put the metapuzzles back
             for puzzle in metapuzzles_by_round[round.id]:
-                fixup_puzzle(puzzle, 0)
+                await fixup_puzzle(puzzle, 0)
 
     @staticmethod
     async def delete_message_if_possible(request_message):
