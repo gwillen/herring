@@ -73,10 +73,9 @@ class HerringCog(commands.Cog):
     def get_pronoun_roles(self):
         result = []
 
-        for role in self.guild.roles:
-            log_to_discord(f"Found role: {role} (name '{role.name}')")
-            found_autoroles = False
-            if not found_autoroles and role.name != AUTOROLE_MARKER:
+        found_autoroles = False
+        for role in reversed(self.guild.roles):
+            if not found_autoroles and (role.name != AUTOROLE_MARKER):
                 continue
             found_autoroles = True
 
@@ -89,8 +88,8 @@ class HerringCog(commands.Cog):
     def get_timezone_roles(self):
         result = []
 
-        for role in self.guild.roles:
-            found_autoroles = False
+        found_autoroles = False
+        for role in reversed(self.guild.roles):
             if not found_autoroles and role.name != AUTOROLE_MARKER:
                 continue
             found_autoroles = True
