@@ -172,6 +172,7 @@ HERRING_SOLVERTOOLS_URL = env.get_value('SOLVERTOOLS_URL', default="http://irepr
 
 # https://devcenter.heroku.com/articles/dyno-metadata
 HEROKU_APP_NAME = env.get_value('HEROKU_APP_NAME', default='<unknown>')
+HEROKU_RELEASE_VERSION = env.get_value('HEROKU_RELEASE_VERSION', default='<unknown>')
 # https://devcenter.heroku.com/articles/dynos#local-environment-variables
 HEROKU_DYNO_NAME = env.get_value('DYNO', default='<unknown>')
 

@@ -2,10 +2,11 @@ import logging
 import os
 import environ
 import time
+import datetime
 import signal
 import threading
 
-from herring.settings import HERRING_ACTIVATE_DISCORD, HERRING_DISCORD_DEBUG_CHANNEL, HEROKU_APP_NAME, HEROKU_DYNO_NAME
+from herring.settings import HERRING_ACTIVATE_DISCORD, HERRING_DISCORD_DEBUG_CHANNEL, HEROKU_APP_NAME, HEROKU_DYNO_NAME, HEROKU_RELEASE_VERSION
 
 MAX_DISCORD_EMBED_LEN = 2048
 SUPPRESS_STARTUP_SECONDS = 30
@@ -21,7 +22,8 @@ class ChatLogHandler(logging.Handler):
         # This is a weird place to do this, but I really want to be the very first to know that we're exiting.
         def handle_sigterm():
             self.shutdown = True
-            do_in_discord(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, f"`ChatLogHandler shutting down, suppressing logs until exit to reduce spam. (You can still find them in the PaperTrail log viewer on Heroku.) Thread info: {thread_info}`"))
+            now = datetime.datetime.now()
+            do_in_discord(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, f"`[{now.strftime('%m/%d/%Y, %H:%M:%S')}] ChatLogHandler shutting down, suppressing logs until exit to reduce spam. (You can still find them in the PaperTrail log viewer on Heroku.) Thread info: {self.thread_info}`"))
             sys.exit(0)
 
         if threading.current_thread() == threading.main_thread():
@@ -35,8 +37,9 @@ class ChatLogHandler(logging.Handler):
         if self.startup:
             self.startup = False
             ct = threading.current_thread()
-            thread_info = [HEROKU_APP_NAME, HEROKU_DYNO_NAME, ct.name, ct.ident, ct.native_id]
-            do_in_discord(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, f"`ChatLogHandler starting up, suppressing logs for the next {SUPPRESS_STARTUP_SECONDS} seconds to reduce spam. (You can still find them in the PaperTrail log viewer on Heroku.) Thread info: {thread_info}`"))
+            self.thread_info = [HEROKU_APP_NAME, HEROKU_RELEASE_VERSION, HEROKU_DYNO_NAME, ct.name, ct.ident, ct.native_id]
+            start_time = datetime.datetime.fromtimestamp(self.start_time)
+            do_in_discord(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, f"`[{start_time.strftime('%m/%d/%Y, %H:%M:%S')}] ChatLogHandler starting up, suppressing logs for the next {SUPPRESS_STARTUP_SECONDS} seconds to reduce spam. (You can still find them in the PaperTrail log viewer on Heroku.) Thread info: {self.thread_info}`"))
 
         now = time.time()
         if self.shutdown or (now < self.start_time + SUPPRESS_STARTUP_SECONDS):
@@ -50,5 +53,10 @@ class ChatLogHandler(logging.Handler):
             return
 
         logging.info(f"About to emit object to discord: {record} of type {type(record)}")
-        embed = discord.Embed(description=discord.utils.escape_markdown(self.format(record))[:MAX_DISCORD_EMBED_LEN])
+        formatted_record = self.format(record)
+        truncated_record = formatted_record[:MAX_DISCORD_EMBED_LEN - 50]  # leave plenty of space for markdown
+        if len(truncated_record) < len(formatted_record):
+            truncated_record += " ..."
+        truncated_record += f" ({HEROKU_DYNO_NAME}, {HEROKU_RELEASE_VERSION})"
+        embed = discord.Embed(description=discord.utils.escape_markdown(truncated_record)[:MAX_DISCORD_EMBED_LEN])
         do_in_discord(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, "", embed=embed))
