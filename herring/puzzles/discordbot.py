@@ -159,11 +159,14 @@ class HerringCog(commands.Cog):
                 row.is_member = True
                 row.save(update_fields=['user_id', 'last_active', 'is_member', 'display_name'])
 
-        # These two things are not technically atomic, but if puzzle slugs are unique and the
-        #   puzzle is not deleted in between, it should not matter. (And if it is deleted we
-        #   presumably don't care that this will fail.)
+        try:
+            puzzle = await _get_puzzle_by_slug(message.channel.name)
+        except Puzzle.DoesNotExist as e:
+            # This is fine -- we must have seen a non-command message in a non-puzzle channel. Ignore it.
+            # Optionally, we could verify that it's in a non-puzzle category.
+            return
+
         await _manipulate_puzzle(message.channel.name, record_activity)
-        puzzle = await _get_puzzle_by_slug(message.channel.name)
 
         if puzzle is not None:
             need_mentions = []
