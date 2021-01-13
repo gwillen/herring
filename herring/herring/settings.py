@@ -181,10 +181,12 @@ LOGGING = {
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
+            'formatter': 'default',
         },
         'chat': {
             'class': 'herring.log_custom.ChatLogHandler',
             'level': 'WARNING',
+            'formatter': 'default',
         },
     },
     'root': {
@@ -198,6 +200,13 @@ LOGGING = {
                 'DJANGO_DB_LOG_LEVEL',
                 default='DEBUG' if DEBUG else 'INFO'),
             'propagate': False,
+        },
+    },
+    'formatters': {
+        'default': {
+            # See https://hg.python.org/cpython/file/5c4ca109af1c/Lib/logging/__init__.py#l399
+            'format': "[%(asctime)s %(levelname)-8s %(name)-15s] %(message)s",
+            'dateformat': '%Y-%m-%d %H:%M:%S',
         },
     },
 }
