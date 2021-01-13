@@ -9,6 +9,7 @@ from datetime import timezone
 from urllib.parse import urljoin
 import aiohttp
 from lazy_object_proxy import Proxy as lazy_object
+import traceback
 
 from typing import Optional
 
@@ -886,6 +887,7 @@ def DISCORD_ANNOUNCER() -> Optional[HerringAnnouncerBot]:
         logging.warning("Running without Discord integration!")
         return None
     bot = make_announcer_bot(settings.HERRING_SECRETS['discord-bot-token'])
+    # Absolutely must not use any other method to send this here, because they all directly or indirectly call DISCORD_ANNOUNCER and would explode.
     bot.do_in_loop(bot.post_message(settings.HERRING_DISCORD_DEBUG_CHANNEL, f"Discord announcer bot created in app: {settings.HEROKU_APP_NAME} / dyno {settings.HEROKU_DYNO_NAME}"))
     return bot
 
@@ -899,7 +901,9 @@ def do_in_discord(coro):
         raise
 
 def log_to_discord(message):
-    do_in_discord(DISCORD_ANNOUNCER.post_message(settings.HERRING_DISCORD_DEBUG_CHANNEL, f"`log_to_discord`: `{message}`"))
+    ct = threading.current_thread()
+    thread_info = [ct.name, ct.ident, ct.native_id]
+    do_in_discord(DISCORD_ANNOUNCER.post_message(settings.HERRING_DISCORD_DEBUG_CHANNEL, f"`log_to_discord`: `{message}` `({thread_info})`", embed=traceback.format_stack()))
 
 # Shared utilities that both bots use
 
@@ -986,6 +990,7 @@ def _update_channel_participation_inner(puzzle, membership):
 # Public factory methods
 
 async def run_listener_bot(loop):
+    log_to_discord("Starting Discord listener bot")
     async with aiohttp.ClientSession(loop=loop) as client:
         bot = HerringListenerBot(loop, client)
         await bot.start(settings.HERRING_SECRETS['discord-bot-token'])
