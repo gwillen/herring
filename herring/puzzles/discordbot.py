@@ -10,6 +10,7 @@ from urllib.parse import urljoin
 import aiohttp
 from lazy_object_proxy import Proxy as lazy_object
 import traceback
+import sys
 
 from typing import Optional
 
