@@ -290,7 +290,7 @@ def check_connection_to_messaging():
             asyncio.create_task(run_discord_listener_bot(), name="run_discord_listener_bot"),
             asyncio.create_task(keep_mutex(), name="keep_mutex")
         ]
-        return await asyncio.gather(awaitables)
+        return await asyncio.gather(*awaitables)
 
     try:
         run(_check_connection_to_messaging(), debug=True)
