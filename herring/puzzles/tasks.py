@@ -285,12 +285,15 @@ def check_connection_to_messaging():
             mutex.reacquire()
 
     async def _check_connection_to_messaging():
-        awaitables = [asyncio.create_task(coro) for coro in
-            [process_slack_messages_forever(), run_discord_listener_bot(), keep_mutex()]]
+        awaitables = [
+            asyncio.create_task(process_slack_messages_forever(), name="process_slack_messages_forever"),
+            asyncio.create_task(run_discord_listener_bot(), name="run_discord_listener_bot"),
+            asyncio.create_task(keep_mutex(), name="keep_mutex")
+        ]
         return await asyncio.gather(awaitables)
 
     try:
-        run(_check_connection_to_messaging, debug=True)
+        run(_check_connection_to_messaging(), debug=True)
     finally:
         mutex.release()
         logging.info("check_connection_to_messaging: Released mutex")
