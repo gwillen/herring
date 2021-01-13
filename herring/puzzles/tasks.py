@@ -1,6 +1,7 @@
 from typing import Optional
 
 from asgiref.sync import sync_to_async
+import asyncio
 from asyncio import run, sleep, wait, get_event_loop
 from cachetools.func import ttl_cache
 from celery import shared_task
