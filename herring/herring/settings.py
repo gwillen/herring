@@ -184,7 +184,7 @@ LOGGING = {
         },
         'chat': {
             'class': 'herring.log_custom.ChatLogHandler',
-            'level': 'ERROR',
+            'level': 'WARNING',
         },
     },
     'root': {

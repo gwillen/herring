@@ -589,7 +589,7 @@ class HerringCog(commands.Cog):
             for puzzle in metapuzzles_by_round[round.id]:
                 await fixup_puzzle(puzzle, 0)
 
-        ctx.author.send("cleanup_channels: Done.")
+        await ctx.author.send("cleanup_channels: Done.")
 
     @staticmethod
     async def delete_message_if_possible(request_message):
