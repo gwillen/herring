@@ -446,7 +446,7 @@ class HerringCog(commands.Cog):
         await self.delete_message_if_possible(ctx.message)
 
         if ctx.author.id != self.guild.owner_id:
-            return
+            raise commands.NotOwner()
 
         run_modes = {
             "Full Rebuild": (True, True, True),
@@ -463,7 +463,7 @@ class HerringCog(commands.Cog):
         )
         if run_mode is None:
             # timed out, bail
-            return
+            raise commands.UserInputError("Command timed out!")
 
         fix, create, delete = run_modes[run_mode]
 
@@ -744,19 +744,17 @@ class CommandErrorHandler(commands.Cog):
 
         if isinstance(error, commands.DisabledCommand):
             await ctx.author.send(f'{ctx.command} has been disabled.')
-
         elif isinstance(error, commands.NoPrivateMessage):
             try:
                 await ctx.author.send(f'{ctx.command} can not be used in Private Messages.')
             except discord.HTTPException:
                 pass
-
         elif isinstance(error, commands.NotOwner):
             await ctx.author.send(f'{ctx.command} can only be used by the bot owner.')
-
+        elif isinstance(error, commands.UserInputError):
+            await ctx.author.send(f'{ctx.command} failed: {error.message}')
         else:
             await ctx.author.send(f'{ctx.command} failed for some reason. The admins have been notified, probably.')
-
             # All other Errors not returned come here. And we can just print the default TraceBack.
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
             if settings.HERRING_ERRORS_TO_DISCORD:
