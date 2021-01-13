@@ -583,7 +583,7 @@ class HerringCog(commands.Cog):
             for idx, puzzle in enumerate(puzzles_by_round[round.id]):
                 if puzzle.is_meta:
                     continue
-                await fixup_puzzle(puzzle, new_categories[idx // PUZZLES_PER_CATEGORY])
+                await fixup_puzzle(puzzle, idx // PUZZLES_PER_CATEGORY)
 
             # finally, put the metapuzzles back
             for puzzle in metapuzzles_by_round[round.id]:
