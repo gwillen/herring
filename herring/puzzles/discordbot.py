@@ -618,6 +618,7 @@ class HerringCog(commands.Cog):
 
     async def do_menu(self, target, options, prompt, printerizer=(lambda x: x)):
         start = 0
+        options = list(options)  # cover for callers who pass something listlike that can't be subscripted
         while start < len(options):
             description = prompt + "\n"
             description += "\n".join(f"{reaction} : {printerizer(option)}" for reaction, option in zip(MENU_REACTIONS, options[start:]))
