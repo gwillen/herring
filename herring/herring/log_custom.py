@@ -12,5 +12,6 @@ class ChatLogHandler(logging.Handler):
             # Can't import this at load time because "django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet."
             from puzzles.discordbot import DISCORD_ANNOUNCER, do_in_discord
             import discord
-            embed = discord.Embed(description=self.format(record)[:MAX_DISCORD_EMBED_LEN])
+            logging.info(f"About to emit object to discord: {record} of type {type(record)}")
+            embed = discord.Embed(description=discord.utils.escape_markdown(self.format(record))[:MAX_DISCORD_EMBED_LEN])
             do_in_discord(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, "", embed=embed))
