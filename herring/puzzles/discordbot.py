@@ -497,12 +497,12 @@ class HerringCog(commands.Cog):
                 continue
             for channel in category.channels:
                 if channel.name not in puzzles_by_slug:
-                    await ctx.author.send(f"Deleting {channel.type} channel {channel.name} in {category.name}")
+                    await ctx.author.send(f"Deleting {channel.type} channel {channel.name} in {category.name} (for real: {delete})")
                     if delete:
                         await channel.delete()
 
             if category.id not in rounds_by_category:
-                await ctx.author.send(f"Deleting category {category.name}")
+                await ctx.author.send(f"Deleting category {category.name} (for real: {delete})")
                 if delete:
                     await category.delete()
 
@@ -512,14 +512,14 @@ class HerringCog(commands.Cog):
             for idx, category_id in enumerate(split_categories(round)):
                 category = self.guild.get_channel(category_id)
                 if category is None:
-                    await ctx.author.send(f"creating new category for {round.name} {idx}")
+                    await ctx.author.send(f"creating new category for {round.name} {idx} (for real: {create})")
                     if create:
                         category = await _make_category_inner(self.guild, f"{round.name} {idx}" if idx > 0 else round.name)
                 new_categories.append(category)
 
             # pretend rounds with no puzzles have one puzzle, just in case
             while max(1, len(puzzles_by_round[round.id])) > len(new_categories) * PUZZLES_PER_CATEGORY:
-                await ctx.author.send(f"creating new category for {round.name} {len(new_categories)}")
+                await ctx.author.send(f"creating new category for {round.name} {len(new_categories)} (for real: {create})")
                 if create:
                     category = await _make_category_inner(self.guild, f"{round.name} {len(new_categories)}" if len(new_categories) > 0 else round.name)
                 else:
@@ -533,28 +533,28 @@ class HerringCog(commands.Cog):
 
             new_categories_value = ",".join(str(category.id) for category in new_categories)
             if new_categories_value != round.discord_categories:
-                await ctx.author.send(f"saving {new_categories_value} to round {round.name}")
+                await ctx.author.send(f"saving {new_categories_value} to round {round.name} (for real: {create})")
                 if create:
                     await save_categories(round, new_categories_value)
 
             async def fixup_puzzle(puzzle, category_idx):
                 text_channel, voice_channel = self.get_channel_pair(puzzle.slug)
                 if text_channel is None or voice_channel is None:
-                    await ctx.author.send(f"creating channels for {puzzle.name} in {round.name} {category_idx}")
+                    await ctx.author.send(f"creating channels for {puzzle.name} in {round.name} {category_idx} (for real: {create})")
                     if create:
                         text_channel, voice_channel = await _make_puzzle_channels_inner(new_categories[category_idx], puzzle)
                 if text_channel is not None and text_channel.category != new_categories[category_idx]:
-                    await ctx.author.send(f"Moving {puzzle.name} (text) to category {round.name} {category_idx}")
+                    await ctx.author.send(f"Moving {puzzle.name} (text) to category {round.name} {category_idx} (for real: {fix})")
                     if fix:
                         await text_channel.edit(category=new_categories[category_idx])
                 if voice_channel is not None and voice_channel.category != new_categories[category_idx]:
-                    await ctx.author.send(f"Moving {puzzle.name} (voice) to category {round.name} {category_idx}")
+                    await ctx.author.send(f"Moving {puzzle.name} (voice) to category {round.name} {category_idx} (for real: {fix})")
                     if fix:
                         await voice_channel.edit(category=new_categories[category_idx])
 
                 new_topic = _build_topic(puzzle)
                 if text_channel is not None and text_channel.topic != new_topic:
-                    await ctx.author.send(f"Fixing topic of {puzzle.name}")
+                    await ctx.author.send(f"Fixing topic of {puzzle.name} (for real: {fix})")
                     if fix:
                         await text_channel.edit(topic=new_topic)
                 if fix and text_channel is not None:
