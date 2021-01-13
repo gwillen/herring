@@ -743,7 +743,7 @@ class CommandErrorHandler(commands.Cog):
             return
 
         if isinstance(error, commands.DisabledCommand):
-            await ctx.send(f'{ctx.command} has been disabled.')
+            await ctx.author.send(f'{ctx.command} has been disabled.')
 
         elif isinstance(error, commands.NoPrivateMessage):
             try:
@@ -751,7 +751,12 @@ class CommandErrorHandler(commands.Cog):
             except discord.HTTPException:
                 pass
 
+        elif isinstance(error, commands.NotOwner):
+            await ctx.author.send(f'{ctx.command} can only be used by the bot owner.')
+
         else:
+            await ctx.author.send(f'{ctx.command} failed for some reason. The admins have been notified, probably.')
+
             # All other Errors not returned come here. And we can just print the default TraceBack.
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
             if settings.HERRING_ERRORS_TO_DISCORD:
