@@ -285,7 +285,10 @@ def check_connection_to_messaging():
             mutex.reacquire()
 
     try:
-        awaitables = [asyncio.create_task(coro) for coro in [process_slack_messages_forever(), run_discord_listener_bot(), keep_mutex()]]
+        # It would be better to do something like this, in theory:
+        #    awaitables = [asyncio.create_task(coro) for coro in [process_slack_messages_forever(), run_discord_listener_bot(), keep_mutex()]]
+        # But we can't do that, because that requires an already-running event loop, but for some reason we're starting our own here.
+        awaitables = [process_slack_messages_forever(), run_discord_listener_bot(), keep_mutex()]
         run(wait(awaitables), debug=True)
     finally:
         mutex.release()
