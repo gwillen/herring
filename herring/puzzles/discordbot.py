@@ -748,9 +748,7 @@ class CommandErrorHandler(commands.Cog):
             # All other Errors not returned come here. And we can just print the default TraceBack.
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
             if settings.HERRING_ERRORS_TO_DISCORD:
-                message = discord.utils.escape_markdown(self.format(record))[:MAX_DISCORD_EMBED_LEN]
-                embed = discord.Embed(description=message)
-                do_in_discord(DISCORD_ANNOUNCER.post_message(settings.HERRING_DISCORD_DEBUG_CHANNEL, "", embed=embed))
+                log_to_discord("on_command_error", exn=error)
 
 
 def command_prefix(bot, message:discord.Message):
@@ -775,6 +773,9 @@ class HerringListenerBot(commands.Bot):
         self.add_cog(SolvertoolsCog(self, client))
         self.add_cog(CommandErrorHandler(self))
 
+        @self.event
+        async def on_error(event, *args, **kwargs):
+            logging.error(f"Error in event: {event}, with args {args} and kwargs {kwargs}.", exc_info=True)
 
 class HerringAnnouncerBot(discord.Client):
     """
@@ -908,10 +909,13 @@ def do_in_discord(coro):
         del DISCORD_ANNOUNCER.__target__
         raise
 
-def log_to_discord(message):
+def log_to_discord(message, exn=None):
     ct = threading.current_thread()
     thread_info = [ct.name, ct.ident, ct.native_id]
-    stack_trace = "".join(traceback.format_stack(limit=5))
+    if exn is None:
+        stack_trace = "".join(traceback.format_stack(limit=5))
+    else:
+        stack_trace = "".join(traceback.format_exception(None, exn, exn.__traceback__, limit=5))
     stack = discord.Embed(description=discord.utils.escape_markdown(stack_trace)[:MAX_DISCORD_EMBED_LEN])
     do_in_discord(DISCORD_ANNOUNCER.post_message(settings.HERRING_DISCORD_DEBUG_CHANNEL, f"`log_to_discord`: `{message}` `({thread_info})`", embed=stack))
 
