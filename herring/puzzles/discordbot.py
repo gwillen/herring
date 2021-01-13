@@ -375,11 +375,11 @@ class HerringCog(commands.Cog):
         for puzzle in puzzles[1:]:
             puzzle_line = puzzle_printerizer(puzzle)
             if len(description) + len(puzzle_line) > 2000:
-                await ctx.author.send("", embed=discord.Embed(description=description[:MAX_DISCORD_EMBED_LEN]))
+                await ctx.author.send("", embed=discord.Embed(description=description))
                 description = puzzle_line
             else:
                 description += "\n" + puzzle_line
-        await ctx.author.send("", embed=discord.Embed(description=description[:MAX_DISCORD_EMBED_LEN]))
+        await ctx.author.send("", embed=discord.Embed(description=description))
 
     @commands.command(brief="Set your pronoun and timezone roles")
     async def role(self, ctx):
@@ -612,7 +612,7 @@ class HerringCog(commands.Cog):
             description += "\n".join(f"{reaction} : {printerizer(option)}" for reaction, option in zip(MENU_REACTIONS, options[start:]))
             if len(options) > start + len(MENU_REACTIONS):
                 description += f"\n{MENU_EXTRA_REACTION} : Something else"
-            menu = await target.send("", embed=discord.Embed(description=description[:MAX_DISCORD_EMBED_LEN]))
+            menu = await target.send("", embed=discord.Embed(description=description))
             for reaction, option in zip(MENU_REACTIONS, options[start:]):
                 await menu.add_reaction(reaction)
             if len(options) > start + len(MENU_REACTIONS):
@@ -690,7 +690,7 @@ class SolvertoolsCog(commands.Cog):
                 async with self.client_session.get(url, params={"text": args}) as response:
                     result = await response.text()
 
-                    embed = discord.Embed(description=discord.utils.escape_markdown(result[:1500])[:MAX_DISCORD_EMBED_LEN])
+                    embed = discord.Embed(description=discord.utils.escape_markdown(result[:1500]))
                     await ctx.send("", embed=embed)
             except aiohttp.ClientError:
                 await ctx.send("Sorry, the connection to ireproof.org doesn't seem to be working today.")
@@ -905,7 +905,8 @@ def do_in_discord(coro):
 def log_to_discord(message):
     ct = threading.current_thread()
     thread_info = [ct.name, ct.ident, ct.native_id]
-    stack = discord.Embed(description=traceback.format_stack()[:MAX_DISCORD_EMBED_LEN])
+    stack_trace = "".join(traceback.format_stack())
+    stack = discord.Embed(description=stack_trace[:MAX_DISCORD_EMBED_LEN])
     do_in_discord(DISCORD_ANNOUNCER.post_message(settings.HERRING_DISCORD_DEBUG_CHANNEL, f"`log_to_discord`: `{message}` `({thread_info})`", embed=stack))
 
 # Shared utilities that both bots use
