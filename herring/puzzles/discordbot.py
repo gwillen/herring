@@ -158,8 +158,11 @@ class HerringCog(commands.Cog):
                 row.is_member = True
                 row.save(update_fields=['user_id', 'last_active', 'is_member', 'display_name'])
 
+        # These two things are not technically atomic, but if puzzle slugs are unique and the
+        #   puzzle is not deleted in between, it should not matter. (And if it is deleted we
+        #   presumably don't care that this will fail.)
         await _manipulate_puzzle(message.channel.name, record_activity)
-        puzzle = Puzzle.objects.select_for_update().get(slug=message.channel.name, hunt_id=settings.HERRING_HUNT_ID)
+        puzzle = await _get_puzzle_by_slug(message.channel.name)
 
         if puzzle is not None:
             need_mentions = []
@@ -961,6 +964,9 @@ def _manipulate_puzzle(puzzle:typing.Union[Puzzle, str], func):
     except Puzzle.DoesNotExist:
         return
 
+@sync_to_async
+def _get_puzzle_by_slug(slug):
+    return Puzzle.objects.get(slug=slug, hunt_id=settings.HERRING_HUNT_ID)
 
 async def _add_user_to_channels(member, text_channel:discord.TextChannel, voice_channel):
     current_perms = text_channel.overwrites

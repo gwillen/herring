@@ -273,6 +273,7 @@ def check_connection_to_messaging():
     mutex = REDIS.lock('puzzles.tasks.check_connection_to_messaging:mutex', timeout=10)
 
     if not mutex.acquire(blocking=False):
+        logging.info("check_connection_to_messaging: Didn't get mutex, messaging already active")
         return
 
     logging.info("check_connection_to_messaging: Acquired mutex")
