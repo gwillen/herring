@@ -212,6 +212,6 @@ LOGGING = {
 }
 
 # Only turn this on if explicitly enabled, since it's kind of hazardous.
-if HERRING_ERRORS_TO_DISCORD:
+if HERRING_ACTIVATE_DISCORD and HERRING_ERRORS_TO_DISCORD:
     LOGGING['root']['handlers'].append('chat')
     LOGGING['loggers']['django.db.backends']['handlers'].append('chat')
