@@ -842,13 +842,13 @@ class HerringAnnouncerBot(discord.Client):
         announcement = await self.announce_channel.send(f"New puzzle {puzzle.name} opened! {SIGNUP_EMOJI} this message to join, then head to {text_channel.mention}.")
         await announcement.add_reaction(SIGNUP_EMOJI)
 
-    async def post_message(self, channel_name, message):
+    async def post_message(self, channel_name, message, **kwargs):
         await self._really_ready.wait()
         channel: discord.TextChannel = get(self.guild.text_channels, name=channel_name)
         if channel is None:
             logging.error(f"Couldn't get Discord channel {puzzle_name} in post_local_and_global!")
             return
-        await channel.send(message)
+        await channel.send(message, **kwargs)
 
     async def post_local_and_global(self, puzzle_name, local_message, global_message:str):
         await self._really_ready.wait()
@@ -899,7 +899,7 @@ def do_in_discord(coro):
         raise
 
 def log_to_discord(message):
-    do_in_discord(DISCORD_ANNOUNCER.post_message(settings.HERRING_DISCORD_DEBUG_CHANNEL, message))
+    do_in_discord(DISCORD_ANNOUNCER.post_message(settings.HERRING_DISCORD_DEBUG_CHANNEL, f"`log_to_discord`: `{message}`"))
 
 # Shared utilities that both bots use
 

@@ -9,4 +9,6 @@ class ChatLogHandler(logging.Handler):
         if HERRING_ACTIVATE_DISCORD:
             # Can't import this at load time because "django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet."
             from puzzles.discordbot import DISCORD_ANNOUNCER, do_in_discord
-            do_in_discord(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, self.format(record)))
+            import discord
+            embed = discord.Embed(description=self.format(record))
+            do_in_discord(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, "", embed=embed))
