@@ -215,12 +215,16 @@ class HerringCog(commands.Cog):
             return
 
         def puzzle_printerizer(puzzle):
-            text_channel, voice_channel = self.get_channel_pair(puzzle.slug)
-            # -2 for @everyone and the bot
-            people_watching = len(text_channel.overwrites) - 2
-            people_chatting = len(voice_channel.voice_states)
             solved = "(SOLVED!) " if puzzle.answer else ""
-            return f"{_abbreviate_name(puzzle)} {solved}{people_watching} watchers, {people_chatting} in voice)"
+            try:
+                text_channel, voice_channel = self.get_channel_pair(puzzle.slug)
+                # -2 for @everyone and the bot
+                people_watching = len(text_channel.overwrites) - 2
+                people_chatting = len(voice_channel.voice_states)
+                return f"{_abbreviate_name(puzzle)} {solved}{people_watching} watchers, {people_chatting} in voice)"
+            except Exception as e:
+                log_to_discord(f"Failed to printerize puzzle: {puzzle}", exn=e)
+                return f"{_abbreviate_name(puzzle)} {solved}<problem with puzzle channels, admins have been notified>"
 
         puzzle_chosen: Puzzle = await self.do_menu(
             ctx.author,
