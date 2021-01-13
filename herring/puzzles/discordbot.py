@@ -909,7 +909,7 @@ def log_to_discord(message):
     ct = threading.current_thread()
     thread_info = [ct.name, ct.ident, ct.native_id]
     stack_trace = "".join(traceback.format_stack(limit=5))
-    stack = discord.Embed(description=stack_trace[:MAX_DISCORD_EMBED_LEN])
+    stack = discord.Embed(description=discord.utils.escape_markdown(stack_trace)[:MAX_DISCORD_EMBED_LEN])
     do_in_discord(DISCORD_ANNOUNCER.post_message(settings.HERRING_DISCORD_DEBUG_CHANNEL, f"`log_to_discord`: `{message}` `({thread_info})`", embed=stack))
 
 # Shared utilities that both bots use
