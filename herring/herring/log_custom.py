@@ -5,6 +5,7 @@ import time
 import datetime
 import signal
 import threading
+import sys
 
 from herring.settings import HERRING_ACTIVATE_DISCORD, HERRING_DISCORD_DEBUG_CHANNEL, HEROKU_APP_NAME, HEROKU_DYNO_NAME, HEROKU_RELEASE_VERSION
 
@@ -31,9 +32,10 @@ class ChatLogHandler(logging.Handler):
             self.shutdown = True
             now = datetime.datetime.now()
             do_in_discord(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, f"`[{now.strftime('%m/%d/%Y, %H:%M:%S')}] ChatLogHandler shutting down, suppressing logs until exit to reduce spam. (You can still find them in the PaperTrail log viewer on Heroku.) Thread info: {self.thread_info}`"))
+            self.old_handler(_signo, _stackframe)
             sys.exit(0)
 
-        if threading.current_thread() == threading.main_thread():
+        if (threading.current_thread() == threading.main_thread()) and (self.old_handler != handle_sigterm):
             self.old_handler = signal.signal(signal.SIGTERM, handle_sigterm)
 
     def emit(self, record):
