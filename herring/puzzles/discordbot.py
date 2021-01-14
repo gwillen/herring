@@ -811,6 +811,16 @@ class HerringAnnouncerBot(discord.Client):
             logging.error(f"Timed out running {coro} in bot from thread {threading.current_thread()}", exc_info=True)
             raise RuntimeError("seems like the announcer bot is dead")
 
+    def do_in_loop_nonblocking(self, coro):
+        def handle_future_result(f):
+            # Retrieve and ignore result.
+            # I don't think this actually does anything?
+            # The goal was to suppress the warning that we ignored the result.
+            future.result()
+
+        future = asyncio.run_coroutine_threadsafe(coro, self.loop)
+        future.add_done_callback(handle_future_result)
+
     async def wait_until_really_ready(self, timeout=None):
         try:
             await asyncio.wait_for(self._really_ready.wait(), timeout)
@@ -912,6 +922,15 @@ def DISCORD_ANNOUNCER() -> Optional[HerringAnnouncerBot]:
 def do_in_discord(coro):
     try:
         return DISCORD_ANNOUNCER.do_in_loop(coro)
+    except RuntimeError:
+        # probably the discord bot is busted, try to make it rebuild
+        logging.error("Invalidating discord announcer bot!")
+        del DISCORD_ANNOUNCER.__target__
+        raise
+
+def do_in_discord_nonblocking(coro):
+    try:
+        DISCORD_ANNOUNCER.do_in_loop_nonblocking(coro)
     except RuntimeError:
         # probably the discord bot is busted, try to make it rebuild
         logging.error("Invalidating discord announcer bot!")

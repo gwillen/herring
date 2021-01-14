@@ -34,37 +34,45 @@ class ChatLogHandler(logging.Handler):
             self.old_handler = signal.signal(signal.SIGTERM, handle_sigterm)
 
     def emit(self, record):
-        # Can't import this at load or init time, because "django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet."
-        from puzzles.discordbot import DISCORD_ANNOUNCER, do_in_discord
-        import discord
-
-        if self.startup:
-            self.startup = False
-            ct = threading.current_thread()
-            self.thread_info = [HEROKU_APP_NAME, HEROKU_RELEASE_VERSION, HEROKU_DYNO_NAME, ct.name, ct.ident, ct.native_id]
-            start_time = datetime.datetime.fromtimestamp(self.start_time)
-            do_in_discord(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, f"`[{start_time.strftime('%m/%d/%Y, %H:%M:%S')}] ChatLogHandler starting up, suppressing logs for the next {SUPPRESS_STARTUP_SECONDS} seconds to reduce spam. (You can still find them in the PaperTrail log viewer on Heroku.) Thread info: {self.thread_info} Signal handler info: {self.old_handler}`"))
-
-        now = time.time()
-        if self.shutdown or (now < self.start_time + SUPPRESS_STARTUP_SECONDS):
+        if self.shutdown:
             return
 
-        # We could do this with a Filter, but there's no real need -- it would just be a function with the same code, and
-        #   then we'd have to configure things to use it. Easier to just do it right here.
+        try:
+            # Can't import this at load or init time, because "django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet."
+            from puzzles.discordbot import DISCORD_ANNOUNCER, do_in_discord
+            import discord
 
-        # Suppress 404s:
-        if record.levelname == "WARNING" and record.name == "django.request":
-            return
+            if self.startup:
+                self.startup = False
+                ct = threading.current_thread()
+                self.thread_info = [HEROKU_APP_NAME, HEROKU_RELEASE_VERSION, HEROKU_DYNO_NAME, ct.name, ct.ident, ct.native_id]
+                start_time = datetime.datetime.fromtimestamp(self.start_time)
+                do_in_discord_nonblocking(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, f"`[{start_time.strftime('%m/%d/%Y, %H:%M:%S')}] ChatLogHandler starting up, suppressing logs for the next {SUPPRESS_STARTUP_SECONDS} seconds to reduce spam. (You can still find them in the PaperTrail log viewer on Heroku.) Thread info: {self.thread_info} Signal handler info: {self.old_handler}`"))
 
-        # Suppress the most frequent cause of asyncio warnings about blocking event loop:
-        if record.levelname == "WARNING" and record.name == "asyncio" and "keep_mutex" in record.message:
-            return
+            now = time.time()
+            if now < self.start_time + SUPPRESS_STARTUP_SECONDS:
+                return
 
-        logging.info(f"About to emit object to discord: {record} of type {type(record)}")
-        formatted_record = self.format(record)
-        truncated_record = formatted_record[:MAX_DISCORD_EMBED_LEN - 50]  # leave plenty of space for markdown
-        if len(truncated_record) < len(formatted_record):
-            truncated_record += " ..."
-        truncated_record += f" ({HEROKU_DYNO_NAME}, {HEROKU_RELEASE_VERSION})"
-        embed = discord.Embed(description=discord.utils.escape_markdown(truncated_record)[:MAX_DISCORD_EMBED_LEN])
-        do_in_discord(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, "", embed=embed))
+            # We could do this with a Filter, but there's no real need -- it would just be a function with the same code, and
+            #   then we'd have to configure things to use it. Easier to just do it right here.
+
+            # Suppress 404s:
+            if record.levelname == "WARNING" and record.name == "django.request":
+                return
+
+            # Suppress the most frequent cause of asyncio warnings about blocking event loop:
+            if record.levelname == "WARNING" and record.name == "asyncio" and "keep_mutex" in record.message:
+                return
+
+            logging.info(f"About to emit object to discord: {record} of type {type(record)}")
+            formatted_record = self.format(record)
+            truncated_record = formatted_record[:MAX_DISCORD_EMBED_LEN - 50]  # leave plenty of space for markdown
+            if len(truncated_record) < len(formatted_record):
+                truncated_record += " ..."
+            truncated_record += f" ({HEROKU_DYNO_NAME}, {HEROKU_RELEASE_VERSION})"
+            embed = discord.Embed(description=discord.utils.escape_markdown(truncated_record)[:MAX_DISCORD_EMBED_LEN])
+            do_in_discord_nonblocking(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, "", embed=embed))
+        except Exception as e:
+            self.shutdown = True
+            # Safe to call logging.error from here once shutdown is True, since we will not try to do anything from emit().
+            logging.error(f"Oh no, exception in ChatLogHandler.emit -- we will stop logging to discord until server restart. Details: {e}")
