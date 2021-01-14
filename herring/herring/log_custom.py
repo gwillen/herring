@@ -9,7 +9,7 @@ import threading
 from herring.settings import HERRING_ACTIVATE_DISCORD, HERRING_DISCORD_DEBUG_CHANNEL, HEROKU_APP_NAME, HEROKU_DYNO_NAME, HEROKU_RELEASE_VERSION
 
 MAX_DISCORD_EMBED_LEN = 2048
-SUPPRESS_STARTUP_SECONDS = 30
+SUPPRESS_STARTUP_SECONDS = 150
 
 class ChatLogHandler(logging.Handler):
     def __init__(self, *args, **kwargs):
