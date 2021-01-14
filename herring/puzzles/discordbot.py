@@ -242,7 +242,7 @@ class HerringCog(commands.Cog):
 
         logging.info(f"adding {member} to {puzzle_chosen.slug}")
         channel, _ = await self.add_user_to_puzzle(member, puzzle_chosen.slug)
-        await ctx.author.send(f"Welcome to the puzzle {puzzle_chosen.name} in {channel.mention}! Happy solving!")
+        await ctx.author.send(f"Welcome to the puzzle {puzzle_chosen.name}! Click to go there: {channel.mention}! Happy solving!")
 
     @commands.command(aliases=["part"], brief="Leave a puzzle channel")
     async def leave(self, ctx, channel:typing.Optional[discord.TextChannel]):
