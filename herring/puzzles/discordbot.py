@@ -901,9 +901,13 @@ def DISCORD_ANNOUNCER() -> Optional[HerringAnnouncerBot]:
         logging.warning("Running without Discord integration!")
         return None
     bot = make_announcer_bot(settings.HERRING_SECRETS['discord-bot-token'])
-    # Absolutely must not use any other method to send this here, because they all directly or indirectly call DISCORD_ANNOUNCER and would explode.
-    bot.do_in_loop(bot.post_message(settings.HERRING_DISCORD_DEBUG_CHANNEL, f"Discord announcer bot created in app: {settings.HEROKU_APP_NAME} / dyno {settings.HEROKU_DYNO_NAME}"))
-    return bot
+    if bot:
+        # Absolutely must not use any other method to send this here, because they all directly or indirectly call DISCORD_ANNOUNCER and would explode.
+        bot.do_in_loop(bot.post_message(settings.HERRING_DISCORD_DEBUG_CHANNEL, f"Discord announcer bot created in app: {settings.HEROKU_APP_NAME} / dyno {settings.HEROKU_DYNO_NAME}"))
+        return bot
+    else:
+        logging.info("Oh no, failed to create discord announcer bot :-(")
+        return None  # whoever called us will fail to say things to discover forever after :-\
 
 def do_in_discord(coro):
     try:
@@ -1028,18 +1032,31 @@ def make_announcer_bot(token):
 
     def start_bot_thread():
         nonlocal bot
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        bot = HerringAnnouncerBot(loop=loop)
-        evt.set()
-        loop.create_task(bot.start(token))
-        loop.run_forever()
+        try:
+            logging.info("Trying to start announcer bot in thread...")
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            logging.info("Created event loop, now creating announcer bot object...")
+            bot = HerringAnnouncerBot(loop=loop)
+            logging.info("Created announcer bot object, signalling Event...");
+            evt.set()
+            logging.info("Creating bot task")
+            loop.create_task(bot.start(token))
+            logging.info("Running the event loop")
+            loop.run_forever()
+        except Exception as e:
+            # This is at info because I don't want to risk problems (this code can be called from logs at WARNING and higher)
+            logging.info("Oh no, announcer bot thread exception! {e}")
 
     # make it a daemon thread so it doesn't keep the process alive
     bot_thread = threading.Thread(target=start_bot_thread, daemon=True)
     bot_thread.start()
     logging.info("about to wait for bot to be created")
-    evt.wait()
-    logging.info(f"got bot, it is a {type(bot)}")
-    return bot
+    result = evt.wait(timeout=5)
+    if result:
+        logging.info(f"got bot, it is a {type(bot)}")
+        return bot
+    else:
+        logging.error(f"failed to create discord announcer bot (timed out trying). Is bot thread alive: {bot_thread.is_alive()}. bot_thread: {bot_thread}")
+        return None
 
