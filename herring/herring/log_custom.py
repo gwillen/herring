@@ -19,6 +19,7 @@ class ChatLogHandler(logging.Handler):
         self.startup = True
         self.shutdown = False
         self.old_handler = "<none>"  # distinguish temporarily from signal returning None
+        self.thread_info = None
 
         # This is a weird place to do this, but I really want to be the very first to know that we're exiting.
         def handle_sigterm(_signo, _stackframe):
