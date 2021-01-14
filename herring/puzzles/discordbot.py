@@ -929,13 +929,8 @@ def do_in_discord(coro):
         raise
 
 def do_in_discord_nonblocking(coro):
-    try:
-        DISCORD_ANNOUNCER.do_in_loop_nonblocking(coro)
-    except RuntimeError:
-        # probably the discord bot is busted, try to make it rebuild
-        logging.error("Invalidating discord announcer bot!")
-        del DISCORD_ANNOUNCER.__target__
-        raise
+    DISCORD_ANNOUNCER.do_in_loop_nonblocking(coro)
+
 
 def log_to_discord(message, exn=None, add_stacktrace=False):
     ct = threading.current_thread()
