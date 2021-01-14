@@ -53,6 +53,10 @@ class ChatLogHandler(logging.Handler):
         if record.levelname == "WARNING" and record.name == "django.request":
             return
 
+        # Suppress the most frequent cause of asyncio warnings about blocking event loop:
+        if record.levelname == "WARNING" and record.name == "asyncio" and "keep_mutex" in record.message:
+            return
+
         logging.info(f"About to emit object to discord: {record} of type {type(record)}")
         formatted_record = self.format(record)
         truncated_record = formatted_record[:MAX_DISCORD_EMBED_LEN - 50]  # leave plenty of space for markdown
