@@ -18,16 +18,17 @@ class ChatLogHandler(logging.Handler):
         self.start_time = time.time()
         self.startup = True
         self.shutdown = False
+        self.old_handler = "<none>"  # distinguish temporarily from signal returning None
 
         # This is a weird place to do this, but I really want to be the very first to know that we're exiting.
-        def handle_sigterm():
+        def handle_sigterm(_signo, _stackframe):
             self.shutdown = True
             now = datetime.datetime.now()
             do_in_discord(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, f"`[{now.strftime('%m/%d/%Y, %H:%M:%S')}] ChatLogHandler shutting down, suppressing logs until exit to reduce spam. (You can still find them in the PaperTrail log viewer on Heroku.) Thread info: {self.thread_info}`"))
             sys.exit(0)
 
         if threading.current_thread() == threading.main_thread():
-            signal.signal(signal.SIGTERM, handle_sigterm)
+            self.old_handler = signal.signal(signal.SIGTERM, handle_sigterm)
 
     def emit(self, record):
         # Can't import this at load or init time, because "django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet."
@@ -39,7 +40,7 @@ class ChatLogHandler(logging.Handler):
             ct = threading.current_thread()
             self.thread_info = [HEROKU_APP_NAME, HEROKU_RELEASE_VERSION, HEROKU_DYNO_NAME, ct.name, ct.ident, ct.native_id]
             start_time = datetime.datetime.fromtimestamp(self.start_time)
-            do_in_discord(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, f"`[{start_time.strftime('%m/%d/%Y, %H:%M:%S')}] ChatLogHandler starting up, suppressing logs for the next {SUPPRESS_STARTUP_SECONDS} seconds to reduce spam. (You can still find them in the PaperTrail log viewer on Heroku.) Thread info: {self.thread_info}`"))
+            do_in_discord(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, f"`[{start_time.strftime('%m/%d/%Y, %H:%M:%S')}] ChatLogHandler starting up, suppressing logs for the next {SUPPRESS_STARTUP_SECONDS} seconds to reduce spam. (You can still find them in the PaperTrail log viewer on Heroku.) Thread info: {self.thread_info} Signal handler info: {self.old_handler}`"))
 
         now = time.time()
         if self.shutdown or (now < self.start_time + SUPPRESS_STARTUP_SECONDS):
