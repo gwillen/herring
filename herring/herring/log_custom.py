@@ -19,7 +19,9 @@ class ChatLogHandler(logging.Handler):
         self.startup = True
         self.shutdown = False
         self.old_handler = "<none>"  # distinguish temporarily from signal returning None
-        self.thread_info = None
+        # Some of this is kind of dumb anyway, handlers are not per-thread, they are per logger or something, and may be used in multiple threads.
+        ct = threading.current_thread()
+        self.thread_info = [HEROKU_APP_NAME, HEROKU_RELEASE_VERSION, HEROKU_DYNO_NAME, ct.name, ct.ident, ct.native_id]
 
         # This is a weird place to do this, but I really want to be the very first to know that we're exiting.
         def handle_sigterm(_signo, _stackframe):
@@ -45,8 +47,6 @@ class ChatLogHandler(logging.Handler):
 
             if self.startup:
                 self.startup = False
-                ct = threading.current_thread()
-                self.thread_info = [HEROKU_APP_NAME, HEROKU_RELEASE_VERSION, HEROKU_DYNO_NAME, ct.name, ct.ident, ct.native_id]
                 start_time = datetime.datetime.fromtimestamp(self.start_time)
                 do_in_discord_nonblocking(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, f"`[{start_time.strftime('%m/%d/%Y, %H:%M:%S')}] ChatLogHandler starting up, suppressing logs for the next {SUPPRESS_STARTUP_SECONDS} seconds to reduce spam. (You can still find them in the PaperTrail log viewer on Heroku.) Thread info: {self.thread_info} Signal handler info: {self.old_handler}`"))
 
