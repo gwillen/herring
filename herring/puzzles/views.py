@@ -74,7 +74,7 @@ def get_puzzles(request):
             'service_status': get_service_status(),
         },
     }
-    print("Serializing puzzle data.")
+    logging.debug("Serializing puzzle data.")
     return JsonResponse(add_metrics(to_json_value(data)))
 
 
