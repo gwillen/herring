@@ -933,17 +933,20 @@ def do_in_discord_nonblocking(coro):
 
 
 def log_to_discord(message, exn=None, add_stacktrace=False):
-    ct = threading.current_thread()
-    thread_info = [ct.name, ct.ident, ct.native_id]
-    if exn is None:
-        stack_trace = "".join(traceback.format_stack(limit=5))
-    else:
-        stack_trace = "".join(traceback.format_exception(None, exn, exn.__traceback__, limit=5))
-    if exn or add_stacktrace:
-        stack = discord.Embed(description=discord.utils.escape_markdown(stack_trace)[:MAX_DISCORD_EMBED_LEN])
-    else:
-        stack = None
-    do_in_discord(DISCORD_ANNOUNCER.post_message(settings.HERRING_DISCORD_DEBUG_CHANNEL, f"`log_to_discord`: `{message}` `({thread_info})`", embed=stack))
+    try:
+        ct = threading.current_thread()
+        thread_info = [ct.name, ct.ident, ct.native_id]
+        if exn is None:
+            stack_trace = "".join(traceback.format_stack(limit=5))
+        else:
+            stack_trace = "".join(traceback.format_exception(None, exn, exn.__traceback__, limit=5))
+        if exn or add_stacktrace:
+            stack = discord.Embed(description=discord.utils.escape_markdown(stack_trace)[:MAX_DISCORD_EMBED_LEN])
+        else:
+            stack = None
+        do_in_discord_nonblocking(DISCORD_ANNOUNCER.post_message(settings.HERRING_DISCORD_DEBUG_CHANNEL, f"`log_to_discord`: `{message}` `({thread_info})`", embed=stack))
+    except Exception as e:
+        logging.error(f"Logging to Discord failed, ignoring it! message={message} exn={exn} (failed with: {e})")
 
 # Shared utilities that both bots use
 
