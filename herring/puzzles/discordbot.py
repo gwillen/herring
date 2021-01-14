@@ -86,7 +86,7 @@ class HerringCog(commands.Cog):
             # You know what, it's close enough.
             if "/" in role.name:
                 result.append(role)
-        log_to_discord(f"Auto-detected pronoun roles: {result} (found autorole marker: {found_autoroles})")
+        logging.info(f"Auto-detected pronoun roles: {result} (found autorole marker: {found_autoroles})")
         return result
 
     def get_timezone_roles(self):
@@ -100,7 +100,7 @@ class HerringCog(commands.Cog):
 
             if "UTC" in role.name:
                 result.append(role)
-        log_to_discord(f"Auto-detected timezone roles: {result} (found autorole marker: {found_autoroles})")
+        logging.info(f"Auto-detected timezone roles: {result} (found autorole marker: {found_autoroles})")
         return result
 
     @commands.Cog.listener()
