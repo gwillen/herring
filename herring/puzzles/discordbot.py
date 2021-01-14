@@ -1054,6 +1054,8 @@ def make_announcer_bot(token):
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             logging.info("Created event loop, now creating announcer bot object...")
+            # Hack hack: prevent discord from emitting a warning during startup, which would wreck our day
+            discord.VoiceClient.warn_nacl = False
             bot = HerringAnnouncerBot(loop=loop)
             logging.info("Created announcer bot object, signalling Event...");
             evt.set()
