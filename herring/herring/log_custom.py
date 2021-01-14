@@ -22,6 +22,9 @@ class ChatLogHandler(logging.Handler):
 
         # This is a weird place to do this, but I really want to be the very first to know that we're exiting.
         def handle_sigterm(_signo, _stackframe):
+            # Can't import this at load or init time, because "django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet."
+            from puzzles.discordbot import DISCORD_ANNOUNCER, do_in_discord
+
             self.shutdown = True
             now = datetime.datetime.now()
             do_in_discord(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, f"`[{now.strftime('%m/%d/%Y, %H:%M:%S')}] ChatLogHandler shutting down, suppressing logs until exit to reduce spam. (You can still find them in the PaperTrail log viewer on Heroku.) Thread info: {self.thread_info}`"))
