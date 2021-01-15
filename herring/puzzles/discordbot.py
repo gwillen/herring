@@ -747,7 +747,7 @@ class CommandErrorHandler(commands.Cog):
         elif isinstance(error, commands.NotOwner):
             await ctx.author.send(f'{ctx.command} can only be used by the bot owner.')
         elif isinstance(error, commands.UserInputError):
-            await ctx.author.send(f'{ctx.command} failed: {error.message}')
+            await ctx.author.send(f'{ctx.command} failed: {error}')
         else:
             await ctx.author.send(f'{ctx.command} failed for some reason. The admins have been notified, probably.')
             # All other Errors not returned come here. And we can just print the default TraceBack.
