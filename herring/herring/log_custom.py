@@ -44,7 +44,7 @@ class ChatLogHandler(logging.Handler):
 
         try:
             # Can't import this at load or init time, because "django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet."
-            from puzzles.discordbot import DISCORD_ANNOUNCER, do_in_discord
+            from puzzles.discordbot import DISCORD_ANNOUNCER, do_in_discord_nonblocking
             import discord
 
             if self.startup:
