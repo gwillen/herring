@@ -916,7 +916,7 @@ def DISCORD_ANNOUNCER() -> Optional[HerringAnnouncerBot]:
     bot = make_announcer_bot(settings.HERRING_SECRETS['discord-bot-token'])
     if bot:
         # Absolutely must not use any other method to send this here, because they all directly or indirectly call DISCORD_ANNOUNCER and would explode.
-        bot.do_in_loop(bot.post_message(settings.HERRING_DISCORD_DEBUG_CHANNEL, f"Discord announcer bot created in app: {settings.HEROKU_APP_NAME} / dyno {settings.HEROKU_DYNO_NAME}"))
+        #bot.do_in_loop(bot.post_message(settings.HERRING_DISCORD_DEBUG_CHANNEL, f"Discord announcer bot created in app: {settings.HEROKU_APP_NAME} / dyno {settings.HEROKU_DYNO_NAME}"))
         return bot
     else:
         logging.info("Oh no, failed to create discord announcer bot :-(")

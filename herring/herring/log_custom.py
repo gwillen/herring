@@ -31,7 +31,7 @@ class ChatLogHandler(logging.Handler):
 
             self.shutdown = True
             now = datetime.datetime.now()
-            do_in_discord(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, f"`[{now.strftime('%m/%d/%Y, %H:%M:%S')}] ChatLogHandler shutting down, suppressing logs until exit to reduce spam. (You can still find them in the PaperTrail log viewer on Heroku.) Thread info: {self.thread_info}`"))
+            #do_in_discord(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, f"`[{now.strftime('%m/%d/%Y, %H:%M:%S')}] ChatLogHandler shutting down, suppressing logs until exit to reduce spam. (You can still find them in the PaperTrail log viewer on Heroku.) Thread info: {self.thread_info}`"))
             self.old_handler(_signo, _stackframe)
             sys.exit(0)
 
@@ -50,7 +50,7 @@ class ChatLogHandler(logging.Handler):
             if self.startup:
                 self.startup = False
                 start_time = datetime.datetime.fromtimestamp(self.start_time)
-                do_in_discord_nonblocking(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, f"`[{start_time.strftime('%m/%d/%Y, %H:%M:%S')}] ChatLogHandler starting up, suppressing logs for the next {SUPPRESS_STARTUP_SECONDS} seconds to reduce spam. (You can still find them in the PaperTrail log viewer on Heroku.) Thread info: {self.thread_info} Signal handler info: {self.old_handler}`"))
+                #do_in_discord_nonblocking(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, f"`[{start_time.strftime('%m/%d/%Y, %H:%M:%S')}] ChatLogHandler starting up, suppressing logs for the next {SUPPRESS_STARTUP_SECONDS} seconds to reduce spam. (You can still find them in the PaperTrail log viewer on Heroku.) Thread info: {self.thread_info} Signal handler info: {self.old_handler}`"))
 
             now = time.time()
             if now < self.start_time + SUPPRESS_STARTUP_SECONDS:
