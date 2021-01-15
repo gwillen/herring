@@ -13,7 +13,7 @@ def service():
         logging.warning("Running without GApps integration!")
         return None
     try:
-        logging.info("settings: %s", settings.HERRING_FUCK_OAUTH)
+        #logging.info("settings: %s", settings.HERRING_FUCK_OAUTH)
         credentials = Credentials.from_service_account_info(
             settings.HERRING_FUCK_OAUTH,
             scopes=['https://www.googleapis.com/auth/drive'])
