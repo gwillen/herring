@@ -32,9 +32,7 @@ def make_sheet(title):
             'readOnly': False,  # Not sure if this is necessary or sufficient
         },
     }
-    log_to_discord(f"make_sheet: {title}, {body}")
     got = service.files().copy(fileId=settings.HERRING_SECRETS['gapps-doc-to-clone'], body=body).execute()
-    log_to_discord(f"result of copy is: {got}")
     return got['id']
 
 
