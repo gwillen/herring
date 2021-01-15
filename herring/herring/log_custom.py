@@ -25,6 +25,8 @@ class ChatLogHandler(logging.Handler):
         self.thread_info = [HEROKU_APP_NAME, HEROKU_RELEASE_VERSION, HEROKU_DYNO_NAME, ct.name, ct.ident, ct.native_id]
 
         # This is a weird place to do this, but I really want to be the very first to know that we're exiting.
+        """
+        # This is currently disabled because gwillen is concerned it's interfering with other stuff.
         def handle_sigterm(_signo, _stackframe):
             # Can't import this at load or init time, because "django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet."
             from puzzles.discordbot import DISCORD_ANNOUNCER, do_in_discord
@@ -37,6 +39,7 @@ class ChatLogHandler(logging.Handler):
 
         if (threading.current_thread() == threading.main_thread()) and (self.old_handler != handle_sigterm):
             self.old_handler = signal.signal(signal.SIGTERM, handle_sigterm)
+        """
 
     def emit(self, record):
         if self.shutdown:
