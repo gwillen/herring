@@ -864,7 +864,7 @@ class HerringAnnouncerBot(discord.Client):
         round, category = await ensure_category_ready()
 
         text_channel, voice_channel = await _make_puzzle_channels_inner(category, puzzle)
-        announcement = await self.announce_channel.send(f"New puzzle {puzzle.name} opened! {SIGNUP_EMOJI} this message to join, then head to {text_channel.mention}.")
+        announcement = await self.announce_channel.send(f"New puzzle {puzzle.name} opened! {SIGNUP_EMOJI} this message to join, then click here to jump to the channel: {text_channel.mention}.")
         await announcement.add_reaction(SIGNUP_EMOJI)
 
     async def post_message(self, channel_name, message, **kwargs):
