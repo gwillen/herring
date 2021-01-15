@@ -1,13 +1,14 @@
 from django.contrib.auth.models import User
 from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
+from django.db import transaction
 from puzzles.tasks import create_puzzle_sheet_and_channel, post_answer, post_update, create_round_category
 from puzzles.models import Puzzle, Round, UserProfile
 
 @receiver(post_save, sender=Puzzle)
 def on_puzzle_save(sender, instance, created, **kwargs):
     if created:
-        create_puzzle_sheet_and_channel.delay(instance.slug)
+        transaction.on_commit(lambda: create_puzzle_sheet_and_channel.delay(instance.slug))
 
 
 @receiver(pre_save, sender=Puzzle)
@@ -26,7 +27,7 @@ def before_puzzle_save(sender, instance, **kwargs):
 @receiver(post_save, sender=Round)
 def on_round_save(sender, instance, created, **kwargs):
     if created:
-        create_round_category.delay(instance.id)
+        transaction.on_commit(lambda: create_round_category.delay(instance.id))
 
 
 @receiver(post_save, sender=User)
