@@ -139,8 +139,12 @@ CELERY_BEAT_SCHEDULE = {
 # forcefully killed, in which case having a max_loop_interval of 30 seconds
 # means that it could be up to 6 minutes before another RedBeat claims the
 # lock and starts scheduling tasks again.
-CELERY_BEAT_MAX_LOOP_INTERVAL = 30
+# [gwillen 2021]: shorten this to make restarts less terrible.
+CELERY_BEAT_MAX_LOOP_INTERVAL = 10
 
+# For some reason instead of 5x the loop interval, this defaults to 5x the
+#   DEFAULT loop interval, which is 25 minutes, which is unacceptably long.
+REDBEAT_LOCK_TIMEOUT = 60
 
 # Previously in puzzles/tasks.py
 HERRING_STATUS_CHANNEL = env.get_value('STATUS_CHANNEL', default='_dev_puzzle_status')
