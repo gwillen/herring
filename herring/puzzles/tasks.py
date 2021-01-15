@@ -293,7 +293,7 @@ def check_connection_to_messaging():
         return await asyncio.gather(*awaitables)
 
     try:
-        run(_check_connection_to_messaging(), debug=True)
+        run(_check_connection_to_messaging())
     finally:
         mutex.release()
         logging.info("check_connection_to_messaging: Released mutex")
