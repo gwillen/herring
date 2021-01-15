@@ -596,6 +596,7 @@ class HerringCog(commands.Cog):
 
         if changed:
             await _manipulate_puzzle(puzzle_name, self._update_channel_participation)
+            await text_channel.send(f"{member.mention} joined the puzzle.")
         return text_channel, changed
 
     def get_channel_pair(self, puzzle_name):
@@ -895,9 +896,11 @@ class HerringAnnouncerBot(discord.Client):
         if member is None:
             logging.warning(f"couldn't find member named {user_profile.discord_identifier}")
             return
-        await _add_user_to_channels(member, text_channel, voice_channel)
+        changed = await _add_user_to_channels(member, text_channel, voice_channel)
         membership = [member for member in text_channel.overwrites if member.id != self.guild.me.id and member.id != self.guild.default_role.id]
         await _manipulate_puzzle(puzzle_name, lambda puzzle: _update_channel_participation_inner(puzzle, membership))
+        if changed:
+            await text_channel.send(f"{member.mention} joined the puzzle.")
         return text_channel
 
     def get_channel_pair(self, puzzle_name):
