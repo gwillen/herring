@@ -1039,6 +1039,7 @@ def _update_channel_participation_inner(puzzle, membership):
 # Public factory methods
 
 async def run_listener_bot(loop):
+    logging.info("Starting Discord listener bot")
     log_to_discord("Starting Discord listener bot")
     async with aiohttp.ClientSession(loop=loop) as client:
         bot = HerringListenerBot(loop, client)
@@ -1056,15 +1057,12 @@ def make_announcer_bot(token):
             logging.info("Trying to start announcer bot in thread...")
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            logging.info("Created event loop, now creating announcer bot object...")
             # Hack hack: prevent discord from emitting a warning during startup, which would wreck our day
             discord.VoiceClient.warn_nacl = False
             bot = HerringAnnouncerBot(loop=loop)
-            logging.info("Created announcer bot object, signalling Event...");
+            logging.info("Created announcer bot object, signalling Event.");
             evt.set()
-            logging.info("Creating bot task")
             loop.create_task(bot.start(token))
-            logging.info("Running the event loop")
             loop.run_forever()
         except Exception as e:
             # This is at info because I don't want to risk problems (this code can be called from logs at WARNING and higher)
@@ -1073,7 +1071,6 @@ def make_announcer_bot(token):
     # make it a daemon thread so it doesn't keep the process alive
     bot_thread = threading.Thread(target=start_bot_thread, daemon=True)
     bot_thread.start()
-    logging.info("about to wait for bot to be created")
     result = evt.wait(timeout=5)
     if result:
         logging.info(f"got bot, it is a {type(bot)}")
