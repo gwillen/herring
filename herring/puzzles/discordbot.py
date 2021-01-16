@@ -143,18 +143,18 @@ class HerringCog(commands.Cog):
         def record_activity(puzzle: Puzzle):
             dt = message.created_at.replace(tzinfo=timezone.utc)
             puzzle.record_activity(dt)
-            query = Q(user_id=str(message.author)) | Q(user_id=str(message.author.id))
+            query = Q(user_id=str(message.author.id))
             row, created = puzzle.channelparticipation_set\
                 .filter(query)\
                 .get_or_create(defaults=dict(
-                        user_id=str(message.author),
+                        user_id=str(message.author.id),
                         last_active=dt, is_member=True,
                         display_name=message.author.display_name,
                         channel_puzzle=puzzle,
                 ))
             if not created and (row.last_active is None or row.last_active < dt):
                 row.last_active = dt
-                row.user_id = str(message.author)
+                row.user_id = str(message.author.id)
                 row.display_name = message.author.display_name
                 row.is_member = True
                 row.save(update_fields=['user_id', 'last_active', 'is_member', 'display_name'])
