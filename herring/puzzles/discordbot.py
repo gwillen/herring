@@ -1022,14 +1022,13 @@ def _update_channel_participation_inner(puzzle, membership):
     puzzle.channel_count = n
     puzzle.channelparticipation_set \
         .exclude(user_id__in=[str(member.id) for member in membership]) \
-        .exclude(user_id__in=[str(member) for member in membership]) \
         .update(is_member=False)
     for member in membership:
-        query = Q(user_id=str(member.id)) | Q(user_id=str(member))
+        query = Q(user_id=str(member.id))
         puzzle.channelparticipation_set\
             .filter(query)\
             .update_or_create(defaults=dict(
-                    user_id=str(member),
+                    user_id=str(member.id),
                     is_member=True,
                     display_name=member.display_name,
                     channel_puzzle=puzzle,
