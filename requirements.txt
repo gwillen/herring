@@ -24,4 +24,4 @@ lazy-object-proxy==1.4.3
 celery-redbeat==0.13.0
 websockets==8.1
 discord.py==1.5.1
-aiohttp==3.6.3
+aiohttp==3.7.4
