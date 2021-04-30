@@ -10,7 +10,7 @@ psycopg2==2.8.4
 pyOpenSSL==19.1.0
 requests==2.22.0
 static3==0.7.0
-urllib3==1.25.7
+urllib3==1.25.8
 celery[redis]==4.4.0
 django-autoslug==1.9.6
 slacker==0.13.0
