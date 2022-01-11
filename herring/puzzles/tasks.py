@@ -14,12 +14,14 @@ from lazy_object_proxy import Proxy as lazy_object
 from puzzles.discordbot import run_listener_bot, DISCORD_ANNOUNCER, do_in_discord
 from puzzles.models import Puzzle, Round, UserProfile
 from puzzles.spreadsheets import check_spreadsheet_service, iterate_changes, make_sheet
+import redis
 from redis import Redis
 import slacker
 import websockets
 import requests
 from bs4 import BeautifulSoup
 import logging
+from urllib.parse import urlparse
 
 BULLSHIT_CHANNEL="_herring_experimental"
 # XXX specific to the 2020 hunt
@@ -52,7 +54,11 @@ def REDIS():
     # and Redis connections on Heroku are limited! So sharing this Redis
     # instance is possibly important. TBH, I have no idea why we run out of
     # Redis connections so quickly; it's possible this doesn't help at all.
-    return Redis.from_url(settings.REDIS_URL, max_connections=1)
+    url = urlparse(settings.REDIS_URL)
+    ssl = False
+    if url.scheme == "rediss":
+        ssl = True
+    return redis.Redis(host=url.hostname, port=url.port, username=url.username, password=url.password, ssl=ssl, ssl_cert_reqs=None, max_conections=1)
 
 _optional_tasks_enabled = None
 
