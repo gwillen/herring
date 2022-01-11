@@ -53,7 +53,11 @@ def REDIS():
     # and Redis connections on Heroku are limited! So sharing this Redis
     # instance is possibly important. TBH, I have no idea why we run out of
     # Redis connections so quickly; it's possible this doesn't help at all.
-    return Redis.from_url(settings.REDIS_URL, max_connections=1, ssl_cert_reqs=None)
+    ssl_kwargs = {}
+    url = urlparse(settings.REDIS_URL)
+    if url.scheme == "rediss":
+        ssl_kwargs["ssl_cert_reqs"] = None  # allow self-signed certificates
+    return Redis.from_url(settings.REDIS_URL, max_connections=1, **ssl_kwargs)
 
 _optional_tasks_enabled = None
 
