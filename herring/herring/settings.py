@@ -121,7 +121,8 @@ CELERY_BROKER_USE_SSL = { 'ssl_cert_reqs': 'none' }  # allow self-signed SSL cer
 # example, in development environments if the developer doesn't want to run a
 # whole Redis+Celery stack and is okay with integrations not working.
 CELERY_BROKER_TRANSPORT_OPTIONS = dict(max_retries=3)
-CELERY_REDBEAT_REDIS_URL = REDIS_URL
+CELERY_REDBEAT_REDIS_URL = REDIS_URL + "?ssl_cert_reqs=none"  # allow self-signed certificates
+CELERY_REDBEAT_REDIS_USE_SSL = { 'ssl_cert_reqs': 'none' }  # allow self-signed SSL certs
 CELERY_BEAT_SCHEDULER = 'redbeat.RedBeatScheduler'
 CELERY_BEAT_SCHEDULE = {
     'read-google-sheets-changes': {
