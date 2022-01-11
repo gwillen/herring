@@ -115,6 +115,7 @@ REDIS_URL = env.get_value('REDIS_URL', default='redis://localhost:6379/0')
 
 # Celery queue
 CELERY_BROKER_URL = env.get_value('BROKER_URL', default=REDIS_URL)
+CELERY_BROKER_USE_SSL = { 'cert_reqs': 'none' }  # allow self-signed SSL certs
 # max_retries here controls Celery's initial attempts to contact Redis, and
 # defaults to *infinity*. Using a slightly smaller number is useful, for
 # example, in development environments if the developer doesn't want to run a
