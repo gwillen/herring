@@ -872,7 +872,7 @@ class HerringAnnouncerBot(discord.Client):
         await self._really_ready.wait()
         channel: discord.TextChannel = get(self.guild.text_channels, name=channel_name)
         if channel is None:
-            logging.error(f"Couldn't get Discord channel {puzzle_name} in post_local_and_global!")
+            logging.error(f"Couldn't get Discord channel {channel_name} in post_local_and_global!")
             return
         await channel.send(message, **kwargs)
 
