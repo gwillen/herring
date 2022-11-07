@@ -27,6 +27,7 @@ def signup(request):
         profile_form = UserProfileForm(request.POST)
         if user_form.is_valid() and profile_form.is_valid():
             user:User = user_form.save(commit=False)
+            # Doing this as a filter on is_active instead of just a hard nope means our db fills up with inactive spammer accounts :-(
             user.is_active = (user_form.cleaned_data['magic_secret'] == settings.HERRING_SECRETS['magic-secret'])
             user.save()
             user.refresh_from_db()  # load the profile instance created by the signal
