@@ -117,14 +117,14 @@ REDIS_URL = env.get_value('REDIS_URL', default='redis://localhost:6379/0')
 
 # Celery queue
 CELERY_BROKER_URL = env.get_value('BROKER_URL', default=REDIS_URL)
-CELERY_BROKER_USE_SSL = { 'ssl_cert_reqs': 'none' }  # allow self-signed SSL certs
+#CELERY_BROKER_USE_SSL = { 'ssl_cert_reqs': 'none' }  # allow self-signed SSL certs
 # max_retries here controls Celery's initial attempts to contact Redis, and
 # defaults to *infinity*. Using a slightly smaller number is useful, for
 # example, in development environments if the developer doesn't want to run a
 # whole Redis+Celery stack and is okay with integrations not working.
 CELERY_BROKER_TRANSPORT_OPTIONS = dict(max_retries=3)
-CELERY_REDBEAT_REDIS_URL = REDIS_URL + "?ssl_cert_reqs=none"  # allow self-signed certificates
-CELERY_REDBEAT_REDIS_USE_SSL = { 'ssl_cert_reqs': 'none' }  # allow self-signed SSL certs
+CELERY_REDBEAT_REDIS_URL = REDIS_URL #+ "?ssl_cert_reqs=none"  # allow self-signed certificates
+#CELERY_REDBEAT_REDIS_USE_SSL = { 'ssl_cert_reqs': 'none' }  # allow self-signed SSL certs
 CELERY_BEAT_SCHEDULER = 'redbeat.RedBeatScheduler'
 CELERY_BEAT_SCHEDULE = {
     'read-google-sheets-changes': {
