@@ -99,6 +99,8 @@ USE_L10N = True
 
 USE_TZ = True
 
+# Suppress new Django warning about auto fields being created implicitly
+DEFAULT_AUTO_FIELD='django.db.models.AutoField'
 
 # Honor the 'X-Forwarded-Proto' header for request.is_secure()
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
