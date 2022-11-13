@@ -22,6 +22,6 @@ google-auth==1.10.0
 lazy-object-proxy==1.8.0
 celery-redbeat==2.0.0
 websockets==10.4
-discord.py==2.0.1
-aiohttp==3.8.3
+discord.py==1.5.1
+aiohttp
 yarl==1.8.1
