@@ -1,7 +1,7 @@
 version: '3.2'
 services:
     project:
-        image: python:3.8-alpine
+        image: python:3.10.8-alpine
         ports:
             - 8000:5000
         environment:
