@@ -305,7 +305,7 @@ def check_connection_to_messaging():
 
 async def run_discord_listener_bot():
     if settings.HERRING_ACTIVATE_DISCORD:
-        await run_listener_bot(get_event_loop())
+        await run_listener_bot()
 
 
 async def process_slack_messages_forever():
