@@ -71,6 +71,7 @@ class HerringCog(commands.Cog):
         self.bot = bot
         self.guild: typing.Optional[discord.Guild] = None
         self.announce_channel = None
+        self.debug_channel = None
         self.pronoun_roles = []
         self.timezone_roles = []
 
@@ -110,6 +111,7 @@ class HerringCog(commands.Cog):
         self.debug_channel = get(self.guild.text_channels, name = settings.HERRING_DISCORD_DEBUG_CHANNEL)
         self.pronoun_roles = self.get_pronoun_roles()
         self.timezone_roles = self.get_timezone_roles()
+        logging.info("listener bot cog is ready")
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
@@ -771,17 +773,22 @@ class HerringListenerBot(commands.Bot):
     and makes appropriate changes in Django in response. It's critical that nothing in Celery or Django tries to
     access this bot directly, because it only exists in one of the worker processes.
     """
-    def __init__(self, loop, client, *args, **kwargs):
+    def __init__(self, client, *args, **kwargs):
         intents = discord.Intents.default()
         intents.members = True
-        super().__init__(command_prefix, *args, loop=loop, intents=intents, **kwargs)
-        self.add_cog(HerringCog(self))
-        self.add_cog(SolvertoolsCog(self, client))
-        self.add_cog(CommandErrorHandler(self))
+        intents.message_content = True
+        super().__init__(command_prefix, *args, intents=intents, **kwargs)
+        self.client = client
+
+    async def setup_hook(self) -> None:
+        await self.add_cog(HerringCog(self))
+        await self.add_cog(SolvertoolsCog(self, self.client))
+        await self.add_cog(CommandErrorHandler(self))
 
         @self.event
         async def on_error(event, *args, **kwargs):
             logging.error(f"Error in event: {event}, with args {args} and kwargs {kwargs}.", exc_info=True)
+
 
 class HerringAnnouncerBot(discord.Client):
     """
@@ -793,6 +800,8 @@ class HerringAnnouncerBot(discord.Client):
     def __init__(self, *args, **kwargs):
         intents = discord.Intents.default()
         intents.members = True
+        # we don't want this bot to respond to messages; just don't ask for the intent
+        intents.message_content = False
         super(HerringAnnouncerBot, self).__init__(*args, intents=intents, **kwargs)
         self.guild = None
         self.announce_channel = None
@@ -800,6 +809,9 @@ class HerringAnnouncerBot(discord.Client):
 
     async def on_ready(self):
         self.guild = self.get_guild(settings.HERRING_DISCORD_GUILD_ID)
+        if not self.guild:
+            logging.info("couldn't find the right guild; are you sure you have the right bot token?")
+
         self.announce_channel = get(self.guild.text_channels, name = settings.HERRING_DISCORD_PUZZLE_ANNOUNCEMENTS)
         self._really_ready.set()
         logging.info("announcer bot is really ready")
@@ -913,7 +925,7 @@ def DISCORD_ANNOUNCER() -> Optional[HerringAnnouncerBot]:
     if not settings.HERRING_ACTIVATE_DISCORD:
         logging.warning("Running without Discord integration!")
         return None
-    bot = make_announcer_bot(settings.HERRING_SECRETS['discord-bot-token'])
+    bot = make_announcer_bot()
     if bot:
         # Absolutely must not use any other method to send this here, because they all directly or indirectly call DISCORD_ANNOUNCER and would explode.
         #bot.do_in_loop(bot.post_message(settings.HERRING_DISCORD_DEBUG_CHANNEL, f"Discord announcer bot created in app: {settings.HEROKU_APP_NAME} / dyno {settings.HEROKU_DYNO_NAME}"))
@@ -1037,15 +1049,15 @@ def _update_channel_participation_inner(puzzle, membership):
 
 # Public factory methods
 
-async def run_listener_bot(loop):
+async def run_listener_bot():
     logging.info("Starting Discord listener bot")
     log_to_discord("Starting Discord listener bot")
-    async with aiohttp.ClientSession(loop=loop) as client:
-        bot = HerringListenerBot(loop, client)
-        await bot.start(settings.HERRING_SECRETS['discord-bot-token'])
+    async with aiohttp.ClientSession() as client:
+        async with HerringListenerBot(client) as bot:
+            await bot.start(settings.HERRING_SECRETS['discord-bot-token'])
 
 
-def make_announcer_bot(token):
+def make_announcer_bot():
     # create it in a new thread
     evt = threading.Event()
     bot = None
@@ -1054,15 +1066,16 @@ def make_announcer_bot(token):
         nonlocal bot
         try:
             logging.info("Trying to start announcer bot in thread...")
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
             # Hack hack: prevent discord from emitting a warning during startup, which would wreck our day
             discord.VoiceClient.warn_nacl = False
-            bot = HerringAnnouncerBot(loop=loop)
-            logging.info("Created announcer bot object, signalling Event.");
-            evt.set()
-            loop.create_task(bot.start(token))
-            loop.run_forever()
+            async def run_bot():
+                nonlocal bot
+                async with HerringAnnouncerBot() as bot:
+                    logging.info("Created announcer bot object, signalling Event.")
+                    evt.set()
+                    await bot.start(settings.HERRING_SECRETS['discord-bot-token'])
+
+            asyncio.run(run_bot())
         except Exception as e:
             # This is at info because I don't want to risk problems (this code can be called from logs at WARNING and higher)
             logging.info("Oh no, announcer bot thread exception! {e}")
