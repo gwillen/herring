@@ -498,7 +498,7 @@ class HerringCog(commands.Cog):
                 # these aren't puzzle categories
                 continue
             for channel in category.channels:
-                if (channel.type in ["text", "voice"]) and (channel.name not in puzzles_by_slug):
+                if (channel.type in [discord.ChannelType.text, discord.ChannelType.voice]) and (channel.name not in puzzles_by_slug):
                     await ctx.author.send(f"Deleting {channel.type} channel {channel.name} in {category.name} (for real: {delete})")
                     if delete:
                         await channel.delete()
@@ -509,7 +509,7 @@ class HerringCog(commands.Cog):
                     await category.delete()
 
         for channel in self.guild.channels:
-            if (channel.type in ["text", "voice"]) and (channel.category is None):
+            if (channel.type in [discord.ChannelType.text, discord.ChannelType.voice]) and (channel.category is None):
                 await ctx.author.send(f"Deleting {channel.type} channel {channel.name} (which is in no category) (for real: {delete})")
                 if delete:
                     await channel.delete()
