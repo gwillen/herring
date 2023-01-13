@@ -97,7 +97,7 @@ export default class PuzzleComponent extends React.Component {
                 <a
                     title={ `#${puzzle.slug}` }
                     href={ `/disc/${puzzle.id}/${Number(this.props.uiSettings.app_links)}` }
-                    target="_blank" rel="noopener">
+                    target="discord" rel="noopener">
                   <img className="messaging-logo" src={ discordIcon } alt={ `Discord` } />
                 </a>
             )
