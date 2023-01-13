@@ -160,6 +160,19 @@ def run_scraper(request):
     scrape_activity_log.delay()
     return HttpResponse("ok")
 
+from puzzles.discordbot import DISCORD_ANNOUNCER, do_in_discord_nonblocking
+
+@csrf_exempt
+def post_discord(request):
+    if request.method == "POST":
+        #pm = request.POST.get('pm')
+        channel = request.POST.get('channel')
+        text = request.POST.get('text')
+        do_in_discord_nonblocking(DISCORD_ANNOUNCER.post_message(channel, text))
+        return HttpResponse("ok")
+    else:
+        return HttpResponse("please use POST")
+
 
 def add_metrics(json):
     """
