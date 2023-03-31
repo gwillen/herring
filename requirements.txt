@@ -16,7 +16,7 @@ slacker==0.13.0
 google-api-python-client==1.7.11
 django-model-utils==4.2.0
 django-environ==0.9.0
-redis==3.5.3
+redis==4.4.4
 bs4==0.0.1
 google-auth==1.10.0
 lazy-object-proxy==1.8.0
