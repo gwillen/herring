@@ -12,7 +12,6 @@ import UrlChangeModal from './url-editor';
 
 // importing these as react/webpack images does NOT work because we don't really have webpack
 // and Django set up to talk to each other
-const slackIcon = '/static/Slack_Mark_Web.png';
 const discordIcon = '/static/Discord-Logo-Color.png';
 const gappsIcon = '/static/sheets_64dp.png';
 
@@ -69,27 +68,6 @@ export default class PuzzleComponent extends React.Component {
               <span className="missing-button" />
           )
         }
-        var slackButton;
-        if (this.props.settings.slack) {
-          var href;
-          if (this.props.uiSettings.app_links){
-            if (puzzle.slack_channel_id) {
-            href = `slack://channel?team=T0ESH0TS5&id=${puzzle.slack_channel_id}`
-            } else {
-              href = `https://ireproof.slack.com/app_redirect?channel=${puzzle.slug}`
-            }
-          } else {
-            href = `https://ireproof.slack.com/messages/${puzzle.slug}`
-          }
-          slackButton = (
-              <a
-                  title={ `#${puzzle.slug}` }
-                  href={ href }
-                  target="_blank" rel="noopener">
-                <img className="messaging-logo" src={ slackIcon } alt={ `Slack` } />
-              </a>
-          )
-        }
         var discordButton;
         if (this.props.settings.discord) {
           if (this.props.settings.profile.discord_identifier) {
@@ -131,7 +109,6 @@ export default class PuzzleComponent extends React.Component {
                   <div className="row">
                     <div className="col-xs-6 col-sm-6 col-md-4 col-lg-3 name">
                       { puzzlePageButton }
-                      { slackButton }
                       { discordButton }
                       { gappsButton }
                       <span className="name-text">{ puzzle.name }</span>

@@ -15,7 +15,6 @@ from puzzles.discordbot import run_listener_bot, DISCORD_ANNOUNCER, do_in_discor
 from puzzles.models import Puzzle, Round, UserProfile
 from puzzles.spreadsheets import check_spreadsheet_service, iterate_changes, make_sheet
 from redis import Redis
-import slacker
 import websockets
 import requests
 from bs4 import BeautifulSoup
@@ -25,27 +24,6 @@ from urllib.parse import urlparse
 BULLSHIT_CHANNEL="_herring_experimental"
 # XXX specific to the 2020 hunt
 HUNT_URL_PREFIX="https://pennypark.fun"
-
-SLACK_USER_ID = None  # will be initialized once SLACK is
-
-@lazy_object
-def SLACK():
-    global SLACK_USER_ID
-    if not settings.HERRING_ACTIVATE_SLACK:
-        logging.warning("Running without Slack integration!")
-        return None
-    try:
-        # A token logged in as a legitimate user. Turns out that "bots" can't
-        # do the things we want to automate!
-        result = slacker.Slacker(settings.HERRING_SECRETS['slack-user-token'])
-        SLACK_USER_ID = result.auth.test().body['user_id']
-        return result
-    except KeyError:
-        print(
-            "Couldn't find the SECRETS environment variable. This server won't be able "
-            "to use Slack and Google Drive integrations."
-        )
-
 
 @lazy_object
 def REDIS():
@@ -96,19 +74,6 @@ def optional_task(t):
 
 def post_local_and_global(local_channel, local_message, global_message):
     logging.warning("tasks: post_local_and_global(%s, %s, %s)", local_channel, local_message, global_message)
-    if settings.HERRING_ACTIVATE_SLACK:
-        try:
-            response = SLACK.channels.join(local_channel)
-            channel_id = response.body['channel']['id']
-            SLACK.chat.post_message(channel_id, local_message, link_names=True, as_user=True)
-        except Exception:
-            # Probably the channel's already archived. Don't worry too much about it.
-            logging.warning("tasks: failed to post to local channel (probably archived)", exc_info=True)
-
-        response = SLACK.channels.join(settings.HERRING_STATUS_CHANNEL)
-        global_channel_id = response.body['channel']['id']
-        SLACK.chat.post_message(global_channel_id, global_message, link_names=True, as_user=True)
-
     if settings.HERRING_ACTIVATE_DISCORD:
         do_in_discord(DISCORD_ANNOUNCER.post_local_and_global(local_channel, local_message, global_message))
 
@@ -165,37 +130,6 @@ def create_puzzle_sheet_and_channel(self, slug):
 
             puzzle.sheet_id = sheet_id
 
-    if settings.HERRING_ACTIVATE_SLACK:
-        try:
-            created = SLACK.channels.create(slug)
-        except slacker.Error:
-            logging.error("tasks: failed to create channel when creating sheet and channel (joining instead) - %s", slug, exc_info=True)
-            created = SLACK.channels.join(slug)
-
-        channel_id = created.body['channel']['id']
-        puzzle.slack_channel_id = channel_id
-
-        puzzle_name = puzzle.name
-        if len(puzzle_name) >= 30:
-            puzzle_name = puzzle_name[:29] + '\N{HORIZONTAL ELLIPSIS}'
-
-        topic = "{name} - Sheet: {host}/s/{id} - Puzzle: {url}".format(
-            name=puzzle_name,
-            url=puzzle.hunt_url,
-            host=settings.HERRING_HOST,
-            id=puzzle.id
-        )
-        SLACK.channels.set_topic(channel_id, topic)
-
-        response = SLACK.channels.join(settings.HERRING_STATUS_CHANNEL)
-        status_channel_id = response.body['channel']['id']
-
-        new_channel_msg = 'New puzzle created: "{name}" (#{slug})'.format(
-            slug=slug, name=puzzle.name
-        )
-
-        SLACK.chat.post_message(status_channel_id, new_channel_msg, link_names=True, as_user=True)
-
     puzzle.save()
 
     if settings.HERRING_ACTIVATE_DISCORD:
@@ -226,6 +160,8 @@ def create_round_category(self, round_id):
             except Exception:
                 raise self.retry()
 
+# This is disabled because it was never updated from slack to discord.
+"""
 @shared_task(rate_limit=0.1)
 def scrape_activity_log():
     logging.warning("tasks: scrape_activity_log()")
@@ -267,7 +203,7 @@ def scrape_activity_log():
             display_unlocks = ", ".join(["{} in {} ({})".format(x[2], x[3], x[1]) for x in new_unlocks])
             activity_msg = "There are {} unlocks without puzzle pages: {}".format(len(new_unlocks), display_unlocks)
             SLACK.chat.post_message(bullshit_channel_id, activity_msg, link_names=True, as_user=True)
-
+"""
 
 @shared_task(ignore_result=True)
 def check_connection_to_messaging():
@@ -291,7 +227,6 @@ def check_connection_to_messaging():
 
     async def _check_connection_to_messaging():
         awaitables = [
-            asyncio.create_task(process_slack_messages_forever(), name="process_slack_messages_forever"),
             asyncio.create_task(run_discord_listener_bot(), name="run_discord_listener_bot"),
             asyncio.create_task(keep_mutex(), name="keep_mutex")
         ]
@@ -304,126 +239,8 @@ def check_connection_to_messaging():
         logging.info("check_connection_to_messaging: Released mutex")
 
 async def run_discord_listener_bot():
-    if settings.HERRING_ACTIVATE_DISCORD:
+    if settings.HERRING_ACTIVATE_DISCORD and not settings.HERRING_ENABLE_STANDALONE_DISCORD:
         await run_listener_bot()
-
-
-async def process_slack_messages_forever():
-    logging.info("process_slack_messages_forever: Starting")
-    while True:
-        if settings.HERRING_ACTIVATE_SLACK:
-            try:
-                result = SLACK.rtm.connect()
-                if result.successful:
-                    uri = result.body['url']
-                    async with websockets.connect(uri) as ws:
-                        while await dispatch_slack_message(json.loads(await ws.recv())):
-                            pass
-                    continue  # reconnect immediately
-                else:
-                    logging.error("Couldn't connect to Slack RTM API: %s", result.error)
-            except Exception:
-                logging.exception("Error processing Slack RTM messages")
-
-        # If we're here, we failed to connect or we recorded an application
-        # error. Either way, we'll attempt to reconnect in a minute.
-        await sleep(60)
-
-
-@sync_to_async
-def dispatch_slack_message(message):
-    logging.debug("dispatch_slack_message: %r", message)
-    mtype = message['type']
-    if mtype == 'error':
-        logging.error("Slack RTM error: %s", message['error']['msg'])
-        return False
-    if mtype == 'message':
-        if not ('subtype' in message or message['user'] == SLACK_USER_ID):
-            record_slack_activity(
-                channel_id=message['channel'],
-                user_id=message['user'],
-                timestamp=float(message['ts']))
-    elif mtype == 'member_joined_channel' or mtype == 'member_left_channel':
-        update_slack_channel_membership.delay(channel_id=message['channel'])
-    return True
-
-
-def record_slack_activity(channel_id, user_id, timestamp):
-    slug = channel_name(channel_id)
-    if slug is None:
-        return
-
-    dt = datetime.fromtimestamp(timestamp, timezone.utc)
-    try:
-        with transaction.atomic():
-            puzzle = Puzzle.objects.select_for_update().get(slug=slug)
-            if puzzle.slack_channel_id != channel_id:
-                # this shouldn't ever really happen, just a fixup
-                puzzle.slack_channel_id = channel_id
-                puzzle.save(update_fields=['slack_channel_id'])
-            if puzzle.record_activity(dt):
-                puzzle.save(update_fields=['last_active', 'activity_tracker'])
-    except Puzzle.DoesNotExist:
-        return
-
-    with transaction.atomic():
-        row, created = puzzle.channelparticipation_set.get_or_create(
-            user_id=user_id,
-            defaults=dict(last_active=dt, is_member=True))
-        if not created and (row.last_active is None or row.last_active < dt):
-            row.last_active = dt
-            row.is_member = True
-            row.save(update_fields=['last_active', 'is_member'])
-
-    logging.info("record_slack_activity: For puzzle %s, user %s, recorded activity at %s", slug, user_id, dt)
-
-
-@shared_task
-def update_slack_channel_membership(channel_id):
-    slug = channel_name(channel_id)
-    if slug is None:
-        return
-
-    try:
-        puzzle = Puzzle.objects.get(slug=slug)
-    except Puzzle.DoesNotExist:
-        return
-
-    if settings.HERRING_ACTIVATE_SLACK:
-        result = SLACK.conversations.members(channel_id)
-        if not result.successful:
-            return
-
-        membership = set(result.body['members'])
-        membership.remove(SLACK_USER_ID)
-        n = len(membership)
-
-        puzzle.channel_count = n
-        puzzle.save(update_fields=['channel_count'])
-
-        puzzle.channelparticipation_set\
-            .exclude(user_id__in=membership)\
-            .update(is_member=False)
-
-        for row in puzzle.channelparticipation_set.filter(is_member=True):
-            membership.remove(row.user_id)
-
-        for user_id in membership:
-            puzzle.channelparticipation_set.update_or_create(
-                user_id=user_id,
-                defaults=dict(is_member=True))
-
-    logging.info("update_slack_channel_membership: For puzzle %s, set channel_count = %d", slug, n)
-
-
-@ttl_cache(maxsize=512, ttl=3600)
-def channel_name(channel_id):
-    if not settings.HERRING_ACTIVATE_SLACK:
-        return None
-    result = SLACK.conversations.info(channel_id)
-    if result.successful:
-        return result.body['channel']['name']
-
 
 @shared_task(bind=True, rate_limit=0.5)
 @transaction.atomic
@@ -483,18 +300,14 @@ def add_user_to_puzzle(user_id, puzzle_name):
 
 @ttl_cache(ttl=10)
 def get_service_status():
-    slack = None
     discord = None
     gapps = None
-    if settings.HERRING_ACTIVATE_SLACK:
-        slack = (SLACK.auth.test().body['user_id'] == SLACK_USER_ID)
     if settings.HERRING_ACTIVATE_DISCORD:
         # this has the side effect of reifying DISCORD_ANNOUNCER
         discord = do_in_discord(DISCORD_ANNOUNCER.wait_until_really_ready(5))
     if settings.HERRING_ACTIVATE_GAPPS:
         gapps = check_spreadsheet_service()
     return {
-        'slack': slack,
         'discord': discord,
         'gapps': gapps,
     }

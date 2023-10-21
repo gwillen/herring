@@ -16,7 +16,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 
-from puzzles.tasks import add_user_to_puzzle, get_service_status, scrape_activity_log
+from puzzles.tasks import add_user_to_puzzle, get_service_status
 from .forms import UserProfileForm, UserSignupForm
 from .models import ChannelParticipation, Puzzle, Round, UserProfile, to_json_value
 
@@ -68,7 +68,6 @@ def get_puzzles(request):
     data = {
         'rounds': Round.objects.filter(hunt_id=settings.HERRING_HUNT_ID),
         'settings': {
-            'slack': settings.HERRING_ACTIVATE_SLACK,
             'discord': settings.HERRING_ACTIVATE_DISCORD,
             'gapps': settings.HERRING_ACTIVATE_GAPPS,
             'profile': profile,
@@ -129,36 +128,13 @@ def update_puzzle(request, puzzle_id):
     puzzle.save()
     return HttpResponse("Updated puzzle " + str(puzzle.slug))
 
-@csrf_exempt
-def update_puzzle_hook(request):
-    """
-    Take a request from Slack to alter puzzle information.
-    """
-    puzzle = get_object_or_404(Puzzle, slug=request.POST.get('channel_name'))
-    command = request.POST.get('command')
-    value = request.POST.get('text')
-
-    if command == '/notes':
-        puzzle.note = value
-    elif command == '/tag':
-        tags = [t.strip() for t in puzzle.tags.split(',') if t.strip()]
-        if value not in tags:
-            tags.append(value)
-        puzzle.tags = ', '.join(tags)
-    elif command == '/untag':
-        tags = [tag.strip() for tag in puzzle.tags.split(',') if tag.strip() and tag.lower() != value.lower()]
-        puzzle.tags = ', '.join(tags)
-    elif command == '/answer':
-        puzzle.answer = value
-    else:
-        return HttpResponse("Don't know the command %r" % command)
-    puzzle.save()
-    return HttpResponse("Updated puzzle " + str(puzzle.slug))
-
+# Disabled because it was never updated from slack to discord.
+"""
 @csrf_exempt
 def run_scraper(request):
     scrape_activity_log.delay()
     return HttpResponse("ok")
+"""
 
 from puzzles.discordbot import DISCORD_ANNOUNCER, do_in_discord_nonblocking
 
