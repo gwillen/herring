@@ -1,0 +1,10 @@
+# This file will be used instead of Procfile when running locally with
+#   Docker; this is controlled by `-f Procfile.dev` in
+#   `docker-project-command.sh`.
+web: gunicorn --pythonpath=herring herring.wsgi --log-file -
+# see https://github.com/celery/celery/issues/2839
+celery: REMAP_SIGTERM=SIGQUIT watchmedo auto-restart -R -p '*.py' -- celery --workdir=herring --app=herring worker -E --beat
+# Running the bot in a separate process is much more convenient for
+#   development. It may be desirable in production as well, although it will
+#   cost one additional worker dyno on Heroku.
+discordbot: watchmedo auto-restart -R -p 'discordbot.py' -- python herring/manage.py discordbot

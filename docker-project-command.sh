@@ -8,8 +8,9 @@ apk add gcc g++ libstdc++ libffi-dev musl-dev openssl-dev postgresql-dev
 
 pip install -r requirements.txt
 
-# Honcho runs the Procfile in the dev environment; it isn't needed in Heroku.
-pip install honcho
+# Honcho runs the Procfile in the dev environment, and watchdog (watchmedo)
+#   handles restarting on file changes; they aren't needed in Heroku.
+pip install honcho watchdog
 
 # If the database doesn't already exist, this initializes it.
 herring/manage.py makemigrations
@@ -49,4 +50,4 @@ EOF
 # double-scheduled.
 GUNICORN_CMD_ARGS="-c python:gunicorn-dev" \
 PYTHONUNBUFFERED=true \
-exec honcho -e /dev/null start -c worker=2
+exec honcho -e /dev/null -f Procfile.dev start -c worker=2
