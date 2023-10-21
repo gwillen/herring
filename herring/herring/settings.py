@@ -115,6 +115,11 @@ STATICFILES_DIRS = []
 
 REDIS_URL = env.get_value('REDIS_URL', default='redis://localhost:6379/0')
 
+HERRING_ACTIVATE_GAPPS = env.bool('ACTIVATE_GAPPS', default=False)
+HERRING_ACTIVATE_SLACK = env.bool('ACTIVATE_SLACK', default=False)
+HERRING_ACTIVATE_DISCORD = env.bool('ACTIVATE_DISCORD', default=False)
+HERRING_ENABLE_STANDALONE_DISCORD = env.bool('ENABLE_STANDALONE_DISCORD', default=False)
+
 # Celery queue
 CELERY_BROKER_URL = env.get_value('BROKER_URL', default=REDIS_URL)
 #CELERY_BROKER_USE_SSL = { 'ssl_cert_reqs': 'none' }  # allow self-signed SSL certs
@@ -126,16 +131,20 @@ CELERY_BROKER_TRANSPORT_OPTIONS = dict(max_retries=3)
 CELERY_REDBEAT_REDIS_URL = REDIS_URL #+ "?ssl_cert_reqs=none"  # allow self-signed certificates
 #CELERY_REDBEAT_REDIS_USE_SSL = { 'ssl_cert_reqs': 'none' }  # allow self-signed SSL certs
 CELERY_BEAT_SCHEDULER = 'redbeat.RedBeatScheduler'
-CELERY_BEAT_SCHEDULE = {
-    'read-google-sheets-changes': {
+
+CELERY_BEAT_SCHEDULE = {}
+
+if HERRING_ACTIVATE_GAPPS:
+    CELERY_BEAT_SCHEDULE['read-google-sheets-changes'] = {
         'task': 'puzzles.tasks.process_google_sheets_changes',
         'schedule': 15.0,
-    },
-    'check-connection-to-messaging': {
+    }
+
+if HERRING_ACTIVATE_SLACK or (HERRING_ACTIVATE_DISCORD and not HERRING_ENABLE_STANDALONE_DISCORD):
+    CELERY_BEAT_SCHEDULE['check-connection-to-messaging'] = {
         'task': 'puzzles.tasks.check_connection_to_messaging',
         'schedule': 60.0,
-    },
-}
+    }
 
 # This indirectly affects the expiration time of the lock RedBeat sets in
 # Redis to ensure that only one scheduler is running. It largely doesn't
@@ -169,10 +178,6 @@ HERRING_FUCK_OAUTH = json.loads(env.get_value('FUCK_OAUTH', default='{}'))
 # This should be more dynamic in the future.
 HERRING_HUNT_ID = int(env.get_value('HUNT_ID', default=0))
 HERRING_TEAM_NAME = env.get_value('TEAM_NAME', default="Non-Abelian Rage Theory")
-
-HERRING_ACTIVATE_GAPPS = env.bool('ACTIVATE_GAPPS', default=False)
-HERRING_ACTIVATE_SLACK = env.bool('ACTIVATE_SLACK', default=False)
-HERRING_ACTIVATE_DISCORD = env.bool('ACTIVATE_DISCORD', default=False)
 
 HERRING_ERRORS_TO_DISCORD = env.bool('ERRORS_TO_DISCORD', default=False)
 
