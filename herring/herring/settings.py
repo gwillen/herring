@@ -116,7 +116,6 @@ STATICFILES_DIRS = []
 REDIS_URL = env.get_value('REDIS_URL', default='redis://localhost:6379/0')
 
 HERRING_ACTIVATE_GAPPS = env.bool('ACTIVATE_GAPPS', default=False)
-HERRING_ACTIVATE_SLACK = env.bool('ACTIVATE_SLACK', default=False)
 HERRING_ACTIVATE_DISCORD = env.bool('ACTIVATE_DISCORD', default=False)
 HERRING_ENABLE_STANDALONE_DISCORD = env.bool('ENABLE_STANDALONE_DISCORD', default=False)
 
@@ -140,7 +139,7 @@ if HERRING_ACTIVATE_GAPPS:
         'schedule': 15.0,
     }
 
-if HERRING_ACTIVATE_SLACK or (HERRING_ACTIVATE_DISCORD and not HERRING_ENABLE_STANDALONE_DISCORD):
+if HERRING_ACTIVATE_DISCORD and not HERRING_ENABLE_STANDALONE_DISCORD:
     CELERY_BEAT_SCHEDULE['check-connection-to-messaging'] = {
         'task': 'puzzles.tasks.check_connection_to_messaging',
         'schedule': 60.0,
