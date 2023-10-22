@@ -198,8 +198,7 @@ class HerringCog(commands.Cog):
             await self.add_user_to_puzzle(member, channel.name)
             return
 
-        # this is the most ridiculous thing ever. i feel dirty for writing this
-        rounds = await sync_to_async(lambda: list(Round.objects.filter(hunt_id = settings.HERRING_HUNT_ID)))()
+        rounds = await sync_to_async(list)(Round.objects.filter(hunt_id = settings.HERRING_HUNT_ID))
         if len(rounds) == 0:
             await ctx.author.send("Sorry, there are no rounds available!")
             return
