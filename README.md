@@ -1,6 +1,6 @@
-# Herring 
+# Herring
 
-Herring is a web application for a puzzlehunt team's progress tracking and task management. It uses Django (with Python 3!) and ReactJS. It is inspired by the older puzzlehunt management tool `tsar`. 
+Herring is a web application for a puzzlehunt team's progress tracking and task management. It uses Django (with Python 3!) and ReactJS. It is inspired by the older puzzlehunt management tool `tsar`.
 
 Members of teams Metropolitan Rage Warehouse and Death and Mayhem have contributed to Herring development!
 
@@ -28,7 +28,7 @@ You can do work on the React frontend outside of the Docker environment:
 
 ```
 cd herring/puzzles/static-src
-npm install 
+npm install
 ./node_modules/.bin/webpack --watch
 ```
 
@@ -94,7 +94,7 @@ Create a superuser so you can log into `localhost:8000/admin/` and make rounds a
 
 `python3 manage.py createsuperuser`
 
-To use the Slack and Google Drive integrations, you need to be running a worker process, so run this in yet another shell:
+To use the Discord and Google Drive integrations, you need to be running a worker process, so run this in yet another shell:
 
 `python3 manage.py celery worker`
 
