@@ -12,16 +12,17 @@ from lazy_object_proxy import Proxy as lazy_object
 import traceback
 import sys
 
-from typing import Optional
+from typing import Optional, Any
 
 import discord
+from discord import app_commands
 from asgiref.sync import async_to_sync, sync_to_async
 from discord.ext import commands
 from discord.utils import get
 from django.db import transaction
 from django.db.models import Q
 
-from herring import settings
+from django.conf import settings
 from puzzles.models import Round, Puzzle, UserProfile
 
 # Discord limits a user to putting 20 emojis on a message, so if this is more than 19, the menu won't work
@@ -66,6 +67,107 @@ AUTOROLE_MARKER = "-autoroles below-"
 
 MAX_DISCORD_EMBED_LEN = 2048
 
+GUILD_COMMANDS_FOR_TESTING = True
+
+if settings.HERRING_DEBUG_DISCORD_VERBOSELY:
+    discord.utils.setup_logging(level=logging.DEBUG)
+
+class TestView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="button")
+    async def test_button(self, interaction: discord.Interaction, button):
+        logging.info("test button pressed! %s %s %s", self, interaction, button)
+        await interaction.response.send_message("test button pressed!", view=TestView())
+
+    @discord.ui.select(custom_id="select_gwillen_testing_1", placeholder="select something maybe? I'm not your mom.", options=[
+        discord.SelectOption(label="option 1", value="opt1", description="the first option probably", emoji="✴", default=True),
+        discord.SelectOption(label="option 2", value="opt2", description="the second option allegedly", emoji="❤️", default=False)
+    ])
+    async def select_menu(self, interaction: discord.Interaction, select):
+        logging.info("select interacted! %s %s %s", self, interaction, select)
+        await interaction.response.defer()
+
+class PuzzleChoiceList(discord.ui.Select):
+    def __init__(self, herring_cog, puzzles, custom_id, placeholder, callback):
+        super().__init__(custom_id=custom_id, placeholder=placeholder)
+        for puzzle in puzzles:
+            self.append_option(discord.SelectOption(
+                label=puzzle.name,
+                value=f'huntpuzzle_{puzzle.hunt_id}_{puzzle.parent_id}_{puzzle.slug}',
+                description=herring_cog.puzzle_join_extra_info(puzzle)))
+        self.provided_callback = {'c': callback}
+
+    async def callback(self, interaction):
+        return await self.provided_callback['c'](interaction, self)
+
+class PuzzleChoiceView(discord.ui.View):
+    def __init__(self, herring_cog, puzzles):
+        super().__init__(timeout=None)
+        self.herring_cog = herring_cog
+        self.add_item(PuzzleChoiceList(herring_cog, puzzles, "PuzzleChoiceView", "Please choose a puzzle:", lambda i, s: self.item_callback(i, s)))
+
+    async def item_callback(self, interaction: discord.Interaction, select):
+        logging.info("puzzle selected! %s %s %s", self, interaction, select)
+        logging.info("interaction details: %s %s %s %s %s",
+                     interaction.extras,
+                     interaction.message,
+                     interaction.data,
+                     interaction.namespace,
+                     interaction.command)
+
+        puzzle_option_value = interaction.data['values'][0]
+        m = re.match("huntpuzzle_(.*)_(.*)_(.*)", puzzle_option_value)
+        (hunt_id, round_id, puzzle_slug) = m.groups()
+        puzzle_chosen = await sync_to_async(lambda: Puzzle.objects.get(hunt_id=hunt_id, parent=round_id, slug=puzzle_slug))()
+        member = interaction.guild.get_member(interaction.user.id)
+        logging.info(f"adding {interaction.user} to {puzzle_slug}")
+        channel, _ = await self.herring_cog.add_user_to_puzzle(member, puzzle_slug)
+        # the following appears in the channel, although we can mark it ephemeral, but we could DM it instead -- could make that optional.
+        await interaction.response.send_message(f"Welcome to the puzzle `{puzzle_chosen.name}`! Click to go there: {channel.mention}! Happy solving!", ephemeral=True)
+        await member.send(f"Welcome to the puzzle `{puzzle_chosen.name}`! Click to go there: {channel.mention}! Happy solving!")
+        #await interaction.response.send_message(f'You selected: {interaction.data["values"]}')
+
+class RoundChoiceList(discord.ui.Select):
+    def __init__(self, rounds, custom_id, placeholder, callback):
+        super().__init__(custom_id=custom_id, placeholder=placeholder)
+        for round in rounds:
+            self.append_option(discord.SelectOption(label=round.name, value=f'huntround_{round.hunt_id}_{round.number}'))
+        self.provided_callback = {'c': callback}
+
+    async def callback(self, interaction):
+        return await self.provided_callback['c'](interaction, self)
+
+class RoundChoiceView(discord.ui.View):
+    def __init__(self, herring_cog, rounds):
+        super().__init__(timeout=None)
+        self.herring_cog = herring_cog
+        self.add_item(RoundChoiceList(rounds, "RoundChoiceView", "Please choose a round:", lambda i, s: self.item_callback(i, s)))
+
+    async def item_callback(self, interaction: discord.Interaction, select):
+        logging.info("round selected! %s %s %s", self, interaction, select)
+        logging.info("interaction details: %s %s %s %s %s",
+                     interaction.extras,
+                     interaction.message,
+                     interaction.data,
+                     interaction.namespace,
+                     interaction.command)
+
+        round_option_value = interaction.data['values'][0]
+        m = re.match("huntround_(.*)_(.*)", round_option_value)
+        (hunt_id, round_id) = m.groups()
+        round_chosen = await sync_to_async(lambda: Round.objects.get(hunt_id=hunt_id, id=round_id))()
+
+        puzzles = await sync_to_async(lambda: list(round_chosen.puzzle_set.all()))()
+        if len(puzzles) == 0:
+            await interaction.reply.send_message(f"Sorry, {round_chosen.name} has no puzzles at the moment.")
+            return
+
+        new_view = PuzzleChoiceView(self.herring_cog, puzzles)
+        #interaction.client.add_view(new_view)  # XXX does this do anything at all
+        await interaction.response.send_message(f'You selected: {interaction.data["values"]}', view=new_view)
+
 class HerringCog(commands.Cog):
     def __init__(self, bot:commands.Bot):
         self.bot = bot
@@ -74,6 +176,8 @@ class HerringCog(commands.Cog):
         self.debug_channel = None
         self.pronoun_roles = []
         self.timezone_roles = []
+        bot.add_view(RoundChoiceView(self, [])) # XXX
+        bot.add_view(PuzzleChoiceView(self, []))
 
     def get_pronoun_roles(self):
         result = []
@@ -115,6 +219,7 @@ class HerringCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
+        logging.info("on_raw_reaction_add: %s", payload)
         # ignore myself
         if payload.user_id == self.bot.user.id:
             return
@@ -127,19 +232,26 @@ class HerringCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
+        logging.info("on_message: %s", message)
         if message.author.id == self.bot.user.id:
             return
 
         if message.type != discord.MessageType.default:
             return
 
-        if not message.guild or message.guild.id != settings.HERRING_DISCORD_GUILD_ID:
-            # don't care about non-guild or other-guild messages
-            return
-
         context: commands.Context = await self.bot.get_context(message)
         if context.valid:
             # this is a command, not puzzle activity
+            logging.info("ignoring raw message already processed as command message")
+            return
+
+        if message.channel.type == discord.ChannelType.private:
+            await message.channel.send("Sorry, I didn't understand that.")
+            return
+
+        if not message.guild or message.guild.id != settings.HERRING_DISCORD_GUILD_ID:
+            logging.info("Wrong-guild or no-guild non-DM message, this should never happen, ignoring...")
+            # don't care about other-guild messages
             return
 
         def record_activity(puzzle: Puzzle):
@@ -182,6 +294,108 @@ class HerringCog(commands.Cog):
                 alert = await message.channel.send(f"Added {all_mentions} to puzzle by request")
                 await alert.delete()
 
+    @app_commands.command(name="gwillen_test")
+    async def gwillen_test(self, interaction: discord.Interaction) -> None:
+        await self.gwillen_test_inner(interaction)
+
+    @app_commands.command(name="gwillen_test_alias")
+    async def gwillen_test_alias(self, interaction: discord.Interaction) -> None:
+        await self.gwillen_test_inner(interaction)
+
+    async def gwillen_test_inner(self, interaction: discord.Interaction) -> None:
+        print("test", file=sys.stderr)
+        await interaction.response.send_message("hello!", ephemeral=False)
+        await interaction.followup.send("please consider:", view=TestView(), ephemeral=False)
+
+    @commands.hybrid_command(brief="sync app command tree")
+    async def synctree(self, ctx:commands.Context):
+        """ sync command tree """
+        logging.info("syncing command tree...")
+        result_global = await ctx.bot.tree.sync()
+        result_guild = await ctx.bot.tree.sync(guild=ctx.guild)
+        logging.info("sync complete: global=%s guild=%s", result_global, result_guild)
+        if ctx.interaction:
+            await ctx.interaction.response.send_message("Synced command tree: global=%s guild=%s" % (result_global, result_guild), ephemeral=True)
+        else:
+            await ctx.author.send("Synced command tree: global=%s guild=%s" % (result_global, result_guild))
+
+    async def round_autocomplete(self, interation: discord.Interaction, current: str):
+        rounds: list[Round] = await sync_to_async(list)(Round.objects.filter(hunt_id = settings.HERRING_HUNT_ID))
+        return [
+            app_commands.Choice(name=f"{round.number} - {round.name}", value=f"huntround_{round.hunt_id}_{round.id}")
+            for round in rounds if current.lower() in round.name.lower()
+        ]
+
+    async def puzzle_autocomplete(self, interaction: discord.Interaction, current: str):
+        round = None
+        logging.info("puzauto int data: %s", interaction.data)
+        for arg in interaction.data['options']:
+            if arg['name'] == "round":
+                round = arg['value']
+                m = re.match("huntround_(.*)_(.*)", round)
+                (hunt_id, round_id) = m.groups()
+
+        puzzles: list[Puzzle] = []
+        if round is not None:
+            puzzles: list[Puzzle] = await sync_to_async(list)(Puzzle.objects.filter(hunt_id = int(hunt_id), parent_id = int(round_id)))
+        else:
+            puzzles: list[Puzzle] = await sync_to_async(list)(Puzzle.objects.filter(hunt_id = settings.HERRING_HUNT_ID))
+
+        return [
+            app_commands.Choice(name=puzzle.name, value=f"huntpuzzle_{puzzle.hunt_id}_{puzzle.parent_id}_{puzzle.slug}")
+            for puzzle in puzzles if current.lower() in puzzle.name.lower()
+        ]
+
+    @app_commands.command(name="join", description="Join a puzzle channel")
+    @app_commands.autocomplete(round=round_autocomplete, puzzle=puzzle_autocomplete)
+    async def slash_join(self, interaction: discord.Interaction, round: str = None, puzzle: str = None) -> None:
+        if puzzle is not None:
+            m = re.match("huntpuzzle_(.*)_(.*)_(.*)", puzzle)
+            (hunt_id, round_id, puzzle_slug) = m.groups()
+            puzzle_chosen = await sync_to_async(lambda: Puzzle.objects.get(hunt_id=hunt_id, parent=round_id, slug=puzzle_slug))()
+            member = interaction.guild.get_member(interaction.user.id)
+            logging.info(f"adding {interaction.user} to {puzzle_slug}")
+            channel, _ = await self.add_user_to_puzzle(member, puzzle_slug)
+            # the following appears in the channel, although we can mark it ephemeral, but we could DM it instead -- could make that optional.
+            await interaction.response.send_message(f"Welcome to the puzzle `{puzzle_chosen.name}`! Click to go there: {channel.mention}! Happy solving!", ephemeral=True)
+            await member.send(f"Welcome to the puzzle `{puzzle_chosen.name}`! Click to go there: {channel.mention}! Happy solving!")
+            return
+        elif round is not None:
+            m = re.match("huntround_(.*)_(.*)", round)
+            (hunt_id, round_id) = m.groups()
+            round_chosen = await sync_to_async(Round.objects.get)(hunt_id=hunt_id, id=round_id)
+            puzzles = await sync_to_async(list)(Puzzle.objects.filter(hunt_id=hunt_id, parent_id=round_id))
+            if len(puzzles) == 0:
+                await interaction.reply.send_message(f"Sorry, {round_chosen.name} has no puzzles at the moment.")
+                return
+
+            new_view = PuzzleChoiceView(self, puzzles)
+            await interaction.response.send_message(f'Please choose a puzzle in {round_chosen.name} to join:', view=new_view, ephemeral=True)
+            return
+
+        rounds = await sync_to_async(list)(Round.objects.filter(hunt_id = settings.HERRING_HUNT_ID))
+        if len(rounds) == 0:
+            await interaction.response.send_message("Sorry, there are no rounds available!", ephemeral=True)
+            return
+
+        new_view = RoundChoiceView(self, rounds)
+        await interaction.response.send_message(view=new_view)
+
+    def puzzle_join_extra_info(self, puzzle):
+        solved = "(SOLVED!) " if puzzle.answer else ""
+        try:
+            text_channel, voice_channel = self.get_channel_pair(puzzle.slug)
+            # -2 for @everyone and the bot
+            people_watching = len(text_channel.overwrites) - 2
+            people_chatting = len(voice_channel.voice_states)
+            return f"{solved}({people_watching} watchers, {people_chatting} in voice)"
+        except Exception as e:
+            log_to_discord(f"Failed to printerize puzzle: {puzzle}", exn=e)
+            return f"{solved}<problem with puzzle channels, admins have been notified>"
+
+    def puzzle_join_printerizer(self, puzzle):
+        return f"{_abbreviate_name(puzzle)} {self.puzzle_join_extra_info(puzzle)}"
+
     @commands.command(brief="Join a puzzle channel")
     async def join(self, ctx:commands.Context, channel:typing.Optional[discord.TextChannel]):
         """
@@ -190,7 +404,7 @@ class HerringCog(commands.Cog):
         a menu interaction that will let you find the puzzle you're looking for.
         :param channel: (optional) A specific channel to join
         """
-        await self.delete_message_if_possible(ctx.message)
+        await self.delete_message_if_possible(ctx)
         member = self.guild.get_member(ctx.author.id)
 
         if isinstance(channel, discord.TextChannel):
@@ -218,23 +432,11 @@ class HerringCog(commands.Cog):
             await ctx.author.send(f"Sorry, {round_chosen.name} has no puzzles at the moment.")
             return
 
-        def puzzle_printerizer(puzzle):
-            solved = "(SOLVED!) " if puzzle.answer else ""
-            try:
-                text_channel, voice_channel = self.get_channel_pair(puzzle.slug)
-                # -2 for @everyone and the bot
-                people_watching = len(text_channel.overwrites) - 2
-                people_chatting = len(voice_channel.voice_states)
-                return f"{_abbreviate_name(puzzle)} {solved}({people_watching} watchers, {people_chatting} in voice)"
-            except Exception as e:
-                log_to_discord(f"Failed to printerize puzzle: {puzzle}", exn=e)
-                return f"{_abbreviate_name(puzzle)} {solved}<problem with puzzle channels, admins have been notified>"
-
         puzzle_chosen: Puzzle = await self.do_menu(
             ctx.author,
             puzzles,
             "Which puzzle would you like to join?",
-            puzzle_printerizer
+            self.puzzle_join_printerizer
         )
 
         if puzzle_chosen is None:
@@ -245,15 +447,25 @@ class HerringCog(commands.Cog):
         channel, _ = await self.add_user_to_puzzle(member, puzzle_chosen.slug)
         await ctx.author.send(f"Welcome to the puzzle `{puzzle_chosen.name}`! Click to go there: {channel.mention}! Happy solving!")
 
-    @commands.command(aliases=["part"], brief="Leave a puzzle channel")
+    @commands.hybrid_command(brief="Leave a puzzle channel")
     async def leave(self, ctx, channel:typing.Optional[discord.TextChannel]):
+        await self.leave_inner(ctx, channel)
+
+    @commands.hybrid_command(brief="Leave a puzzle channel")
+    async def part(self, ctx, channel:typing.Optional[discord.TextChannel]):
+        await self.leave_inner(ctx, channel)
+
+    async def leave_inner(self, ctx, channel: typing.Optional[discord.TextChannel]):
         """
         Leave the puzzle channel in which you executed hb!leave, thus hiding it from you once more (once you click
         away). Technically you can also leave a channel by name from anywhere, because it was easy to write; I don't
         really see this capability as being very useful.
         :param channel: (optional) A specific channel to leave.
         """
-        await self.delete_message_if_possible(ctx.message)
+        # app commands only:
+        interaction: discord.Interaction = ctx.interaction
+        if not interaction:
+            await self.delete_message_if_possible(ctx)
         # using fetch_member() here so we don't have to turn on the members intent
         member = await self.guild.fetch_member(ctx.author.id)
 
@@ -264,45 +476,57 @@ class HerringCog(commands.Cog):
             await self.remove_user_from_puzzle(member, puzzle.slug)
         except Puzzle.DoesNotExist:
             # don't actually care
-            pass
+            if interaction:
+                await interaction.response.send_message(f"{'That' if channel else 'This'} channel doesn't seem to be a puzzle, so you can't leave it.", ephemeral=True)
+            return
 
-    @commands.command(aliases=["solve"], brief="You solved a puzzle!")
+        if interaction:
+            # No need to say anything, but satisfy the API that we did something.
+            await interaction.response.send_message(f"You have left {'that' if channel else 'this'} puzzle.{'' if channel else ' Select another channel from the sidebar.'}", ephemeral=True)
+
+    @commands.hybrid_command(aliases=["solve"], brief="You solved a puzzle!")
     async def answer(self, ctx, *, answer):
         """
         Register the answer to a puzzle in Herring. Must be called in a puzzle channel.
         :param answer: The puzzle answer; spaces are allowed
         """
-        await self.delete_message_if_possible(ctx.message)
+        await self.delete_message_if_possible(ctx)
         def answer_puzzle(puzzle):
             puzzle.answer = answer
         await _manipulate_puzzle(ctx.channel.name, answer_puzzle)
+        if ctx.interaction:
+            ctx.interaction.response.defer()
 
-    @commands.command(brief="Add a tag to a puzzle")
+    @commands.hybrid_command(brief="Add a tag to a puzzle")
     async def tag(self, ctx, *, tag):
         """
         Add a tag to a puzzle (for example, "konundrum"). Must be called in a puzzle channel. Puzzles can have
         as many tags as you like (within reason, please).
         :param tag: The tag to add
         """
-        await self.delete_message_if_possible(ctx.message)
+        await self.delete_message_if_possible(ctx)
         def tag_puzzle(puzzle):
             tags = self._parse_tags(puzzle)
             if tag not in tags:
                 tags.append(tag)
             puzzle.tags = self._combine_tags(tags)
         await _manipulate_puzzle(ctx.channel.name, tag_puzzle)
+        if ctx.interaction:
+            ctx.interaction.response.defer()
 
-    @commands.command(brief="Remove a tag from a puzzle")
+    @commands.hybrid_command(brief="Remove a tag from a puzzle")
     async def untag(self, ctx, *, tag):
         """
         Remove a tag from a puzzle. Must be called in a puzzle channel.
         :param tag: The tag to remove
         """
-        await self.delete_message_if_possible(ctx.message)
+        await self.delete_message_if_possible(ctx)
         def untag_puzzle(puzzle):
             tags = self._parse_tags(puzzle)
             puzzle.tags = self._combine_tags([t for t in tags if t != tag])
         await _manipulate_puzzle(ctx.channel.name, untag_puzzle)
+        if ctx.interaction:
+            ctx.interaction.response.defer()
 
     @staticmethod
     def _parse_tags(puzzle):
@@ -312,16 +536,18 @@ class HerringCog(commands.Cog):
     def _combine_tags(tags):
         return ", ".join(tags)
 
-    @commands.command(brief="Set the note for a puzzle")
+    @commands.hybrid_command(brief="Set the note for a puzzle")
     async def note(self, ctx, *, note):
         """
         Set the note for a puzzle, as a suggestion for future solvers. Must be called in a puzzle channel.
         :param note: The note to set for future solvers
         """
-        await self.delete_message_if_possible(ctx.message)
+        await self.delete_message_if_possible(ctx)
         def note_puzzle(puzzle):
             puzzle.note = note
         await _manipulate_puzzle(ctx.channel.name, note_puzzle)
+        if ctx.interaction:
+            ctx.interaction.response.defer()
 
     # not async! deals with database mostly; intended to be called from inside a _manipulate_puzzle
     def _update_channel_participation(self, puzzle):
@@ -331,14 +557,15 @@ class HerringCog(commands.Cog):
         membership = [member for member in text_channel.overwrites if member.id != self.guild.me.id and member.id != self.guild.default_role.id]
         _update_channel_participation_inner(puzzle, membership)
 
-    @commands.command(aliases=["status"], brief="Show stats about puzzles")
+    @commands.hybrid_command(aliases=["status"], brief="Show stats about puzzles")
     async def who(self, ctx, puzzle_name:typing.Optional[discord.TextChannel]):
         """
         Reports status of puzzles, including who is currently in the voice chat (if anyone). Can take a puzzle
         channel name, in which case it only reports that puzzle; otherwise it PMs the user a menu to choose the round
         :param puzzle_name: (optional) A particular puzzle channel you're curious about
         """
-        await self.delete_message_if_possible(ctx.message)
+        await self.delete_message_if_possible(ctx)
+        interaction: discord.Interaction = ctx.interaction
 
         def puzzle_printerizer(puzzle):
             text_channel, voice_channel = self.get_channel_pair(puzzle.slug)
@@ -356,14 +583,22 @@ class HerringCog(commands.Cog):
 
         if puzzle_name is not None:
             try:
-                puzzle = await sync_to_async(lambda: Puzzle.objects.get(slug=puzzle_name.name))()
-                await ctx.author.send(puzzle_printerizer(puzzle))
+                puzzle = await sync_to_async(Puzzle.objects.get(slug=puzzle_name.name))
+                output = puzzle_printerizer(puzzle)
+                if interaction:
+                    await interaction.response.send_message(output, ephemeral=True)
+                else:
+                    await ctx.author.send(puzzle_printerizer(puzzle))
             except Puzzle.DoesNotExist:
-                # don't care
-                pass
+                if interaction:
+                    await interaction.response.send_message("Sorry, that puzzle doesn't exist.", ephemeral=True)
             return
 
-        rounds = await sync_to_async(lambda: list(Round.objects.filter(hunt_id = settings.HERRING_HUNT_ID)))()
+        if interaction:
+            await interaction.response.send_message("Sorry, this functionality doesn't work with slash commands at this time.", ephemeral=True)
+            return
+
+        rounds = await sync_to_async(list)(Round.objects.filter(hunt_id = settings.HERRING_HUNT_ID))
         if len(rounds) == 0:
             await ctx.author.send("Sorry, there are no rounds available!")
             return
@@ -378,7 +613,7 @@ class HerringCog(commands.Cog):
             # timed out, bail
             return
 
-        puzzles = await sync_to_async(lambda: list(round_chosen.puzzle_set.all()))()
+        puzzles = await sync_to_async(list)(round_chosen.puzzle_set.all())
         if len(puzzles) == 0:
             await ctx.author.send("Sorry, that round contains no puzzles right now.")
             return
@@ -393,17 +628,23 @@ class HerringCog(commands.Cog):
                 description += "\n" + puzzle_line
         await ctx.author.send("", embed=discord.Embed(description=description))
 
-    @commands.command(brief="Set your pronoun and timezone roles")
-    async def role(self, ctx):
+    @commands.hybrid_command(brief="Set your pronoun and/or timezone roles")
+    async def role(self, ctx, role:discord.Role=None):
         """
         Ask the bot to set your preferred pronoun and timezone roles, from the standard lists of choices. If you
         want something that isn't in the lists, please contact a czar directly and they can make it and assign it to you.
         """
-        await self.delete_message_if_possible(ctx.message)
+        await self.delete_message_if_possible(ctx)
 
         member:discord.Member = self.guild.get_member(ctx.author.id)
         roles_to_add = []
         if not member:
+            return
+
+        if role:
+            #await member.add_roles(role)  # XXX danger danger, this is broken
+            if ctx.interaction:
+                pass #await ctx.interaction.response.defer()
             return
 
         pronoun_role = await self.do_menu(
@@ -444,7 +685,7 @@ class HerringCog(commands.Cog):
 
     @commands.command(hidden=True)
     async def cleanup_channels(self, ctx):
-        await self.delete_message_if_possible(ctx.message)
+        await self.delete_message_if_possible(ctx)
 
         if ctx.author.id != self.guild.owner_id:
             raise commands.NotOwner()
@@ -591,7 +832,11 @@ class HerringCog(commands.Cog):
         await ctx.author.send("cleanup_channels: Done.")
 
     @staticmethod
-    async def delete_message_if_possible(request_message):
+    async def delete_message_if_possible(request_context):
+        if request_context.interaction:
+            # this is a slash command, nothing to delete
+            return
+        request_message = request_context.message
         # can't delete the other person's messages from DM channels
         if request_message.channel.type != discord.ChannelType.private:
             await request_message.delete()
@@ -666,7 +911,7 @@ class SolvertoolsCog(commands.Cog):
         self.bot = bot
         self.client_session = client
 
-    @commands.command(brief="Retrieve anagrams")
+    @commands.hybrid_command(name="anagram", with_app_command=True, brief="Retrieve anagrams")
     async def anagram(self, ctx, *, arg):
         """
         Returns a bunch of anagrams of the given letters, sorted by cromulence. You can use "+1" or "-3" to add positive
@@ -676,7 +921,7 @@ class SolvertoolsCog(commands.Cog):
         url = urljoin(settings.HERRING_SOLVERTOOLS_URL, "/api/anagram")
         await self.api_passthrough_command(ctx, url, arg)
 
-    @commands.command(brief="Solve crossword clues, maybe")
+    @commands.hybrid_command(brief="Solve crossword clues, maybe")
     async def clue(self, ctx, *, arg):
         """
         Ask solvertools to solve a crossword clue for you. This doesn't work all that well but sometimes it comes
@@ -687,7 +932,7 @@ class SolvertoolsCog(commands.Cog):
         url = urljoin(settings.HERRING_SOLVERTOOLS_URL, "/api/clue")
         await self.api_passthrough_command(ctx, url, arg)
 
-    @commands.command(brief="Retrieve words satisfying a pattern")
+    @commands.hybrid_command(brief="Retrieve words satisfying a pattern")
     async def pattern(self, ctx, *, arg):
         """
         Get a bunch of words that satisfy a regular expression, sorted by cromulence.
@@ -695,6 +940,10 @@ class SolvertoolsCog(commands.Cog):
         """
         url = urljoin(settings.HERRING_SOLVERTOOLS_URL, "/api/pattern")
         await self.api_passthrough_command(ctx, url, arg)
+
+    @commands.command(brief="gwillen_test_cmd_cmd2")
+    async def gwillen_test_cmd_cmd2(self, ctx, *, arg):
+        pass
 
     async def api_passthrough_command(self, ctx:commands.Context, url, args):
         # this might take a while
@@ -767,14 +1016,14 @@ class CommandErrorHandler(commands.Cog):
 def command_prefix(bot, message:discord.Message):
     if message.channel.type == discord.ChannelType.private:
         # allow unprefixed commands in DMs
-        return ["hb!", ""]
+        return commands.when_mentioned_or("hb!", "")(bot, message)
     else:
-        return "hb!"
+        return commands.when_mentioned_or("hb!")(bot, message)
 
 
 class HerringListenerBot(commands.Bot):
     """
-    The listener bot is run exactly once (alongside the Slack bot). It listens for things happening in Discord
+    The listener bot is run exactly once. It listens for things happening in Discord
     and makes appropriate changes in Django in response. It's critical that nothing in Celery or Django tries to
     access this bot directly, because it only exists in one of the worker processes.
     """
@@ -786,14 +1035,19 @@ class HerringListenerBot(commands.Bot):
         self.client = client
 
     async def setup_hook(self) -> None:
-        await self.add_cog(HerringCog(self))
-        await self.add_cog(SolvertoolsCog(self, self.client))
+        # The `guilds=` arg makes the slash commands load faster than if they are global, but then they won't work in DMs.
+        if GUILD_COMMANDS_FOR_TESTING:
+            guilds = [discord.Object(id=settings.HERRING_DISCORD_GUILD_ID)]
+            await self.add_cog(HerringCog(self), guilds=guilds)
+            await self.add_cog(SolvertoolsCog(self, self.client), guilds=guilds)
+        else:
+            await self.add_cog(HerringCog(self))
+            await self.add_cog(SolvertoolsCog(self, self.client))
         await self.add_cog(CommandErrorHandler(self))
 
         @self.event
         async def on_error(event, *args, **kwargs):
             logging.error(f"Error in event: {event}, with args {args} and kwargs {kwargs}.", exc_info=True)
-
 
 class HerringAnnouncerBot(discord.Client):
     """
@@ -1095,4 +1349,3 @@ def make_announcer_bot():
     else:
         logging.error(f"failed to create discord announcer bot (timed out trying). Is bot thread alive: {bot_thread.is_alive()}. bot_thread: {bot_thread}")
         return None
-

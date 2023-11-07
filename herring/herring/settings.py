@@ -119,6 +119,8 @@ HERRING_ACTIVATE_GAPPS = env.bool('ACTIVATE_GAPPS', default=False)
 HERRING_ACTIVATE_DISCORD = env.bool('ACTIVATE_DISCORD', default=False)
 HERRING_ENABLE_STANDALONE_DISCORD = env.bool('ENABLE_STANDALONE_DISCORD', default=False)
 
+HERRING_DEBUG_DISCORD_VERBOSELY = env.bool('DEBUG_DISCORD_VERBOSELY', default=False)
+
 # Celery queue
 CELERY_BROKER_URL = env.get_value('BROKER_URL', default=REDIS_URL)
 #CELERY_BROKER_USE_SSL = { 'ssl_cert_reqs': 'none' }  # allow self-signed SSL certs
@@ -188,6 +190,7 @@ HEROKU_RELEASE_VERSION = env.get_value('HEROKU_RELEASE_VERSION', default='<unkno
 # https://devcenter.heroku.com/articles/dynos#local-environment-variables
 HEROKU_DYNO_NAME = env.get_value('DYNO', default='<unknown>')
 
+# https://docs.djangoproject.com/en/4.2/topics/logging/
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -199,7 +202,7 @@ LOGGING = {
         'chat': {
             'class': 'herring.log_custom.ChatLogHandler',
             'level': 'WARNING',
-            'formatter': 'default',
+            #'formatter': 'default',
         },
     },
     'root': {
