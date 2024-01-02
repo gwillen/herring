@@ -387,8 +387,9 @@ class HerringCog(commands.Cog):
             text_channel, voice_channel = self.get_channel_pair(puzzle.slug)
             # -2 for @everyone and the bot
             people_watching = len(text_channel.overwrites) - 2
-            people_chatting = len(voice_channel.voice_states)
-            return f"{solved}({people_watching} watchers, {people_chatting} in voice)"
+            people_chatting = len(voice_channel.voice_states) if voice_channel else None
+            voice_status = f", {people_chatting} in voice" if people_chatting else ""
+            return f"{solved}({people_watching} watchers{voice_status})"
         except Exception as e:
             log_to_discord(f"Failed to printerize puzzle: {puzzle}", exn=e)
             return f"{solved}<problem with puzzle channels, admins have been notified>"
@@ -574,12 +575,17 @@ class HerringCog(commands.Cog):
                 watching = len(membership)
             else:
                 watching = ", ".join(member.display_name for member in membership) or "no one"
-            if len(voice_channel.members) > MAX_USER_LIST:
+
+            if voice_channel is None:
+                voice_status = ""
+            elif len(voice_channel.members) > MAX_USER_LIST:
                 in_voice = len(voice_channel.members)
+                voice_status = f", {in_voice} in voice chat"
             else:
                 in_voice = ", ".join(member.display_name for member in voice_channel.members) or "no one"
+                voice_status = f", {in_voice} in voice chat"
             solved = " (SOLVED!)" if puzzle.answer else ""
-            return f"{_abbreviate_name(puzzle)} ({text_channel.mention}){solved}: {watching} watching, {in_voice} in voice chat"
+            return f"{_abbreviate_name(puzzle)} ({text_channel.mention}){solved}: {watching} watching{voice_status}"
 
         if puzzle_name is not None:
             try:
@@ -787,7 +793,7 @@ class HerringCog(commands.Cog):
 
             async def fixup_puzzle(puzzle, category_idx):
                 text_channel, voice_channel = self.get_channel_pair(puzzle.slug)
-                if text_channel is None or voice_channel is None:
+                if text_channel is None:
                     await ctx.author.send(f"creating channels for {puzzle.name} in {round.name} {category_idx} (for real: {create})")
                     if create:
                         text_channel, voice_channel = await _make_puzzle_channels_inner(new_categories[category_idx], puzzle)
@@ -860,7 +866,8 @@ class HerringCog(commands.Cog):
         text_channel, voice_channel = self.get_channel_pair(puzzle_name)
 
         await text_channel.set_permissions(member, overwrite=None)
-        await voice_channel.set_permissions(member, overwrite=None)
+        if voice_channel is not None:
+            await voice_channel.set_permissions(member, overwrite=None)
         await _manipulate_puzzle(puzzle_name, self._update_channel_participation)
 
     async def do_menu(self, target, options, prompt, printerizer=(lambda x: x)):
@@ -1232,8 +1239,11 @@ async def _make_puzzle_channels_inner(category: discord.CategoryChannel, puzzle:
         position = 1 if locked_puzzle.is_meta else (locked_puzzle.number or locked_puzzle.id) + 10
         text_channel = get(category.guild.text_channels, name=locked_puzzle.slug) or \
                        await category.create_text_channel(locked_puzzle.slug, topic=topic, position=position)
-        voice_channel = get(category.guild.voice_channels, name=locked_puzzle.slug) or \
-                        await category.create_voice_channel(locked_puzzle.slug, position=position, bitrate=settings.HERRING_DISCORD_BITRATE)
+        if settings.HERRING_CREATE_DISCORD_VOICE_CHANNELS:
+            voice_channel = get(category.guild.voice_channels, name=locked_puzzle.slug) or \
+                            await category.create_voice_channel(locked_puzzle.slug, position=position, bitrate=settings.HERRING_DISCORD_BITRATE)
+        else:
+            voice_channel = None
         return text_channel, voice_channel
     return await _manipulate_puzzle(puzzle, do_make_channels)
 
@@ -1282,7 +1292,8 @@ async def _add_user_to_channels(member, text_channel:discord.TextChannel, voice_
     current_perms = text_channel.overwrites
     if member not in current_perms:
         await text_channel.set_permissions(member, read_messages=True)
-        await voice_channel.set_permissions(member, view_channel=True)
+        if voice_channel is not None:
+            await voice_channel.set_permissions(member, view_channel=True)
         return True
     return False
 
