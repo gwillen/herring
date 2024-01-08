@@ -8,6 +8,7 @@ import django.contrib.auth
 import typing
 from cachetools.func import ttl_cache
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db.models import Count, F
@@ -32,6 +33,9 @@ def edit_profile(request):
             user_form.save()
             profile_form.full_clean()
             profile_form.save()
+            messages.success(request, 'Profile saved.')
+        else:
+            messages.error(request, "ERROR: Profile not saved. This is probably not your fault. Contact an admin.")
     else:
         user_form = UserEditForm(instance=request.user)
         profile_form = UserProfileForm(instance=request.user.profile)
