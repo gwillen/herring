@@ -79,7 +79,7 @@ class TestView(discord.ui.View):
     @discord.ui.button(label="button")
     async def test_button(self, interaction: discord.Interaction, button):
         logging.info("test button pressed! %s %s %s", self, interaction, button)
-        await interaction.response.send_message("test button pressed!", view=TestView())
+        await interaction.response.send_message("test button pressed!", view=TestView(), ephemeral=True)
 
     @discord.ui.select(custom_id="select_gwillen_testing_1", placeholder="select something maybe? I'm not your mom.", options=[
         discord.SelectOption(label="option 1", value="opt1", description="the first option probably", emoji="✴", default=True),
@@ -133,7 +133,7 @@ class RoundChoiceList(discord.ui.Select):
     def __init__(self, rounds, custom_id, placeholder, callback):
         super().__init__(custom_id=custom_id, placeholder=placeholder)
         for round in rounds:
-            self.append_option(discord.SelectOption(label=round.name, value=f'huntround_{round.hunt_id}_{round.number}'))
+            self.append_option(discord.SelectOption(label=f'{round.number} - {round.name}', value=f'huntround_{round.hunt_id}_{round.id}'))
         self.provided_callback = {'c': callback}
 
     async def callback(self, interaction):
@@ -166,7 +166,7 @@ class RoundChoiceView(discord.ui.View):
 
         new_view = PuzzleChoiceView(self.herring_cog, puzzles)
         #interaction.client.add_view(new_view)  # XXX does this do anything at all
-        await interaction.response.send_message(f'You selected: {interaction.data["values"]}', view=new_view)
+        await interaction.response.send_message(f'You selected: {interaction.data["values"]}', view=new_view, ephemeral=True)
 
 class HerringCog(commands.Cog):
     def __init__(self, bot:commands.Bot):
@@ -294,18 +294,18 @@ class HerringCog(commands.Cog):
                 alert = await message.channel.send(f"Added {all_mentions} to puzzle by request")
                 await alert.delete()
 
-    @app_commands.command(name="gwillen_test")
-    async def gwillen_test(self, interaction: discord.Interaction) -> None:
-        await self.gwillen_test_inner(interaction)
+    #@app_commands.command(name="gwillen_test")
+    #async def gwillen_test(self, interaction: discord.Interaction) -> None:
+    #    await self.gwillen_test_inner(interaction)
 
-    @app_commands.command(name="gwillen_test_alias")
-    async def gwillen_test_alias(self, interaction: discord.Interaction) -> None:
-        await self.gwillen_test_inner(interaction)
+    #@app_commands.command(name="gwillen_test_alias")
+    #async def gwillen_test_alias(self, interaction: discord.Interaction) -> None:
+    #    await self.gwillen_test_inner(interaction)
 
-    async def gwillen_test_inner(self, interaction: discord.Interaction) -> None:
-        print("test", file=sys.stderr)
-        await interaction.response.send_message("hello!", ephemeral=False)
-        await interaction.followup.send("please consider:", view=TestView(), ephemeral=False)
+    #async def gwillen_test_inner(self, interaction: discord.Interaction) -> None:
+    #    print("test", file=sys.stderr)
+    #    await interaction.response.send_message("hello!", ephemeral=True)
+    #    await interaction.followup.send("please consider:", view=TestView(), ephemeral=True)
 
     @commands.hybrid_command(brief="sync app command tree")
     async def synctree(self, ctx:commands.Context):
@@ -379,7 +379,7 @@ class HerringCog(commands.Cog):
             return
 
         new_view = RoundChoiceView(self, rounds)
-        await interaction.response.send_message(view=new_view)
+        await interaction.response.send_message(view=new_view, ephemeral=True)
 
     def puzzle_join_extra_info(self, puzzle):
         solved = "(SOLVED!) " if puzzle.answer else ""
@@ -650,8 +650,11 @@ class HerringCog(commands.Cog):
         if role:
             #await member.add_roles(role)  # XXX danger danger, this is broken
             if ctx.interaction:
-                pass #await ctx.interaction.response.defer()
+                await ctx.interaction.response.send_message("Sorry, this functionality doesn't work with slash commands at this time.", ephemeral=True)
             return
+        elif ctx.interaction:
+            # We never send a real interaction response, so just dismiss the interaction immediately and continue.
+            await ctx.interaction.response.defer()
 
         pronoun_role = await self.do_menu(
             ctx.author,
@@ -948,9 +951,9 @@ class SolvertoolsCog(commands.Cog):
         url = urljoin(settings.HERRING_SOLVERTOOLS_URL, "/api/pattern")
         await self.api_passthrough_command(ctx, url, arg)
 
-    @commands.command(brief="gwillen_test_cmd_cmd2")
-    async def gwillen_test_cmd_cmd2(self, ctx, *, arg):
-        pass
+    #@commands.command(brief="gwillen_test_cmd_cmd2")
+    #async def gwillen_test_cmd_cmd2(self, ctx, *, arg):
+    #    pass
 
     async def api_passthrough_command(self, ctx:commands.Context, url, args):
         # this might take a while
