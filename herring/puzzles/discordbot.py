@@ -635,27 +635,23 @@ class HerringCog(commands.Cog):
         await ctx.author.send("", embed=discord.Embed(description=description))
 
     @commands.hybrid_command(brief="Set your pronoun and/or timezone roles")
-    async def role(self, ctx, role:discord.Role=None):
+    async def role(self, ctx):
         """
         Ask the bot to set your preferred pronoun and timezone roles, from the standard lists of choices. If you
         want something that isn't in the lists, please contact a czar directly and they can make it and assign it to you.
         """
         await self.delete_message_if_possible(ctx)
+        interaction: discord.Interaction = ctx.interaction
+        if interaction:
+            # We never send a real interaction response, so just reply to the interaction immediately and continue.
+            await interaction.response.send_message("Setting your roles! Please check your private messages for a message from HerringBot.", ephemeral=True)
 
         member:discord.Member = self.guild.get_member(ctx.author.id)
-        roles_to_add = []
         if not member:
+            await ctx.author.send("Sorry, it seems that you don't exist?? Please contact the admins for tech support.")
             return
 
-        if role:
-            #await member.add_roles(role)  # XXX danger danger, this is broken
-            if ctx.interaction:
-                await ctx.interaction.response.send_message("Sorry, this functionality doesn't work with slash commands at this time.", ephemeral=True)
-            return
-        elif ctx.interaction:
-            # We never send a real interaction response, so just dismiss the interaction immediately and continue.
-            await ctx.interaction.response.defer()
-
+        roles_to_add = []
         pronoun_role = await self.do_menu(
             ctx.author,
             self.pronoun_roles + ["Don't set"],
