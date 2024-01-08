@@ -17,18 +17,34 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 
 from puzzles.tasks import add_user_to_puzzle, get_service_status
-from .forms import UserProfileForm, UserSignupForm
+from .forms import UserProfileForm, UserSignupForm, UserEditForm
 from .models import ChannelParticipation, Puzzle, Round, UserProfile, to_json_value
+
+@never_cache
+@login_required
+def edit_profile(request):
+    if request.method == 'POST':
+        # XXX: this might let them change someone else's profile or something, don't imitate this if your app is important
+        user_form = UserEditForm(request.POST, instance=request.user)
+        profile_form = UserProfileForm(request.POST, instance=request.user.profile)
+        if user_form.is_valid() and profile_form.is_valid():
+            user_form.full_clean()
+            user_form.save()
+            profile_form.full_clean()
+            profile_form.save()
+    else:
+        user_form = UserEditForm(instance=request.user)
+        profile_form = UserProfileForm(instance=request.user.profile)
+    return render(request, 'registration/profile_edit.html', {'user_form': user_form, 'profile_form': profile_form})
 
 @never_cache
 def signup(request):
     if request.method == 'POST':
         user_form = UserSignupForm(request.POST)
         profile_form = UserProfileForm(request.POST)
-        if user_form.is_valid() and profile_form.is_valid():
+        if user_form.is_valid() and profile_form.is_valid() and user_form.cleaned_data['magic_secret'] == settings.HERRING_SECRETS['magic-secret']:
             user:User = user_form.save(commit=False)
-            # Doing this as a filter on is_active instead of just a hard nope means our db fills up with inactive spammer accounts :-(
-            user.is_active = (user_form.cleaned_data['magic_secret'] == settings.HERRING_SECRETS['magic-secret'])
+            user.is_active = True  # this was checking if they had the secret, but just block making the account instead
             user.save()
             user.refresh_from_db()  # load the profile instance created by the signal
             profile_form = UserProfileForm(request.POST, instance=user.profile)
