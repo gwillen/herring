@@ -470,7 +470,8 @@ class HerringCog(commands.Cog):
         # using fetch_member() here so we don't have to turn on the members intent
         member = await self.guild.fetch_member(ctx.author.id)
 
-        if not isinstance(channel, discord.TextChannel):
+        by_name = isinstance(channel, discord.TextChannel)
+        if not by_name:
             channel = ctx.channel
         try:
             puzzle = await sync_to_async(lambda: Puzzle.objects.get(slug=channel.name))()
@@ -478,12 +479,12 @@ class HerringCog(commands.Cog):
         except Puzzle.DoesNotExist:
             # don't actually care
             if interaction:
-                await interaction.response.send_message(f"{'That' if channel else 'This'} channel doesn't seem to be a puzzle, so you can't leave it.", ephemeral=True)
+                await interaction.response.send_message(f"{'That' if by_name else 'This'} channel doesn't seem to be a puzzle, so you can't leave it.", ephemeral=True)
             return
 
         if interaction:
             # No need to say anything, but satisfy the API that we did something.
-            await interaction.response.send_message(f"You have left {'that' if channel else 'this'} puzzle.{'' if channel else ' Select another channel from the sidebar.'}", ephemeral=True)
+            await interaction.response.send_message(f"You have left {'that' if by_name else 'this'} puzzle.{'' if by_name else ' Select another channel from the sidebar.'}", ephemeral=True)
 
     @commands.hybrid_command(aliases=["solve"], brief="You solved a puzzle!")
     async def answer(self, ctx, *, answer):
