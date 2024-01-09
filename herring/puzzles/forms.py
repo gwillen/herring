@@ -26,5 +26,5 @@ class UserEditForm(forms.ModelForm):
 class UserProfileForm(forms.ModelForm):
     class Meta:
         model = UserProfile
-        fields = ('discord_identifier',)
+        fields = ('discord_identifier', 'subscriptions')
         # Exclude avatar_url because, to my knowledge, it's literally never used.
