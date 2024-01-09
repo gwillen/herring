@@ -170,9 +170,10 @@ class UserProfile(models.Model, JSONMixin):
     )
     avatar_url = models.CharField(max_length=200, **optional)
     discord_identifier = models.CharField(max_length=200, **optional)
+    subscriptions = models.TextField(**optional)
 
     class Json:
-        include_fields = ['avatar_url', 'discord_identifier']
+        include_fields = ['avatar_url', 'discord_identifier', 'subscriptions']
 
     def __str__(self):
         return "profile for " + self.user.__str__()

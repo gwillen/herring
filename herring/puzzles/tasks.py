@@ -7,6 +7,7 @@ from cachetools.func import ttl_cache
 from celery import shared_task
 from datetime import datetime, timezone
 from django.conf import settings
+from django.contrib.postgres.search import SearchQuery, SearchVector
 from django.db import transaction
 import json
 import kombu.exceptions
@@ -110,6 +111,40 @@ def post_update(slug, updated_field, value):
         name=puzzle.name
     )
     post_local_and_global(slug, local_message, global_message)
+
+
+@optional_task
+@shared_task(rate_limit=0.5)
+def notify_subscribers(slug: str, keywords: str):
+    logging.warning("tasks: notify_subscribers(%s, %r)", slug, keywords)
+
+    try:
+        puzzle = Puzzle.objects.get(slug=slug)
+    except Puzzle.DoesNotExist:
+        return
+
+    try:
+        users = UserProfile.objects.annotate(search=SearchVector('subscriptions', config='english')).filter(
+            search=SearchQuery(keywords, search_type='raw'),
+            discord_identifier__isnull=False,
+        )
+        users = list(users)
+    except Exception as e:
+        logging.error("tasks: notify_subscribers failed while searching subscriptions", e)
+        return
+
+    if len(users) == 0:
+        return
+
+    discord_ids = [u.discord_identifier for u in users]
+
+    message = f"Based on your subscriptions, you might want to join \"{puzzle.name}\" (#{slug})."
+    if puzzle.tags:
+        message += f" It has tags \"{puzzle.tags}\"."
+    if puzzle.note:
+        message += f" It has notes \"{puzzle.note}\"."
+    if settings.HERRING_ACTIVATE_DISCORD:
+        do_in_discord(DISCORD_ANNOUNCER.send_subscription_messages(slug, discord_ids, message))
 
 
 @optional_task
