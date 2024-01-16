@@ -11,7 +11,7 @@ from django.db import transaction
 import json
 import kombu.exceptions
 from lazy_object_proxy import Proxy as lazy_object
-from puzzles.discordbot import run_listener_bot, DISCORD_ANNOUNCER, do_in_discord
+from puzzles.discordbot import run_listener_bot, DISCORD_ANNOUNCER, do_in_discord, LEAVE_EMOJI, TRIUMPH_EMOJI
 from puzzles.models import Puzzle, Round, UserProfile
 from puzzles.spreadsheets import check_spreadsheet_service, iterate_changes, make_sheet
 from redis import Redis
@@ -72,10 +72,10 @@ def optional_task(t):
     return t
 
 
-def post_local_and_global(local_channel, local_message, global_message):
-    logging.warning("tasks: post_local_and_global(%s, %s, %s)", local_channel, local_message, global_message)
+def post_local_and_global(local_channel, local_message, global_message, local_reaction=None, global_reaction=None):
+    logging.warning("tasks: post_local_and_global(%s, %s, %s, %s)", local_channel, local_message, global_message, local_reaction, global_reaction)
     if settings.HERRING_ACTIVATE_DISCORD:
-        do_in_discord(DISCORD_ANNOUNCER.post_local_and_global(local_channel, local_message, global_message))
+        do_in_discord(DISCORD_ANNOUNCER.post_local_and_global(local_channel, local_message, global_message, local_reaction, global_reaction))
 
 @optional_task
 @shared_task(rate_limit=0.5)
@@ -84,13 +84,9 @@ def post_answer(slug, answer):
 
     puzzle = Puzzle.objects.get(slug=slug)
     answer = answer.upper()
-    local_message = "\N{PARTY POPPER} Confirmed answer: {}".format(answer)
-    global_message = '\N{PARTY POPPER} Puzzle "{name}" (#{slug}) was solved! The answer is: {answer}'.format(
-        answer=answer,
-        slug=slug,
-        name=puzzle.name
-    )
-    post_local_and_global(slug, local_message, global_message)
+    local_message = f"{TRIUMPH_EMOJI} Confirmed answer: {answer}\nReact with {LEAVE_EMOJI} to leave the puzzle!"
+    global_message = f'{TRIUMPH_EMOJI} Puzzle "{puzzle.name}" (#{slug}) from round {puzzle.parent.name} was solved! The answer is: {answer}\nReact with {LEAVE_EMOJI} to leave the puzzle!'
+    post_local_and_global(slug, local_message, global_message, LEAVE_EMOJI, LEAVE_EMOJI)
 
 
 @optional_task
@@ -102,13 +98,8 @@ def post_update(slug, updated_field, value):
         puzzle = Puzzle.objects.get(slug=slug)
     except Puzzle.DoesNotExist:
         return
-    local_message = '{} set to: {}'.format(updated_field, value)
-    global_message = '"{name}" (#{slug}) now has these {field}: {value}'.format(
-        field=updated_field,
-        value=value,
-        slug=slug,
-        name=puzzle.name
-    )
+    local_message = f'{updated_field} set to: {value}'
+    global_message = f'"{puzzle.name}" (#{slug}) from round {puzzle.parent.name} now has these {updated_field}: {value}'
     post_local_and_global(slug, local_message, global_message)
 
 

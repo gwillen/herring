@@ -56,7 +56,10 @@ MENU_REACTION_LOOKUP = {reaction: index for index, reaction in enumerate(MENU_RE
 # making this less than 25 leaves a little elbow room for cleanup_channels if necessary
 PUZZLES_PER_CATEGORY = 20
 
+# special emojis used for on_raw_reaction_add
 SIGNUP_EMOJI = "\N{RAISED HAND}"
+LEAVE_EMOJI = "\N{LEAF FLUTTERING IN WIND}"
+TRIUMPH_EMOJI = "\N{PARTY POPPER}"
 
 # this is the most users we'll try to mention during an hb!who; more than this and you just get the number
 MAX_USER_LIST = 10
@@ -223,12 +226,34 @@ class HerringCog(commands.Cog):
         # ignore myself
         if payload.user_id == self.bot.user.id:
             return
-        if payload.channel_id == self.announce_channel.id and payload.emoji.name == SIGNUP_EMOJI:
+        channel = self.guild.get_channel(payload.channel_id)
+        message: discord.Message = await channel.fetch_message(payload.message_id)
+        # we're ok with this working anywhere for any reason if anyone ever mentions a puzzle channel
+        if payload.emoji.name == SIGNUP_EMOJI:
             # add someone to the puzzle
-            message: discord.Message = await self.announce_channel.fetch_message(payload.message_id)
-            await message.remove_reaction(SIGNUP_EMOJI, payload.member)
-            target_channel = message.channel_mentions[0]
-            await self.add_user_to_puzzle(payload.member, target_channel.name)
+            if len(message.channel_mentions) > 0:
+                target_channel = message.channel_mentions[0]
+                try:
+                    puzzle = await _get_puzzle_by_slug(target_channel.name)
+                except Puzzle.DoesNotExist:
+                    # probably don't do it then
+                    return
+
+                await message.remove_reaction(SIGNUP_EMOJI, payload.member)
+                await self.add_user_to_puzzle(payload.member, puzzle.name)
+        elif payload.emoji.name == LEAVE_EMOJI:
+            # this should only work on the appropriate message in the puzzle channel or in puzzle-announcements
+            if message.author.id == self.bot.user.id:
+                await message.remove_reaction(LEAVE_EMOJI, payload.member)
+                if payload.channel_id == self.announce_channel.id:
+                    target_channel = message.channel_mentions[0]
+                elif TRIUMPH_EMOJI in message.content:
+                    # hopefully this is the "puzzle solved!" message
+                    target_channel = channel
+                else:
+                    target_channel = None
+                if target_channel:
+                    await self.remove_user_from_puzzle(payload.member, target_channel.name)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -863,6 +888,7 @@ class HerringCog(commands.Cog):
         return text_channel, voice_channel
 
     async def remove_user_from_puzzle(self, member: discord.Member, puzzle_name: str):
+        if member.bot: return
         text_channel, voice_channel = self.get_channel_pair(puzzle_name)
 
         await text_channel.set_permissions(member, overwrite=None)
@@ -1069,8 +1095,8 @@ class HerringAnnouncerBot(discord.Client):
         # we don't want this bot to respond to messages; just don't ask for the intent
         intents.message_content = False
         super(HerringAnnouncerBot, self).__init__(*args, intents=intents, **kwargs)
-        self.guild = None
-        self.announce_channel = None
+        self.guild : Optional[discord.Guild] = None
+        self.announce_channel : Optional[discord.TextChannel] = None
         self._really_ready = asyncio.Event()
 
     async def on_ready(self):
@@ -1143,7 +1169,7 @@ class HerringAnnouncerBot(discord.Client):
         round, category = await ensure_category_ready()
 
         text_channel, voice_channel = await _make_puzzle_channels_inner(category, puzzle)
-        announcement = await self.announce_channel.send(f"New puzzle {puzzle.name} opened! {SIGNUP_EMOJI} this message to join, then click here to jump to the channel: {text_channel.mention}.")
+        announcement = await self.announce_channel.send(f"New puzzle {puzzle.name} opened in round {round.name}! {SIGNUP_EMOJI} this message to join, then click here to jump to the channel: {text_channel.mention}.")
         await announcement.add_reaction(SIGNUP_EMOJI)
 
     async def post_message(self, channel_name, message, **kwargs):
@@ -1154,16 +1180,20 @@ class HerringAnnouncerBot(discord.Client):
             return
         await channel.send(message, **kwargs)
 
-    async def post_local_and_global(self, puzzle_name, local_message, global_message:str):
+    async def post_local_and_global(self, puzzle_name, local_content, global_content:str, local_reaction=None, global_reaction=None):
         await self._really_ready.wait()
         channel: discord.TextChannel = get(self.guild.text_channels, name=puzzle_name)
         if channel is None:
             logging.error(f"Couldn't get Discord channel {puzzle_name} in post_local_and_global!")
             return
 
-        await channel.send(local_message)
-        global_message = global_message.replace(f"#{puzzle_name}", channel.mention)
-        await self.announce_channel.send(global_message)
+        local_message = await channel.send(local_content)
+        global_content = global_content.replace(f"#{puzzle_name}", channel.mention)
+        global_message = await self.announce_channel.send(global_content)
+        if local_reaction:
+            await local_message.add_reaction(local_reaction)
+        if global_reaction:
+            await global_message.add_reaction(global_reaction)
 
     async def add_user_to_puzzle(self, user_profile: UserProfile, puzzle_name):
         await self._really_ready.wait()
@@ -1289,6 +1319,7 @@ def _get_puzzle_by_slug(slug):
     return Puzzle.objects.get(slug=slug, hunt_id=settings.HERRING_HUNT_ID)
 
 async def _add_user_to_channels(member, text_channel:discord.TextChannel, voice_channel):
+    if member.bot: return False
     current_perms = text_channel.overwrites
     if member not in current_perms:
         await text_channel.set_permissions(member, read_messages=True)
