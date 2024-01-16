@@ -226,17 +226,19 @@ class HerringCog(commands.Cog):
         # ignore myself
         if payload.user_id == self.bot.user.id:
             return
-        channel = self.guild.get_channel(payload.channel_id)
+        channel = self.bot.get_channel(payload.channel_id) or await self.bot.fetch_channel(payload.channel_id)
         message: discord.Message = await channel.fetch_message(payload.message_id)
-        # we're ok with this working anywhere for any reason if anyone ever mentions a puzzle channel
         if payload.emoji.name == SIGNUP_EMOJI:
             # add someone to the puzzle
-            if len(message.channel_mentions) > 0:
-                target_channel = message.channel_mentions[0]
+            # we're ok with this working anywhere for any reason if anyone ever mentions a puzzle channel
+            if len(message.raw_channel_mentions) > 0:
+                target_channel_id = message.raw_channel_mentions[0]
+                target_channel = self.guild.get_channel(target_channel_id)
+                if not target_channel:
+                    return
                 try:
                     puzzle = await _get_puzzle_by_slug(target_channel.name)
                 except Puzzle.DoesNotExist:
-                    # probably don't do it then
                     return
 
                 await message.remove_reaction(SIGNUP_EMOJI, payload.member)
