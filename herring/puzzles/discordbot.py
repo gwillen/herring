@@ -259,7 +259,7 @@ class HerringCog(commands.Cog):
                 if target_channel:
                     await self.remove_user_from_puzzle(payload.member, target_channel.name)
 
-@commands.Cog.listener()
+    @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         logging.info("on_message: %s", message)
         if message.author.id == self.bot.user.id:
