@@ -73,7 +73,7 @@ def optional_task(t):
 
 
 def post_local_and_global(local_channel, local_message, global_message, local_reaction=None, global_reaction=None):
-    logging.warning("tasks: post_local_and_global(%s, %s, %s, %s)", local_channel, local_message, global_message, local_reaction, global_reaction)
+    logging.warning("tasks: post_local_and_global(%s, %s, %s, %s, %s)", local_channel, local_message, global_message, local_reaction, global_reaction)
     if settings.HERRING_ACTIVATE_DISCORD:
         do_in_discord(DISCORD_ANNOUNCER.post_local_and_global(local_channel, local_message, global_message, local_reaction, global_reaction))
 

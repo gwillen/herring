@@ -241,14 +241,13 @@ class HerringCog(commands.Cog):
                 except Puzzle.DoesNotExist:
                     return
 
-                await self.add_user_to_puzzle(payload.member, puzzle.name)
-                if channel.type != discord.ChannelType.private:
+                logging.info(f"adding {payload.member.name} to {puzzle.slug}")
+                _, changed = await self.add_user_to_puzzle(payload.member, target_channel.name)
+                if changed and channel.type != discord.ChannelType.private:
                     await message.remove_reaction(SIGNUP_EMOJI, payload.member)
         elif payload.emoji.name == LEAVE_EMOJI:
             # this should only work on the appropriate message in the puzzle channel or in puzzle-announcements
             if message.author.id == self.bot.user.id:
-                if channel.type != discord.ChannelType.private:
-                    await message.remove_reaction(LEAVE_EMOJI, payload.member)
                 if payload.channel_id == self.announce_channel.id:
                     target_channel = message.channel_mentions[0]
                 elif TRIUMPH_EMOJI in message.content:
@@ -258,6 +257,8 @@ class HerringCog(commands.Cog):
                     target_channel = None
                 if target_channel:
                     await self.remove_user_from_puzzle(payload.member, target_channel.name)
+                    if channel.type != discord.ChannelType.private:
+                        await message.remove_reaction(LEAVE_EMOJI, payload.member)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
