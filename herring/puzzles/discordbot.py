@@ -635,12 +635,15 @@ class HerringCog(commands.Cog):
                 description += "\n" + puzzle_line
         await ctx.author.send("", embed=discord.Embed(description=description))
 
+    # Disabled, we're going to using Discord's functionality for this. Keeping everything around just in case we decide that
+    #   Discord community mode (required for that functionality) is for some reason intolerable.
+    """
     @commands.hybrid_command(brief="Set your pronoun and/or timezone roles")
     async def role(self, ctx):
-        """
+        " ""
         Ask the bot to set your preferred pronoun and timezone roles, from the standard lists of choices. If you
         want something that isn't in the lists, please contact a czar directly and they can make it and assign it to you.
-        """
+        " ""
         await self.delete_message_if_possible(ctx)
         interaction: discord.Interaction = ctx.interaction
         if interaction:
@@ -688,6 +691,7 @@ class HerringCog(commands.Cog):
         await member.remove_roles(*roles_to_remove)
         await member.add_roles(*roles_to_add)
         await member.send(f"You've been set up! Please ensure that your roles are set the way you wanted them to be.")
+    """
 
     @commands.command(hidden=True)
     async def cleanup_channels(self, ctx):
