@@ -758,11 +758,8 @@ class HerringCog(commands.Cog):
                 if delete:
                     await category.delete()
 
-        for channel in self.guild.channels:
-            if (channel.type in [discord.ChannelType.text, discord.ChannelType.voice]) and (channel.category is None):
-                await ctx.author.send(f"Deleting {channel.type} channel {channel.name} (which is in no category) (for real: {delete})")
-                if delete:
-                    await channel.delete()
+        # There used to be code here to delete channels that were in no category.
+        # Instead we should protect them if they exist; leave them alone.
 
         for round in rounds:
             # next, create any categories that don't seem to exist for whatever reason
