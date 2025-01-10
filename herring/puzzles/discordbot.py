@@ -749,14 +749,19 @@ class HerringCog(commands.Cog):
                 continue
             for channel in category.channels:
                 if (channel.type in [discord.ChannelType.text, discord.ChannelType.voice]) and (channel.name not in puzzles_by_slug):
-                    await ctx.author.send(f"Deleting {channel.type} channel {channel.name} in {category.name} (for real: {delete})")
-                    if delete:
-                        await channel.delete()
+                    # as an extra precaution, only delete things that are spelled like a puzzle channel AND have no chat history:
+                    if re.match(r"r\d+-", channel.name) and not channel.last_message_id:
+                        await ctx.author.send(f"Deleting {channel.type} channel {channel.name} in {category.name} (for real: {delete})")
+                        if delete:
+                            await channel.delete()
+                    else:
+                        await ctx.author.send(f"Skipping {channel.type} channel {channel.name} in {category.name} (last message {channel.last_message_id})")
 
-            if category.id not in rounds_by_category:
-                await ctx.author.send(f"Deleting category {category.name} (for real: {delete})")
-                if delete:
-                    await category.delete()
+            # Never delete categories; they are few and we can do them by hand.
+            #if category.id not in rounds_by_category:
+            #    await ctx.author.send(f"Deleting category {category.name} (for real: {delete})")
+            #    if delete:
+            #        await category.delete()
 
         # There used to be code here to delete channels that were in no category.
         # Instead we should protect them if they exist; leave them alone.
