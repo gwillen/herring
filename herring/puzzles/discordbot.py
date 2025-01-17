@@ -665,12 +665,15 @@ class HerringCog(commands.Cog):
                 description += "\n" + puzzle_line
         await ctx.author.send("", embed=discord.Embed(description=description))
 
+    # Disabled, we're going to using Discord's functionality for this. Keeping everything around just in case we decide that
+    #   Discord community mode (required for that functionality) is for some reason intolerable.
+    """
     @commands.hybrid_command(brief="Set your pronoun and/or timezone roles")
     async def role(self, ctx):
-        """
+        " ""
         Ask the bot to set your preferred pronoun and timezone roles, from the standard lists of choices. If you
         want something that isn't in the lists, please contact a czar directly and they can make it and assign it to you.
-        """
+        " ""
         await self.delete_message_if_possible(ctx)
         interaction: discord.Interaction = ctx.interaction
         if interaction:
@@ -718,6 +721,7 @@ class HerringCog(commands.Cog):
         await member.remove_roles(*roles_to_remove)
         await member.add_roles(*roles_to_add)
         await member.send(f"You've been set up! Please ensure that your roles are set the way you wanted them to be.")
+    """
 
     @commands.command(hidden=True)
     async def cleanup_channels(self, ctx):
@@ -775,20 +779,22 @@ class HerringCog(commands.Cog):
                 continue
             for channel in category.channels:
                 if (channel.type in [discord.ChannelType.text, discord.ChannelType.voice]) and (channel.name not in puzzles_by_slug):
-                    await ctx.author.send(f"Deleting {channel.type} channel {channel.name} in {category.name} (for real: {delete})")
-                    if delete:
-                        await channel.delete()
+                    # as an extra precaution, only delete things that are spelled like a puzzle channel AND have no chat history:
+                    if re.match(r"r\d+-", channel.name) and not channel.last_message_id:
+                        await ctx.author.send(f"Deleting {channel.type} channel {channel.name} in {category.name} (for real: {delete})")
+                        if delete:
+                            await channel.delete()
+                    else:
+                        await ctx.author.send(f"Skipping {channel.type} channel {channel.name} in {category.name} (last message {channel.last_message_id})")
 
-            if category.id not in rounds_by_category:
-                await ctx.author.send(f"Deleting category {category.name} (for real: {delete})")
-                if delete:
-                    await category.delete()
+            # Never delete categories; they are few and we can do them by hand.
+            #if category.id not in rounds_by_category:
+            #    await ctx.author.send(f"Deleting category {category.name} (for real: {delete})")
+            #    if delete:
+            #        await category.delete()
 
-        for channel in self.guild.channels:
-            if (channel.type in [discord.ChannelType.text, discord.ChannelType.voice]) and (channel.category is None):
-                await ctx.author.send(f"Deleting {channel.type} channel {channel.name} (which is in no category) (for real: {delete})")
-                if delete:
-                    await channel.delete()
+        # There used to be code here to delete channels that were in no category.
+        # Instead we should protect them if they exist; leave them alone.
 
         for round in rounds:
             # next, create any categories that don't seem to exist for whatever reason

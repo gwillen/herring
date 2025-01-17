@@ -1,0 +1,6 @@
+{
+  "name": "Herring",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "project",
+  "workspaceFolder": "/opt/project",
+}
