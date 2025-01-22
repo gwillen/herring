@@ -18,9 +18,11 @@ export default class RoundComponent extends React.Component {
         }
     }
     componentDidUpdate(prevProps) {
-        if (!this.allSolved(prevProps.round.puzzle_set) && this.allSolved()) {
+        var pvs_solved = this.allSolved(prevProps.round.puzzle_set);
+        var now_solved = this.allSolved();
+        if (now_solved != pvs_solved) {
             this.setState({
-                show: false
+                show: !now_solved
             });
         }
     }
