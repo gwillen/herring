@@ -70,6 +70,7 @@ def index(request):
         'rounds': Round.objects.filter(hunt_id=settings.HERRING_HUNT_ID),
         'channel': 'general_chat',
         'admins': admins,
+        'team_name': settings.HERRING_TEAM_NAME,
     }
     return render(request, 'puzzles/index.html', context)
 
