@@ -260,6 +260,30 @@ class HerringCog(commands.Cog):
                     if channel.type != discord.ChannelType.private:
                         await message.remove_reaction(LEAVE_EMOJI, payload.member)
 
+        # TODO: Merge this with the above when not in ultra-conservative mode
+        try:
+            if payload.emoji.name == SIGNUP_EMOJI:
+                member = self.guild.get_member(payload.user_id)
+                if member is not None:
+                    dm_channel = member.dm_channel
+                    if dm_channel is None:
+                        # This seems to be the case if the bot is restarted and
+                        # an old message is reacted to.
+                        dm_channel = await member.create_dm()
+                    if dm_channel.id == payload.channel_id:
+                        message: discord.Message = await dm_channel.fetch_message(payload.message_id)
+                        if message.author.id == self.bot.user.id:
+                            # Can't remove the user's reactions from a DM, apparently...
+
+                            # message.channel_mentions is always an empty list in
+                            # DMs, per the documentation, so we must do what we
+                            # must do...
+                            match = re.search('\(#([^)]*)\)', message.content)
+                            if match is not None:
+                                await self.add_user_to_puzzle(member, match[1])
+        except Exception as e:
+            logging.error(f"on_raw_reaction_add: error in subscription reaction handler", e)
+
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         logging.info("on_message: %s", message)
@@ -1226,6 +1250,24 @@ class HerringAnnouncerBot(discord.Client):
         text_channel: discord.TextChannel = get(self.guild.text_channels, name=puzzle_name)
         voice_channel: discord.VoiceChannel = get(self.guild.voice_channels, name=puzzle_name)
         return text_channel, voice_channel
+
+    async def send_subscription_messages(self, puzzle_name: str, discord_ids: list[str], message_text: str):
+        await self._really_ready.wait()
+        channel: discord.TextChannel = get(self.guild.text_channels, name=puzzle_name)
+        if channel is None:
+            logging.error(f"Couldn't get Discord channel {puzzle_name} in send_subscription_messages!")
+            return
+        message_text += f" {SIGNUP_EMOJI} this message to join, then click here to jump to the channel: {channel.mention}."
+        for discord_identifier in discord_ids:
+            member = self.guild.get_member_named(discord_identifier)
+            if member is None:
+                logging.warning(f"couldn't find member named {discord_identifier}")
+                continue
+            if member in channel.overwrites:
+                continue
+            message = await member.send(message_text)
+            await message.add_reaction(SIGNUP_EMOJI)
+
 
 @lazy_object
 def DISCORD_ANNOUNCER() -> Optional[HerringAnnouncerBot]:
