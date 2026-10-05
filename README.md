@@ -50,6 +50,8 @@ pnpm watch      # or `pnpm build` for a one-off build
 
 Install [uv](https://docs.astral.sh/uv/getting-started/installation/), [pnpm](https://pnpm.io/installation), Postgres, and Redis (e.g. `brew install uv pnpm postgresql redis`, or on Ubuntu, `apt-get install postgresql redis-server` plus the uv and pnpm installers).
 
+Herring requires a `SECRET_KEY` setting, from the environment or `.env` (see `.env.example`). Generate one with `python3 -c 'import secrets; print(secrets.token_urlsafe(50))'` and add a `SECRET_KEY=...` line to `.env`. (Docker Compose sets a dev-only key itself.)
+
 Install the Python dependencies (uv downloads the right Python version if needed, and creates `.venv`):
 
 `uv sync`

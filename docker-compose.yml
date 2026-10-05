@@ -18,6 +18,8 @@ services:
         environment:
             REDIS_URL: redis://redis:6379/0
             DATABASE_URL: postgres://postgres:pgpass@postgres/postgres
+            # Local development and tests only.
+            SECRET_KEY: insecure-local-dev-key
         volumes:
             - .:/opt/project
         command: ./docker-project-command.sh

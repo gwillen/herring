@@ -15,6 +15,7 @@ import json
 import os
 
 import environ
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -24,8 +25,13 @@ environ.Env.read_env(os.path.join(os.path.dirname(BASE_DIR), '.env'))
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '+fn9lj!kwzxqzpxihje!_+o0!y8ork#@+wc19w_mnf7^6gi4d$'
+# Required, with no default, so that no deployment can run on a known key.
+# (The key that used to be hardcoded here is public in git history.)
+# Generate one with:
+#   python -c 'import secrets; print(secrets.token_urlsafe(50))'
+SECRET_KEY = env.get_value('SECRET_KEY')
+if not SECRET_KEY:
+    raise ImproperlyConfigured("SECRET_KEY is set but empty")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.get_value('DEBUG', default=False)
