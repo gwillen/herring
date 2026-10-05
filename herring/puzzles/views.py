@@ -1,3 +1,4 @@
+import hmac
 import json
 import logging
 import re
@@ -12,10 +13,11 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db.models import Count, F
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 
 from puzzles.tasks import add_user_to_puzzle, get_service_status
 from .forms import UserProfileForm, UserSignupForm, UserEditForm
@@ -46,7 +48,7 @@ def signup(request):
     if request.method == 'POST':
         user_form = UserSignupForm(request.POST)
         profile_form = UserProfileForm(request.POST)
-        if user_form.is_valid() and profile_form.is_valid() and user_form.cleaned_data['magic_secret'] == settings.HERRING_SECRETS['magic-secret']:
+        if user_form.is_valid() and profile_form.is_valid() and secret_matches('magic-secret', user_form.cleaned_data['magic_secret']):
             user:User = user_form.save(commit=False)
             user.is_active = True  # this was checking if they had the secret, but just block making the account instead
             user.save()
@@ -139,14 +141,37 @@ def get_one_puzzle(request, puzzle_id):
     }
     return render(request, 'puzzles/one_puzzle.html', context)
 
+# The only fields the puzzle page edits; everything else is admin-only.
+EDITABLE_PUZZLE_FIELDS = {'answer', 'note', 'tags'}
+
 def update_puzzle(request, puzzle_id):
     puzzle = get_object_or_404(Puzzle, pk=puzzle_id)
-
-    data = json.loads(request.body.decode('utf-8'))
-    for key in data.keys():
-        setattr(puzzle, key, data[key])
-    puzzle.save()
+    try:
+        updates = parse_puzzle_updates(request.body)
+    except ValueError as e:
+        logging.warning("update_puzzle: rejected update to %s from %s: %s", puzzle.slug, request.user, e)
+        return HttpResponseBadRequest(str(e))
+    for key, value in updates.items():
+        setattr(puzzle, key, value)
+    puzzle.save(update_fields=list(updates))
     return HttpResponse("Updated puzzle " + str(puzzle.slug))
+
+def parse_puzzle_updates(body):
+    """Parses and validates a JSON object of puzzle field updates; raises ValueError if invalid."""
+    updates = json.loads(body)
+    if not isinstance(updates, dict):
+        raise ValueError("expected a JSON object")
+    unknown = set(updates) - EDITABLE_PUZZLE_FIELDS
+    if unknown:
+        raise ValueError(f"fields not editable here: {sorted(unknown)}")
+    for key, value in updates.items():
+        check_puzzle_field_value(key, value)
+    return updates
+
+def check_puzzle_field_value(key, value):
+    max_length = Puzzle._meta.get_field(key).max_length
+    if not isinstance(value, str) or len(value) > max_length:
+        raise ValueError(f"{key} must be a string of at most {max_length} characters")
 
 # Disabled because it was never updated from slack to discord.
 """
@@ -159,15 +184,27 @@ def run_scraper(request):
 from puzzles.discordbot import DISCORD_ANNOUNCER, do_in_discord_nonblocking
 
 @csrf_exempt
+@require_POST
 def post_discord(request):
-    if request.method == "POST":
-        #pm = request.POST.get('pm')
-        channel = request.POST.get('channel')
-        text = request.POST.get('text')
-        do_in_discord_nonblocking(DISCORD_ANNOUNCER.post_message(channel, text))
-        return HttpResponse("ok")
-    else:
-        return HttpResponse("please use POST")
+    """
+    For scripts: posts `text` to the Discord channel named `channel`. The
+    `token` field must match the 'post-discord-token' secret (in SECRETS);
+    without that secret configured, every request is refused.
+    """
+    if not secret_matches('post-discord-token', request.POST.get('token')):
+        logging.warning("post_discord: refused request with missing or wrong token (from %s, forwarded for %s)",
+                        request.META.get('REMOTE_ADDR'), request.META.get('HTTP_X_FORWARDED_FOR'))
+        return HttpResponseForbidden("missing or wrong token")
+    do_in_discord_nonblocking(DISCORD_ANNOUNCER.post_message(request.POST.get('channel'), request.POST.get('text')))
+    return HttpResponse("ok")
+
+
+def secret_matches(name, supplied):
+    """Whether `supplied` equals HERRING_SECRETS[name]. Always false if that secret isn't configured."""
+    expected = settings.HERRING_SECRETS.get(name)
+    if not expected or supplied is None:
+        return False
+    return hmac.compare_digest(supplied.encode(), expected.encode())
 
 
 def add_metrics(json):
