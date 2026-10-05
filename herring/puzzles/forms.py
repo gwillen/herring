@@ -17,7 +17,8 @@ class UserSignupForm(UserCreationForm):
 
 class UserEditForm(forms.ModelForm):
     username = forms.CharField(disabled=True)
-    email = forms.CharField(disabled=True)
+    # Not required: users who signed up without an email must still be able to save.
+    email = forms.CharField(disabled=True, required=False)
 
     class Meta:
         model = get_user_model()

@@ -65,6 +65,9 @@ MIDDLEWARE = (
 
 ROOT_URLCONF = 'herring.urls'
 
+# Where to go after logging in without a ?next= (the default, /accounts/profile/, doesn't exist).
+LOGIN_REDIRECT_URL = '/'
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',

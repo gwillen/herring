@@ -20,6 +20,11 @@ class AnonymousTests(TestCase):
         response = self.client.get('/accounts/login/')
         self.assertContains(response, 'please log in')
 
+    def test_login_without_next_goes_home(self):
+        make_user()
+        response = self.client.post('/accounts/login/', {'username': 'solver', 'password': 'pw'})
+        self.assertRedirects(response, '/', fetch_redirect_response=False)
+
     def test_login_with_password(self):
         make_user()
         response = self.client.post('/accounts/login/?next=/', {'username': 'solver', 'password': 'pw'})
@@ -91,6 +96,13 @@ class SolverTests(TestCase):
                                             'discord_identifier': 'solver#1'})
         self.user.refresh_from_db()
         self.assertEqual((self.user.first_name, self.user.profile.discord_identifier), ('Sol', 'solver#1'))
+
+    def test_edit_profile_without_email(self):
+        self.user.email = ''
+        self.user.save()
+        self.client.post('/edit_profile/', {'first_name': 'Sol', 'last_name': 'Ver', 'discord_identifier': 'x#1'})
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.first_name, 'Sol')
 
     def test_active_users_listed(self):
         ChannelParticipation.objects.create(channel_puzzle=self.puzzle, user_id='abc#1', is_member=True,
