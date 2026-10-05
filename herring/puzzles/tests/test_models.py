@@ -67,7 +67,8 @@ class ActivityTrackerTests(TestCase):
 class JsonTests(TestCase):
     def test_round_json_includes_puzzles(self):
         parent = make_round(name='Round One')
-        make_puzzle(parent, name='Puzzle One', answer='ANSWER')
+        puzzle = make_puzzle(parent, name='Puzzle One')
+        Puzzle.objects.filter(id=puzzle.id).update(answer='ANSWER')
         data = to_json_value(parent)
         self.assertEqual(data['name'], 'Round One')
         self.assertEqual([p['answer'] for p in data['puzzle_set']], ['ANSWER'])

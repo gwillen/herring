@@ -3,6 +3,7 @@ The Discord and Google integrations can't be exercised without credentials, so t
 check that their code still loads and wires up against the installed library versions.
 """
 import asyncio
+from unittest import mock
 
 import aiohttp
 import discord
@@ -21,6 +22,12 @@ class CeleryTests(TestCase):
                     'puzzles.tasks.add_user_to_puzzle'}
         celery_app.loader.import_default_modules()
         self.assertLessEqual(expected, set(celery_app.tasks))
+
+    def test_messaging_task_is_idle_without_celery_listener(self):
+        from puzzles.tasks import check_connection_to_messaging
+        with mock.patch('puzzles.tasks.REDIS') as redis:
+            check_connection_to_messaging.apply()
+        redis.lock.assert_not_called()
 
     def test_post_update_runs_eagerly(self):
         from puzzles.tasks import post_update

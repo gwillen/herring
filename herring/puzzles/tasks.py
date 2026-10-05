@@ -203,6 +203,12 @@ def check_connection_to_messaging():
     # more would certainly be a waste of compute and will definitely make the Discord integration work
     # unreliably. To achieve this, we'll use Redis as a mutex.
 
+    # Without this check, the task would hold the mutex (and a worker process)
+    # forever with nothing to do, and block warm shutdown of its worker.
+    if not listener_bot_runs_in_celery():
+        logging.info("check_connection_to_messaging: Discord listener doesn't run under Celery; nothing to do")
+        return
+
     mutex = REDIS.lock('puzzles.tasks.check_connection_to_messaging:mutex', timeout=10)
 
     if not mutex.acquire(blocking=False):
@@ -218,7 +224,7 @@ def check_connection_to_messaging():
 
     async def _check_connection_to_messaging():
         awaitables = [
-            asyncio.create_task(run_discord_listener_bot(), name="run_discord_listener_bot"),
+            asyncio.create_task(run_listener_bot(), name="run_listener_bot"),
             asyncio.create_task(keep_mutex(), name="keep_mutex")
         ]
         return await asyncio.gather(*awaitables)
@@ -229,9 +235,8 @@ def check_connection_to_messaging():
         mutex.release()
         logging.info("check_connection_to_messaging: Released mutex")
 
-async def run_discord_listener_bot():
-    if settings.HERRING_ACTIVATE_DISCORD and not settings.HERRING_ENABLE_STANDALONE_DISCORD:
-        await run_listener_bot()
+def listener_bot_runs_in_celery():
+    return settings.HERRING_ACTIVATE_DISCORD and not settings.HERRING_ENABLE_STANDALONE_DISCORD
 
 @shared_task(bind=True, rate_limit=0.5)
 @transaction.atomic
