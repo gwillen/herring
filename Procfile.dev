@@ -3,8 +3,15 @@
 #   `docker-project-command.sh`.
 web: gunicorn --pythonpath=herring herring.wsgi --log-file -
 # see https://github.com/celery/celery/issues/2839
-celery: REMAP_SIGTERM=SIGQUIT watchmedo auto-restart -R -p '*.py' -- celery --workdir=herring --app=herring worker -E --beat
+# Honcho gives each copy of a process a distinct $PORT; use it to give each
+#   worker a distinct node name.
+#   --signal SIGTERM: watchmedo stops the worker with SIGINT by default, which
+#   means a warm shutdown that waits for running tasks. SIGTERM (remapped by
+#   REMAP_SIGTERM) gets the same cold shutdown as production.
+celery: REMAP_SIGTERM=SIGQUIT watchmedo auto-restart -R -p '*.py' --signal SIGTERM -- celery --workdir=herring --app=herring worker -E --beat -n celery-$PORT@%h
 # Running the bot in a separate process is much more convenient for
 #   development. It may be desirable in production as well, although it will
 #   cost one additional worker dyno on Heroku.
-discordbot: watchmedo auto-restart -R -p 'discordbot.py' -- python herring/manage.py discordbot
+#   --no-restart-on-command-exit: when Discord is disabled the command exits
+#   immediately; without this flag watchmedo would respawn it every second.
+discordbot: watchmedo auto-restart -R -p 'discordbot.py' --no-restart-on-command-exit -- python herring/manage.py discordbot

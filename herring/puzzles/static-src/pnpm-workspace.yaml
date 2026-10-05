@@ -1,0 +1,15 @@
+# pnpm settings for the frontend build. (This is a single package, not a
+# multi-package workspace; pnpm reads its settings from this file.)
+
+# Supply-chain safety:
+# Don't install versions published less than 14 days ago (in minutes).
+minimumReleaseAge: 20160
+# Transitive dependencies may only come from the registry, not git/tarball URLs.
+blockExoticSubdeps: true
+# Refuse versions whose publishing trust level is lower than earlier versions'.
+trustPolicy: no-downgrade
+# Specific versions exempted from trustPolicy, after checking each one (see
+# claude-notes/modernization.md for why each is believed legitimate).
+trustPolicyExclude:
+  - semver@6.3.1
+  - semver@5.7.2

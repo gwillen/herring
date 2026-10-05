@@ -18,5 +18,10 @@
     "babel-loader": "^8.0.6",
     "webpack": "^4.41.5",
     "webpack-cli": "^3.3.10"
+  },
+  "packageManager": "pnpm@11.18.0",
+  "scripts": {
+    "build": "webpack",
+    "watch": "webpack --watch"
   }
 }

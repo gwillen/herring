@@ -1,6 +1,6 @@
 # Herring
 
-Herring is a web application for a puzzlehunt team's progress tracking and task management. It uses Django (with Python 3!) and ReactJS. It is inspired by the older puzzlehunt management tool `tsar`.
+Herring is a web application for a puzzlehunt team's progress tracking and task management. It uses Django and React. It is inspired by the older puzzlehunt management tool `tsar`.
 
 Members of teams Metropolitan Rage Warehouse and Death and Mayhem have contributed to Herring development!
 
@@ -8,67 +8,65 @@ Members of teams Metropolitan Rage Warehouse and Death and Mayhem have contribut
 
 First, when running as Metropolitan Rage Warehouse, get the file of stuff we can't commit to GitHub by downloading it from the pinned entry in https://ireproof.slack.com/messages/tech/. Save it as `.env` in this directory.
 
-Now, you have a choice. If you have Docker and Docker Compose installed, or are comfortable installing them, do so and then see the [With Docker Compose](#user-content-with-docker-compose) section below. This approach ensures you're running the same versions of software that we use on Heroku, and frees you from having to manually manage users, database servers, worker processes, or Python virtual environments. This comes at the expense of, well, running Docker, which is not always easy to manage on non-Linux platforms, and will generally use more disk space than installing the software natively.
+Now, you have a choice. If you have Docker (with Docker Compose) installed, or are comfortable installing it, see the [With Docker Compose](#user-content-with-docker-compose) section below. This frees you from having to manually manage database servers, worker processes, or Python virtual environments.
 
-The alternative is to install all the necessary software directly on your computer. If you choose this option, see the [Manually](#user-content-manually) section below.
+The alternative is to install the necessary software directly on your computer. If you choose this option, see the [Manually](#user-content-manually) section below.
+
+Python dependencies are managed with [uv](https://docs.astral.sh/uv/) (`pyproject.toml`, `uv.lock`, and `.python-version` for the Python version). The frontend's are managed with [pnpm](https://pnpm.io/) (`herring/puzzles/static-src/package.json` and `pnpm-lock.yaml`). Heroku installs from `uv.lock` directly.
 
 ### With Docker Compose
 
-Run `docker-compose up` to create and start everything. When finished, run `docker-compose stop` to stop running processes, or `docker-compose down` to both stop and delete containers (which will result in a longer startup next time and an empty database).
+Run `docker compose up --build` to build the image and start everything. When finished, run `docker compose stop` to stop running processes, or `docker compose down` to both stop and delete containers. The database lives in a named volume, so it survives `down`; `docker compose down --volumes` deletes it too.
 
-The website will be accessible at http://localhost:8000.
+The website will be accessible at http://localhost:8000, with an `admin` / `admin` superuser. To use another port, set `HERRING_PORT` (e.g. `HERRING_PORT=8001 docker compose up`). The container runs as UID/GID 1000 by default, so that files it creates in your checkout are owned by you; if your IDs differ, set `HERRING_UID` and `HERRING_GID`.
 
-To run anything in the Python environment, use `docker-compose exec project <command>`. For example, you can:
-* open a Django-enabled Python REPL: `docker-compose exec project herring/manage.py shell`
-* create new database migration files: `docker-compose exec project herring/manage.py makemigrations`
-* inspect Celery workers: `docker-compose exec project celery --app=herring --workdir=herring inspect stats`
-* open a shell to run arbitrary commands: `docker-compose exec project sh`
+Python dependencies are baked into the image, so after changing `pyproject.toml` or `uv.lock`, rebuild with `docker compose build` (or `up --build`).
 
-You can do work on the React frontend outside of the Docker environment:
+To run anything in the Python environment, use `docker compose exec project <command>`. For example, you can:
+* open a Django-enabled Python REPL: `docker compose exec project herring/manage.py shell`
+* create new database migration files: `docker compose exec project herring/manage.py makemigrations`
+* inspect Celery workers: `docker compose exec project celery --app=herring --workdir=herring inspect stats`
+* open a shell to run arbitrary commands: `docker compose exec project sh`
+
+### Running the tests
+
+`scripts/test.sh` runs the test suite in Docker. It uses a separate Compose project (`herring-test`) with its own database, so it doesn't interfere with a running dev stack, and it cleans up after itself. Arguments are passed to `manage.py test`, e.g. `scripts/test.sh puzzles.tests.test_views`.
+
+Without Docker: `cd herring && uv run python manage.py test --settings=herring.settings_test`, with `DATABASE_URL` pointing at a Postgres server where you can create databases.
+
+### Frontend
+
+The React frontend is built outside Docker, and the built `herring/puzzles/static/bundle.js` is committed:
 
 ```
 cd herring/puzzles/static-src
-npm install
-./node_modules/.bin/webpack --watch
+pnpm install
+pnpm watch      # or `pnpm build` for a one-off build
 ```
 
 ### Manually
 
-`brew install python3 postgres npm`
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), [pnpm](https://pnpm.io/installation), Postgres, and Redis (e.g. `brew install uv pnpm postgresql redis`, or on Ubuntu, `apt-get install postgresql redis-server` plus the uv and pnpm installers).
 
-Install Redis, which is `apt-get install redis-server` or `brew install redis` for all I know.
+Install the Python dependencies (uv downloads the right Python version if needed, and creates `.venv`):
 
-Install node/JS dependencies:
+`uv sync`
 
-`cd herring/puzzles/static-src && npm install && cd ../../../`
+Then either prefix commands with `uv run` (as below), or `source .venv/bin/activate` first.
 
-Make sure you have `virtualenv` installed. Then:
+Install the frontend dependencies:
 
-`virtualenv --python $(which python3) henv`
-
-`source henv/bin/activate`
-
-You'll see `(henv)` in front of your command line after doing this. If you open more terminals, you'll have to do the above step again for them.
-
-Install Django and other Pythonic dependencies:
-
-`pip3 install -r requirements.txt`
+`cd herring/puzzles/static-src && pnpm install && cd ../../../`
 
 Set up your database:
 
-`ln -sfv /usr/local/opt/postgresql/*.plist ~/Library/LaunchAgents`
-
-`launchctl load ~/Library/LaunchAgents/homebrew.mxcl.postgresql.plist`
-
-(On Ubuntu: it's already running after installation.)
-
-(On Ubuntu before doing the next step: `sudo -u postgres createuser [your current username, under which you will be running herring]`)
+(On Ubuntu before doing the next step: `sudo -u postgres createuser --createdb [your current username, under which you will be running herring]`)
 
 `createdb herringdb`
 
 Run:
 
-`cd herring && python3 manage.py migrate`
+`cd herring && uv run python manage.py migrate`
 
 (OR, instead of createdb and migrate, you can restore from a prod backup. This is messy. If your prodbackup is named asdf.dump, do the following (NOTE: this is dangerous if your dump does not contain a specified database name, as it will overwrite the 'postgres' database!)
 
@@ -78,25 +76,23 @@ Run:
 
 Uh, obviously that last line should not be required. ?!
 
-`python3 manage.py runserver`
+`uv run python manage.py runserver`
 
 And in a second shell:
 
-`python3 manage.py collectstatic --noinput --clear --link`
+`uv run python manage.py collectstatic --noinput --clear --link`
 
-`cd herring/puzzles/static-src`
-
-`./node_modules/.bin/webpack --watch`
+`cd herring/puzzles/static-src && pnpm watch`
 
 You can then view the website at `localhost:8000`.
 
 Create a superuser so you can log into `localhost:8000/admin/` and make rounds and puzzles:
 
-`python3 manage.py createsuperuser`
+`uv run python manage.py createsuperuser`
 
-To use the Discord and Google Drive integrations, you need to be running a worker process, so run this in yet another shell:
+To use the Discord and Google Drive integrations, you need to be running a worker process, so run this in yet another shell (from the top-level directory):
 
-`python3 manage.py celery worker`
+`uv run celery --workdir=herring --app=herring worker -E --beat`
 
 ## License
 

@@ -1,0 +1,5 @@
+# The image only needs the dependency manifests; source is bind-mounted.
+*
+!pyproject.toml
+!uv.lock
+!.python-version

@@ -2,18 +2,10 @@
 
 set -eu
 
-# These are build dependencies for some of the Python packages in
-# requirements.txt.
-apk add gcc g++ libstdc++ libffi-dev musl-dev openssl-dev postgresql-dev
-
-pip install -r requirements.txt
-
-# Honcho runs the Procfile in the dev environment, and watchdog (watchmedo)
-#   handles restarting on file changes; they aren't needed in Heroku.
-pip install honcho watchdog
+# Python dependencies are installed in the image (see Dockerfile); rebuild it
+# with `docker compose build` after changing pyproject.toml / uv.lock.
 
 # If the database doesn't already exist, this initializes it.
-herring/manage.py makemigrations
 herring/manage.py migrate
 
 # This assembles the staticfiles directory; Heroku performs this step
@@ -39,9 +31,10 @@ EOF
 # without that, Python buffers stdout when it is connected to a process like
 # Honcho.
 #
-# We don't want Honcho to pull from the .env file, because docker-compose.yml
-# already imports it, and Honcho and Compose disagree on how to interpret
-# quotation marks and escape sequences. Instead, we point it at /dev/null.
+# We don't want Honcho to pull from the .env file, because Django reads it
+# itself (see settings.py), and Honcho and django-environ disagree on how to
+# interpret quotation marks and escape sequences. Instead, we point it at
+# /dev/null.
 #
 # Finally, we run two copies of the worker process, both to ensure that there's
 # enough concurrency despite the long-running Discord task that will occupy one
@@ -50,4 +43,4 @@ EOF
 # double-scheduled.
 GUNICORN_CMD_ARGS="-c python:gunicorn-dev" \
 PYTHONUNBUFFERED=true \
-exec honcho -e /dev/null -f Procfile.dev start -c worker=2
+exec honcho -e /dev/null -f Procfile.dev start -c celery=2
