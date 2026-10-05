@@ -98,6 +98,28 @@ To use the Discord and Google Drive integrations, you need to be running a worke
 
 `uv run celery --workdir=herring --app=herring worker -E --beat`
 
+## Deploying to Heroku
+
+Heroku's Python buildpack installs from `uv.lock` (`uv sync --locked --no-default-groups`, so the `dev` group is skipped) using the Python version in `.python-version`, and runs `collectstatic` itself. The `Procfile` defines the `web` and `worker` processes.
+
+Required configuration (config vars):
+* `SECRET_KEY`: required; the app refuses to start without it.
+* `SECRETS`: JSON object (see `.env.example`). The `/post_discord/` endpoint for scripts only works if it contains a `post-discord-token`, which callers must send as the `token` POST field.
+
+Requirements of the current dependency versions:
+* A supported stack: heroku-24 (the default) or heroku-26. heroku-22 is deprecated (supported through April 2027); heroku-20 is end-of-life. (Checked 2026-10.)
+* Django 5.2 needs PostgreSQL 14 or newer.
+
+Check them with (set the app name first):
+
+```
+HERRING_HEROKU_APP=rage-herring-staging
+heroku stack -a $HERRING_HEROKU_APP
+heroku pg:info -a $HERRING_HEROKU_APP
+heroku buildpacks -a $HERRING_HEROKU_APP
+heroku config -a $HERRING_HEROKU_APP | cut -d: -f1   # config var names only
+```
+
 ## License
 
 This software is licensed under the [MIT License (Expat)](https://www.debian.org/legal/licenses/mit).

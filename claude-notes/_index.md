@@ -1,3 +1,3 @@
 # Topic index
 
-- `modernization.md` — state of the stack as of 2026-10, baseline test results, dependency census, upgrade constraints (Heroku + uv, etc.). Read before any dependency/tooling/Docker work.
+- `modernization.md` — 2026-10 upgrade: decisions, tooling setup (uv/pnpm/Docker/tests), verified facts about Heroku and libraries, what was fixed, the pending Heroku deploy checklist, and open issues. Read before dependency/tooling/Docker/deploy work.
