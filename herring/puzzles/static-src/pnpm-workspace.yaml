@@ -8,8 +8,8 @@ minimumReleaseAge: 20160
 blockExoticSubdeps: true
 # Refuse versions whose publishing trust level is lower than earlier versions'.
 trustPolicy: no-downgrade
-# Specific versions exempted from trustPolicy, after checking each one (see
-# claude-notes/modernization.md for why each is believed legitimate).
-trustPolicyExclude:
-  - semver@6.3.1
-  - semver@5.7.2
+# Dependencies' install scripts are blocked unless listed here. esbuild's
+# postinstall only verifies/optimizes its binary, which arrives anyway as the
+# platform-specific optional dependency (@esbuild/<platform>).
+allowBuilds:
+  esbuild: false

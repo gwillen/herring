@@ -1,6 +1,5 @@
 'use strict';
 
-import PropTypes from 'prop-types';
 import React from 'react';
 
 export default class Filters extends React.Component {
@@ -46,10 +45,3 @@ export default class Filters extends React.Component {
         this.searchFilter.current.focus();
     }
 }
-
-Filters.propTypes = {
-    updateFulltextFilter: PropTypes.func.isRequired,
-    updateAnswerFilter: PropTypes.func.isRequired,
-    toggleLinkType: PropTypes.func.isRequired,
-    uiSettings: PropTypes.object.isRequired,
-};

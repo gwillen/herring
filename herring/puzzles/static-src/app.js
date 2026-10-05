@@ -1,21 +1,17 @@
 'use strict';
 
 import React from 'react';
-import ReactDOM from 'react-dom';
-import request from 'then-request';
-import store from 'store';
+import { createRoot } from 'react-dom/client';
+import { getJson, loadStored, saveStored } from './utils';
 import NavHeaderComponent from './components/nav-header';
 import RoundsComponent from './components/rounds';
 
 class Page extends React.Component {
   state = {
-    uiSettings: {
-      app_links: false
-    }
+    // Same localStorage key and format the old store.js library used.
+    uiSettings: loadStored('uiSettings', {app_links: false})
   };
   componentDidMount() {
-
-    this.setState({uiSettings: store.get('uiSettings', {app_links: false})});
     this.loadDataFromServer();
     setInterval(this.loadDataFromServer, this.props.pollInterval);
 
@@ -34,7 +30,7 @@ class Page extends React.Component {
     document.addEventListener('click', askForPermissionToNotify);
   }
   componentDidUpdate() {
-    store.set('uiSettings', this.state.uiSettings);
+    saveStored('uiSettings', this.state.uiSettings);
   }
   render() {
     if (this.state.rounds) {
@@ -55,8 +51,9 @@ class Page extends React.Component {
     }
   }
   loadDataFromServer = () => {
-    request('GET', '/puzzles/').done(res =>
-      this.setState(JSON.parse(res.getBody())));
+    getJson('/puzzles/')
+      .then(data => this.setState(data))
+      .catch(err => console.error('Loading puzzle data failed:', err));
   };
   toggleLinkType = () => {
     // this just deep-merges into state.uiSettings
@@ -66,5 +63,4 @@ class Page extends React.Component {
   }
 }
 
-var page = <Page pollInterval={ 10000 } />;
-var renderedPage = ReactDOM.render(page, document.getElementById('react-root'));
+createRoot(document.getElementById('react-root')).render(<Page pollInterval={ 10000 } />);

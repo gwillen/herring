@@ -2,7 +2,6 @@
 
 import React from 'react';
 import * as Utils from '../utils';
-import cx from 'classnames';
 
 // importing these as react/webpack images does NOT work because we don't really have webpack
 // and Django set up to talk to each other
@@ -22,12 +21,12 @@ export default function NavHeaderComponent({ rounds, settings }) {
     var discord;
     var gapps;
     if (settings.discord) {
-      discord = <span className={cx({"messaging-logo": true, "broken": !settings.service_status.discord})}>
+      discord = <span className={Utils.classNames({"messaging-logo": true, "broken": !settings.service_status.discord})}>
         <img className="messaging-logo" src={ discordIcon } alt={ `Discord` } />
       </span>
     }
     if (settings.gapps) {
-      gapps = <span className={cx({"messaging-logo": true, "broken": !settings.service_status.gapps})}>
+      gapps = <span className={Utils.classNames({"messaging-logo": true, "broken": !settings.service_status.gapps})}>
         <img className="messaging-logo" src={ gappsIcon } alt={ `Google Sheets` } />
       </span>
     }

@@ -1,9 +1,7 @@
 'use strict';
 
-import PropTypes from 'prop-types';
 import React from 'react';
 import PuzzleComponent from './puzzle';
-import { RoundShape } from '../shapes';
 import { targetifyRound } from '../utils';
 
 export default class RoundComponent extends React.Component {
@@ -113,12 +111,3 @@ export default class RoundComponent extends React.Component {
         });
     }
 }
-
-RoundComponent.propTypes = {
-    round: RoundShape.isRequired,
-    changeMade: PropTypes.func,
-    filter: PropTypes.string.isRequired,
-    showAnswered: PropTypes.bool.isRequired,
-    settings: PropTypes.object,
-    uiSettings: PropTypes.object,
-};

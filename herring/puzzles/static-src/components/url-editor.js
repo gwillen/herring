@@ -1,9 +1,7 @@
 'use strict';
 
-import PropTypes from 'prop-types';
 import React from 'react';
 import Modal from './utils/modal';
-import { PuzzleShape } from '../shapes';
 
 export default class UrlEditor extends React.Component {
     state = {
@@ -39,9 +37,3 @@ export default class UrlEditor extends React.Component {
         this.props.closeCallback();
     };
 }
-
-UrlEditor.propTypes = {
-    puzzle: PuzzleShape.isRequired,
-    actionCallback: PropTypes.func.isRequired,
-    closeCallback: PropTypes.func.isRequired
-};

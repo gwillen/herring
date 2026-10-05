@@ -1,10 +1,7 @@
 'use strict';
 
-import cx from 'classnames';
-import PropTypes from 'prop-types';
 import React from 'react';
-import request from 'then-request';
-import {CopyToClipboard} from 'react-copy-to-clipboard';
+import { classNames, postJson } from '../utils';
 import ActivityComponent from './activity';
 import CelebrationModal from './celebration';
 import RoundInfoComponent from './round-info';
@@ -32,7 +29,7 @@ export default class PuzzleComponent extends React.Component {
     }
     render() {
         var puzzle = this.props.puzzle;
-        var classes = cx({
+        var classes = classNames({
           'col-lg-12': true,
           'puzzle': true,
           'meta': puzzle.is_meta,
@@ -81,10 +78,8 @@ export default class PuzzleComponent extends React.Component {
             )
           } else {
             discordButton = (
-                <CopyToClipboard
-                    text={`hb!join ${puzzle.slug}`}>
-                  <img className="messaging-logo" src={discordIcon} alt={`Discord`} title={`Click to copy!`}/>
-                </CopyToClipboard>
+                <img className="messaging-logo" src={discordIcon} alt={`Discord`} title={`Click to copy!`}
+                     onClick={ () => copyToClipboard(`hb!join ${puzzle.slug}`) }/>
             )
           }
         }
@@ -161,20 +156,9 @@ export default class PuzzleComponent extends React.Component {
         this.updateData('tags', val);
     };
     updateData(key, val) {
-        // TODO
-        var update = {};
-
-        update[key] = val;
-        request('POST', '/puzzles/' + this.props.puzzle.id.toString() + '/',
-          {
-            body: JSON.stringify(update),
-            headers: {
-              'X-CSRFToken': csrfToken
-            }
-          }
-        ).done(function (res) {
-            this.props.changeMade && this.props.changeMade();
-          }.bind(this));
+        postJson(`/puzzles/${this.props.puzzle.id}/`, { [key]: val })
+            .then(() => this.props.changeMade && this.props.changeMade())
+            .catch(err => console.error(`Updating ${key} failed:`, err));
     }
     stopCelebrating = () => {
         this.state.celebrating && this.setState({
@@ -188,10 +172,7 @@ export default class PuzzleComponent extends React.Component {
     };
 }
 
-PuzzleComponent.propTypes = {
-    puzzle: PropTypes.object.isRequired,
-    parent: PropTypes.object,
-    changeMade: PropTypes.func,
-    settings: PropTypes.object,
-    uiSettings: PropTypes.object,
-};
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text)
+        .catch(err => console.error('Copying to clipboard failed:', err));
+}

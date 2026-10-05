@@ -9,3 +9,4 @@ package-lock.json
 /.idea/
 /postgres-data/
 .venv/
+ui-test-output/

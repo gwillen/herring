@@ -36,13 +36,15 @@ Without Docker: `cd herring && uv run python manage.py test --settings=herring.s
 
 ### Frontend
 
-The React frontend is built outside Docker, and the built `herring/puzzles/static/bundle.js` is committed:
+The React frontend lives in `herring/puzzles/static-src`. Its build (`build.mjs`, using esbuild and less) writes `herring/puzzles/static/bundle.js` and `herring/puzzles/static/style.css` (from `style.less`); both are committed. The frontend is built outside Docker:
 
 ```
 cd herring/puzzles/static-src
 pnpm install
 pnpm watch      # or `pnpm build` for a one-off build
 ```
+
+`scripts/ui-test.sh` is a browser smoke test: it starts a throwaway stack (Compose project `herring-ui`, port 18100), seeds sample puzzles, and drives the UI in headless Chromium (Playwright's Docker image), failing on browser console errors or failed requests. Screenshots go to `ui-test-output/`.
 
 ### Manually
 

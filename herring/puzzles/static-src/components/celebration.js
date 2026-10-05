@@ -1,9 +1,7 @@
 'use strict';
 
-import PropTypes from 'prop-types';
 import React from 'react';
 import Modal from './utils/modal';
-import { PuzzleShape } from '../shapes';
 
 var n;
 
@@ -43,10 +41,3 @@ export default class Celebration extends React.Component {
         this.props.closeCallback();
     };
 }
-
-Celebration.propTypes = {
-    puzzle: PuzzleShape.isRequired,
-    roundName: PropTypes.string,
-    roundNumber: PropTypes.number,
-    closeCallback: PropTypes.func.isRequired,
-};

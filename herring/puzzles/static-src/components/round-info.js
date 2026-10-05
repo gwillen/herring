@@ -1,6 +1,5 @@
 'use strict';
 
-import PropTypes from 'prop-types';
 import React from 'react';
 
 export default class RoundInfoComponent extends React.Component {
@@ -72,9 +71,3 @@ export default class RoundInfoComponent extends React.Component {
         this.editInput.current.focus();
     };
 }
-
-RoundInfoComponent.propTypes = {
-    className: PropTypes.string,
-    val: PropTypes.string,
-    onSubmit: PropTypes.func.isRequired,
-};

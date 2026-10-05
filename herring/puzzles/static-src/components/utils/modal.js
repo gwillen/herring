@@ -1,6 +1,5 @@
 'use strict';
 
-import PropTypes from 'prop-types';
 import React from 'react';
 
 export default class Modal extends React.Component {
@@ -24,7 +23,3 @@ export default class Modal extends React.Component {
         }
     };
 }
-
-Modal.propTypes = {
-    closeCallback: PropTypes.func.isRequired,
-};

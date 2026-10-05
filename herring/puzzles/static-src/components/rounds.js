@@ -1,10 +1,8 @@
 'use strict';
 
-import PropTypes from 'prop-types';
 import React from 'react';
 import Filters from './filters';
 import RoundComponent from './round';
-import { RoundShape } from '../shapes';
 
 export default class RoundsComponent extends React.Component {
     state = {
@@ -49,11 +47,3 @@ export default class RoundsComponent extends React.Component {
         });
     };
 }
-
-RoundsComponent.propTypes = {
-    rounds: PropTypes.arrayOf(RoundShape.isRequired).isRequired,
-    changeMade: PropTypes.func,
-    settings: PropTypes.object,
-    uiSettings: PropTypes.object,
-    toggleLinkType: PropTypes.func.isRequired
-};

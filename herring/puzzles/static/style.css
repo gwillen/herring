@@ -1,0 +1,363 @@
+body {
+  background: #e9e9e9;
+  color: #333;
+  font-size: 16px;
+  line-height: 1.5;
+  font-family: 'Consolas', 'Courier Prime Sans', monospace;
+}
+#herring-wrapper {
+  display: flex;
+  flex-direction: row;
+  height: 100vh;
+}
+#herring-wrapper #shoalie {
+  display: none;
+  width: 300px;
+  position: relative;
+}
+#herring-wrapper #shoalie #layout-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 100;
+}
+#herring-wrapper #shoalie #chat-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  background: #87104a;
+  width: 300px;
+  height: 100%;
+}
+#herring-wrapper #herring {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+#herring-wrapper.chat-layout-top {
+  flex-direction: column;
+}
+#herring-wrapper.chat-layout-top #shoalie {
+  height: 200px;
+  width: 100%;
+}
+#herring-wrapper.chat-layout-top #shoalie #chat-wrapper {
+  width: 100%;
+  height: 200px;
+  position: inherit;
+}
+#herring-wrapper.chat-layout-top #herring {
+  min-height: inherit;
+}
+.header {
+  flex: 0 0 auto;
+}
+.content {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+h1,
+h2 {
+  color: #87104a;
+}
+h3,
+h4,
+h5 {
+  color: black;
+}
+a {
+  color: #87104a;
+  text-decoration: underline;
+}
+button,
+a.button,
+input[type=submit] {
+  background: #87104a;
+  color: #f1f1f1;
+  border: 1px solid #b51563;
+  line-height: 1;
+  border-radius: 4px;
+  padding: 2px 6px 3px;
+  display: inline-block;
+  text-decoration: none;
+}
+button:hover,
+a.button:hover,
+input[type=submit]:hover {
+  background: #9e1356;
+  color: white;
+}
+.dropdown {
+  margin-top: 12px;
+}
+.dropdown button.dropdown-toggle,
+.dropdown.open button.dropdown-toggle {
+  background: #87104a;
+  color: #f1f1f1;
+  border-color: #700d3e;
+}
+.dropdown button.dropdown-toggle:hover,
+.dropdown.open button.dropdown-toggle:hover {
+  background: #9e1356;
+  color: white;
+}
+.dropdown .dropdown-menu {
+  border-color: #9e1356;
+}
+.dropdown .dropdown-menu a {
+  text-decoration: none;
+  text-align: right;
+  color: #87104a;
+}
+.dropdown .dropdown-menu form {
+  width: 100%;
+  clear: both;
+  float: right;
+}
+.dropdown .dropdown-menu form:hover {
+  color: #262626;
+  background-color: #F5F5F5;
+}
+.dropdown .dropdown-menu button#logout {
+  display: block;
+  border: none;
+  float: right;
+  font-size: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+  text-decoration: none;
+  color: #87104a;
+  line-height: inherit;
+  background-color: transparent;
+  text-align: right;
+  padding: 3px 20px;
+  cursor: pointer;
+  width: 100%;
+}
+.dropdown .dropdown-menu button#logout:hover {
+  color: #262626;
+}
+.shortcuts,
+.filters {
+  border: 1pt solid #d0d0d0;
+  background-color: #f1f1f1;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.filters {
+  color: #e9e9e9;
+  background: #87104a;
+  border-color: #b51563;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.filters > div {
+  margin-left: 24px;
+}
+.filters h4 {
+  color: white;
+  opacity: 0.5;
+  margin: 0;
+  margin-right: 24px;
+  flex: 1 1 auto;
+}
+.filters input,
+.filters label {
+  margin: 0;
+  margin-right: 12px;
+}
+.filters input {
+  margin-top: -2px;
+  color: #333;
+}
+.round {
+  margin-bottom: 36px;
+}
+.round .messaging-spacer {
+  padding-left: 32px;
+}
+.round .name-legend {
+  padding-left: 6px;
+}
+.missing-button {
+  padding-left: 30px;
+}
+.integration-status {
+  float: right;
+  text-align: right;
+  padding-right: 12px;
+}
+.messaging-logo {
+  width: 32px;
+  margin-top: -2px;
+  position: relative;
+  display: inline-block;
+}
+.messaging-logo.broken:before {
+  content: " ";
+  z-index: 10;
+  display: block;
+  position: absolute;
+  height: 100%;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255, 0, 0, 0.5);
+}
+.puzzle {
+  line-height: 2;
+  background-color: #f6f6f6;
+  padding-top: 6px;
+  padding-bottom: 2px;
+}
+.puzzle .name,
+.puzzle .note,
+.puzzle .tags {
+  word-wrap: break-word;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.puzzle .editable:hover {
+  cursor: pointer;
+  background-color: #f6f6f6;
+}
+.puzzle .messaging-logo {
+  cursor: pointer;
+}
+.puzzle .name {
+  position: relative;
+}
+.puzzle .name a:not(.button) {
+  color: black;
+  font-weight: 900;
+}
+.puzzle .name a:not(.button):hover {
+  color: #87104a;
+}
+.puzzle .name .url-setter {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: none;
+  outline: none;
+}
+.puzzle .name:hover .url-setter {
+  display: inline;
+}
+.puzzle .name .name-text {
+  margin-left: 6px;
+}
+.puzzle .answer {
+  color: black;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.puzzle form input {
+  width: 100%;
+  line-height: 1;
+}
+.puzzle:hover {
+  background: white;
+}
+.puzzle.solved,
+.puzzle.solved a:not(.button) {
+  background: #e9e9e9;
+  color: #595959;
+}
+.puzzle.meta {
+  color: #f1f1f1;
+  background-color: #87104a;
+}
+.puzzle.meta .name a:not(.button) {
+  color: #f1f1f1;
+}
+.puzzle.meta .name a:not(.button):hover {
+  color: white;
+}
+.puzzle.meta .answer {
+  color: white;
+}
+.puzzle.meta .editable input {
+  color: #333;
+}
+.puzzle.meta .editable:hover {
+  cursor: pointer;
+  background-color: #87104a;
+}
+.puzzle.meta .activity .allMembers {
+  color: rgba(241, 241, 241, 0.5);
+}
+.puzzle.meta:hover {
+  background: #9e1356;
+}
+.puzzle.meta.solved,
+.puzzle.meta.solved a {
+  background-color: #333;
+  color: white;
+}
+.puzzle.meta.solved .activity .allMembers {
+  color: rgba(255, 255, 255, 0.5);
+}
+.puzzle .activity {
+  font-size: 75%;
+  line-height: 32px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.puzzle .activity .invisible {
+  visibility: hidden;
+}
+.puzzle .activity .allMembers {
+  color: rgba(51, 51, 51, 0.5);
+}
+.puzzle .activity .glyphicon {
+  font-size: 80%;
+  vertical-align: text-top;
+}
+.puzzle .activity svg {
+  vertical-align: text-bottom;
+}
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 100vw;
+  background-color: rgba(255, 255, 255, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal .close-button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+.modal > div {
+  width: 50%;
+  border: 2px solid #87104a;
+  background-color: white;
+  color: #87104a;
+  padding: 12px;
+  position: relative;
+}
+.celebration {
+  text-align: center;
+}
+.celebration .answer {
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.url-editor form {
+  padding: 12px 0;
+}
+.url-editor input {
+  margin-right: 12px;
+}
+div.editable > span {
+  pointer-events: none;
+}
