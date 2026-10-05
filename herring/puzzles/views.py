@@ -191,7 +191,7 @@ def add_metrics(json):
 
 @ttl_cache(ttl=5)
 def compute_active_users():
-    now = datetime.utcnow().replace(tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
     results:typing.Sequence[ChannelParticipation] = ChannelParticipation.objects\
         .filter(is_member=True, last_active__gt=now - timedelta(hours=2))
 
