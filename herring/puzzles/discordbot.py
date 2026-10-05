@@ -8,7 +8,6 @@ import typing
 from datetime import timezone
 from urllib.parse import urljoin
 import aiohttp
-from lazy_object_proxy import Proxy as lazy_object
 import traceback
 import sys
 
@@ -1227,8 +1226,7 @@ class HerringAnnouncerBot(discord.Client):
         voice_channel: discord.VoiceChannel = get(self.guild.voice_channels, name=puzzle_name)
         return text_channel, voice_channel
 
-@lazy_object
-def DISCORD_ANNOUNCER() -> Optional[HerringAnnouncerBot]:
+def create_announcer_bot() -> Optional[HerringAnnouncerBot]:
     if not settings.HERRING_ACTIVATE_DISCORD:
         logging.warning("Running without Discord integration!")
         return None
@@ -1241,13 +1239,56 @@ def DISCORD_ANNOUNCER() -> Optional[HerringAnnouncerBot]:
         logging.info("Oh no, failed to create discord announcer bot :-(")
         return None  # whoever called us will fail to say things to discover forever after :-\
 
+
+class LazyAnnouncer:
+    """
+    Holds the announcer bot, creating it on first use. Attribute access is
+    forwarded to the bot (so DISCORD_ANNOUNCER.post_message(...) works), and
+    reset() discards it so the next use creates a new one.
+
+    The result of creation is kept even if it's None (Discord disabled or
+    creation failed), so a failure doesn't make every later call wait for
+    another attempt; only reset() triggers a retry.
+    """
+    _NOT_CREATED = object()
+
+    def __init__(self, factory):
+        self._factory = factory
+        self._bot = self._NOT_CREATED
+        self._creating = False
+
+    def get(self) -> Optional[HerringAnnouncerBot]:
+        if self._bot is self._NOT_CREATED:
+            self._bot = self._create()
+        return self._bot
+
+    def _create(self):
+        # Logging during creation can reach ChatLogHandler, which uses the
+        # announcer; fail that inner use instead of recursing.
+        if self._creating:
+            raise RuntimeError("announcer bot used while it was being created")
+        self._creating = True
+        try:
+            return self._factory()
+        finally:
+            self._creating = False
+
+    def reset(self):
+        self._bot = self._NOT_CREATED
+
+    def __getattr__(self, name):
+        return getattr(self.get(), name)
+
+
+DISCORD_ANNOUNCER = LazyAnnouncer(create_announcer_bot)
+
 def do_in_discord(coro):
     try:
         return DISCORD_ANNOUNCER.do_in_loop(coro)
     except RuntimeError:
         # probably the discord bot is busted, try to make it rebuild
         logging.error("Invalidating discord announcer bot!")
-        del DISCORD_ANNOUNCER.__target__
+        DISCORD_ANNOUNCER.reset()
         raise
 
 def do_in_discord_nonblocking(coro):

@@ -3,12 +3,12 @@ from datetime import datetime
 from django.conf import settings
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
-from lazy_object_proxy import Proxy as lazy_object
+from functools import cache
 from puzzles.discordbot import log_to_discord
 
 
-@lazy_object
-def service():
+@cache
+def drive_service():
     if not settings.HERRING_ACTIVATE_GAPPS:
         logging.warning("Running without GApps integration!")
         return None
@@ -32,16 +32,16 @@ def make_sheet(title):
             'readOnly': False,  # Not sure if this is necessary or sufficient
         },
     }
-    got = service.files().copy(fileId=settings.HERRING_SECRETS['gapps-doc-to-clone'], body=body).execute()
+    got = drive_service().files().copy(fileId=settings.HERRING_SECRETS['gapps-doc-to-clone'], body=body).execute()
     return got['id']
 
 
 def iterate_changes(page_token=None):
     if page_token is None:
-        page_token = service.changes().getStartPageToken().execute()['startPageToken']
+        page_token = drive_service().changes().getStartPageToken().execute()['startPageToken']
 
     while page_token is not None:
-        req = service.changes().list(
+        req = drive_service().changes().list(
             fields='nextPageToken,newStartPageToken,changes(fileId,time)',
             pageToken=page_token,
             spaces='drive')
@@ -71,5 +71,5 @@ class SheetChange:
 
 def check_spreadsheet_service():
     if settings.HERRING_ACTIVATE_GAPPS:
-        return service is not None
+        return drive_service() is not None
     return None

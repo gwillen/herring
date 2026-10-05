@@ -1,13 +1,8 @@
 # Development image: Python dependencies are baked in at build time; the source
 # tree is bind-mounted at /opt/project by docker-compose.yml.
-FROM python:3.10-slim-bookworm
+FROM python:3.14-slim-trixie
 
 COPY --from=ghcr.io/astral-sh/uv:0.12.19 /uv /uvx /bin/
-
-# Build dependencies for psycopg2 (compiled from source).
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
 
 # A user matching the host user that docker-compose.yml runs as.
 ARG HERRING_UID=1000
@@ -24,6 +19,8 @@ ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
 
 WORKDIR /opt/project
 COPY pyproject.toml uv.lock .python-version ./
-RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked
+# --no-build: every dependency must come as a prebuilt wheel (there's no
+# compiler in this image anyway).
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked --no-build
 
 CMD ["./docker-project-command.sh"]

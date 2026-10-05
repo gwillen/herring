@@ -4,20 +4,17 @@ from asgiref.sync import sync_to_async
 import asyncio
 from asyncio import run, sleep, wait, get_event_loop
 from cachetools.func import ttl_cache
+from functools import cache
 from celery import shared_task
 from datetime import datetime, timezone
 from django.conf import settings
 from django.db import transaction
 import json
 import kombu.exceptions
-from lazy_object_proxy import Proxy as lazy_object
 from puzzles.discordbot import run_listener_bot, DISCORD_ANNOUNCER, do_in_discord, LEAVE_EMOJI, TRIUMPH_EMOJI
 from puzzles.models import Puzzle, Round, UserProfile
 from puzzles.spreadsheets import check_spreadsheet_service, iterate_changes, make_sheet
 from redis import Redis
-import websockets
-import requests
-from bs4 import BeautifulSoup
 import logging
 from urllib.parse import urlparse
 
@@ -25,8 +22,8 @@ BULLSHIT_CHANNEL="_herring_experimental"
 # XXX specific to the 2020 hunt
 HUNT_URL_PREFIX="https://pennypark.fun"
 
-@lazy_object
-def REDIS():
+@cache
+def redis_client():
     # Every instance of the Redis object creates its own connection pool,
     # and Redis connections on Heroku are limited! So sharing this Redis
     # instance is possibly important. TBH, I have no idea why we run out of
@@ -209,7 +206,7 @@ def check_connection_to_messaging():
         logging.info("check_connection_to_messaging: Discord listener doesn't run under Celery; nothing to do")
         return
 
-    mutex = REDIS.lock('puzzles.tasks.check_connection_to_messaging:mutex', timeout=10)
+    mutex = redis_client().lock('puzzles.tasks.check_connection_to_messaging:mutex', timeout=10)
 
     if not mutex.acquire(blocking=False):
         logging.info("check_connection_to_messaging: Didn't get mutex, messaging already active")
@@ -267,14 +264,14 @@ def fetch_latest_sheet_changes():
     """
     start_page_token_key = 'puzzles.google_changes.start_page_token'
 
-    page_token = REDIS.get(start_page_token_key)
+    page_token = redis_client().get(start_page_token_key)
 
     if isinstance(page_token, bytes):
         page_token = page_token.decode('utf-8')
 
     page_token = yield from iterate_changes(page_token)
 
-    REDIS.set(start_page_token_key, page_token)
+    redis_client().set(start_page_token_key, page_token)
 
 
 @shared_task(rate_limit=0.5)

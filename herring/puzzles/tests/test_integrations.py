@@ -25,9 +25,9 @@ class CeleryTests(TestCase):
 
     def test_messaging_task_is_idle_without_celery_listener(self):
         from puzzles.tasks import check_connection_to_messaging
-        with mock.patch('puzzles.tasks.REDIS') as redis:
+        with mock.patch('puzzles.tasks.redis_client') as redis_client:
             check_connection_to_messaging.apply()
-        redis.lock.assert_not_called()
+        redis_client.assert_not_called()
 
     def test_post_update_runs_eagerly(self):
         from puzzles.tasks import post_update
@@ -52,3 +52,38 @@ class DiscordBotTests(SimpleTestCase):
     def test_announcer_bot_constructs(self):
         self.assertFalse(discordbot.HerringAnnouncerBot().intents.message_content)
 
+
+
+class LazyAnnouncerTests(SimpleTestCase):
+    def counting_factory(self, result):
+        calls = []
+        return calls, lambda: calls.append(1) or result
+
+    def test_creates_once_and_forwards_attributes(self):
+        calls, factory = self.counting_factory(mock.Mock(name='bot'))
+        announcer = discordbot.LazyAnnouncer(factory)
+        announcer.post_message('chan', 'hi')
+        announcer.post_message('chan', 'again')
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(announcer.get().post_message.call_count, 2)
+
+    def test_failed_creation_is_not_retried_until_reset(self):
+        calls, factory = self.counting_factory(None)
+        announcer = discordbot.LazyAnnouncer(factory)
+        self.assertIsNone(announcer.get())
+        self.assertIsNone(announcer.get())
+        announcer.reset()
+        announcer.get()
+        self.assertEqual(len(calls), 2)
+
+    def test_use_during_creation_raises(self):
+        announcer = discordbot.LazyAnnouncer(lambda: announcer.get())
+        with self.assertRaises(RuntimeError):
+            announcer.get()
+
+    def test_do_in_discord_resets_dead_bot(self):
+        dead_bot = mock.Mock(**{'do_in_loop.side_effect': RuntimeError('dead')})
+        with mock.patch.object(discordbot, 'DISCORD_ANNOUNCER', discordbot.LazyAnnouncer(lambda: dead_bot)):
+            with self.assertRaises(RuntimeError):
+                discordbot.do_in_discord(None)
+            self.assertIs(discordbot.DISCORD_ANNOUNCER._bot, discordbot.LazyAnnouncer._NOT_CREATED)

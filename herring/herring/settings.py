@@ -46,13 +46,15 @@ INSTALLED_APPS = (
 )
 
 MIDDLEWARE = (
+    'django.middleware.security.SecurityMiddleware',
+    # Serves static files (STATIC_ROOT) from the app itself; see STORAGES.
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'django.middleware.security.SecurityMiddleware',
 )
 
 ROOT_URLCONF = 'herring.urls'
@@ -82,7 +84,7 @@ WSGI_APPLICATION = 'herring.wsgi.application'
 DATABASES = {
     'default': env.db_url(
         default='postgres:///herringdb',
-        engine='django.db.backends.postgresql_psycopg2')
+        engine='django.db.backends.postgresql')
 }
 
 
@@ -110,6 +112,10 @@ ALLOWED_HOSTS = ['*']
 STATIC_ROOT = 'staticfiles'
 STATIC_URL = '/static/'
 STATICFILES_DIRS = []
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage'},
+}
 
 REDIS_URL = env.get_value('REDIS_URL', default='redis://localhost:6379/0')
 
