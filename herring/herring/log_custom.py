@@ -42,13 +42,21 @@ class ChatLogHandler(logging.Handler):
         """
 
     def emit(self, record):
-        if self.shutdown:
+        # _emitting: queueing the message can itself log (e.g. kombu retrying a
+        # Redis connection); don't recurse into another emit for those.
+        if self.shutdown or getattr(self, '_emitting', False):
             return
+        self._emitting = True
+        try:
+            self._emit(record)
+        finally:
+            self._emitting = False
 
+    def _emit(self, record):
         try:
             # Can't import this at load or init time, because "django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet."
-            from puzzles.discordbot import DISCORD_ANNOUNCER, do_in_discord_nonblocking
-            import discord
+            # A Celery worker posts the message; this process never connects to Discord itself.
+            from puzzles.tasks import post_debug_message
 
             if self.startup:
                 self.startup = False
@@ -76,8 +84,7 @@ class ChatLogHandler(logging.Handler):
             if len(truncated_record) < len(formatted_record):
                 truncated_record += " ..."
             truncated_record += f" ({HEROKU_DYNO_NAME}, {HEROKU_RELEASE_VERSION})"
-            embed = discord.Embed(description=discord.utils.escape_markdown(truncated_record)[:MAX_DISCORD_EMBED_LEN])
-            do_in_discord_nonblocking(DISCORD_ANNOUNCER.post_message(HERRING_DISCORD_DEBUG_CHANNEL, "", embed=embed))
+            post_debug_message.delay("", truncated_record)
         except Exception as e:
             self.shutdown = True
             # Safe to call logging.error from here once shutdown is True, since we will not try to do anything from emit().

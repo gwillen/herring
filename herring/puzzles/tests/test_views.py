@@ -1,7 +1,8 @@
 import json
+from unittest import mock
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from puzzles import views
 from puzzles.models import ChannelParticipation, Puzzle
@@ -56,6 +57,7 @@ class SignupTests(TestCase):
 class SolverTests(TestCase):
     def setUp(self):
         views.compute_active_users.cache_clear()
+        views.get_service_status.cache_clear()
         self.user = make_user(email='solver@example.com')
         self.client.force_login(self.user)
         self.round = make_round(name='Round One')
@@ -148,3 +150,29 @@ class AdminTests(TestCase):
         })
         self.assertEqual(response.status_code, 302)
         self.assertTrue(Puzzle.objects.filter(name='Inline Puzzle', parent__name='Round Two').exists())
+
+
+@override_settings(HERRING_ACTIVATE_DISCORD=True, HERRING_DISCORD_GUILD_ID=555)
+class DiscordChannelLinkTests(TestCase):
+    def setUp(self):
+        self.client.force_login(make_user(email='solver@example.com'))
+        self.puzzle = make_puzzle(make_round())
+
+    def follow_link(self, channel):
+        # Celery runs the task inline in tests; stub out the actual Discord call.
+        with mock.patch('puzzles.tasks.do_in_discord', return_value=channel), \
+                mock.patch('puzzles.tasks.DISCORD_ANNOUNCER'):
+            return self.client.get(f'/disc/{self.puzzle.id}/0')
+
+    def test_redirects_to_channel(self):
+        response = self.follow_link(mock.Mock(id=123))
+        self.assertRedirects(response, 'https://discordapp.com/channels/555/123', fetch_redirect_response=False)
+
+    def test_explains_when_user_could_not_be_added(self):
+        self.assertContains(self.follow_link(None), 'your profile', status_code=404)
+
+    def test_timeout_gives_error_page(self):
+        with mock.patch('puzzles.views.add_user_to_puzzle') as task:
+            task.delay.return_value.get.side_effect = TimeoutError
+            response = self.client.get(f'/disc/{self.puzzle.id}/0')
+        self.assertEqual(response.status_code, 504)

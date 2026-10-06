@@ -19,7 +19,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from puzzles.tasks import add_user_to_puzzle, get_service_status
+from puzzles.tasks import add_user_to_puzzle, get_service_status, post_discord_message
 from .forms import UserProfileForm, UserSignupForm, UserEditForm
 from .models import ChannelParticipation, Puzzle, Round, UserProfile, to_json_value
 
@@ -113,16 +113,31 @@ def puzzle_spreadsheet(request, puzzle_id):
     return redirect(f'https://docs.google.com/spreadsheets/d/{puzzle.sheet_id}/edit', permanent=True)
 
 
+DISCORD_JOIN_FAILED_HTML = (
+    "<p>Herring couldn't add you to this puzzle's Discord channel. Check that your Discord username "
+    "in <a href='/edit_profile/'>your profile</a> is right, or ask an admin.</p>")
+
+
 class DiscordRedirect(HttpResponseRedirect):
     allowed_schemes = ['https', 'discord']
+
+# How long the Discord link waits for a Celery worker to add the user to the channel.
+DISCORD_JOIN_TIMEOUT_SECONDS = 20
 
 @login_required
 def discord_channel_link(request, puzzle_id, use_app):
     puzzle = get_object_or_404(Puzzle, pk=puzzle_id)
-    user = request.user.id
-    # intentional non-delayed task, because we don't have a results backend set up and we need to
-    # wait until it finishes before redirecting!
-    channel_id = add_user_to_puzzle(user, puzzle.slug)
+    # A Celery worker (which holds the Discord connection) adds the user to the
+    # channel. Wait for it, so the channel is visible once Discord opens it.
+    try:
+        channel_id = add_user_to_puzzle.delay(request.user.id, puzzle.slug).get(timeout=DISCORD_JOIN_TIMEOUT_SECONDS)
+    except Exception:
+        logging.error("discord_channel_link: adding %s to %s failed or timed out", request.user, puzzle.slug, exc_info=True)
+        return HttpResponse("Herring couldn't reach Discord in time. Try again in a minute, or ask an admin.",
+                            status=504, content_type='text/plain')
+    if channel_id is None:
+        logging.warning("discord_channel_link: couldn't add %s to %s's channel", request.user, puzzle.slug)
+        return HttpResponse(DISCORD_JOIN_FAILED_HTML, status=404)
     protocol = 'discord' if use_app else 'https'
     url = f'{protocol}://discordapp.com/channels/{settings.HERRING_DISCORD_GUILD_ID}/{channel_id}'
     logging.info(f'redirecting {request.user} to {url}')
@@ -181,8 +196,6 @@ def run_scraper(request):
     return HttpResponse("ok")
 """
 
-from puzzles.discordbot import DISCORD_ANNOUNCER, do_in_discord_nonblocking
-
 @csrf_exempt
 @require_POST
 def post_discord(request):
@@ -195,7 +208,7 @@ def post_discord(request):
         logging.warning("post_discord: refused request with missing or wrong token (from %s, forwarded for %s)",
                         request.META.get('REMOTE_ADDR'), request.META.get('HTTP_X_FORWARDED_FOR'))
         return HttpResponseForbidden("missing or wrong token")
-    do_in_discord_nonblocking(DISCORD_ANNOUNCER.post_message(request.POST.get('channel'), request.POST.get('text')))
+    post_discord_message.delay(request.POST.get('channel'), request.POST.get('text'))
     return HttpResponse("ok")
 
 

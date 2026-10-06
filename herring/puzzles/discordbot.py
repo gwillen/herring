@@ -17,12 +17,14 @@ import discord
 from discord import app_commands
 from asgiref.sync import async_to_sync, sync_to_async
 from discord.ext import commands
+from discord.ext import tasks as discord_tasks
 from discord.utils import get
 from django.db import transaction
 from django.db.models import Q
 
 from django.conf import settings
 from puzzles.models import Round, Puzzle, UserProfile
+from puzzles.redis_state import DISCORD_STATUS_INTERVAL_SECONDS, set_discord_status
 
 # Discord limits a user to putting 20 emojis on a message, so if this is more than 19, the menu won't work
 # also, an embed is limited to length 2048, which isn't really very long
@@ -217,7 +219,21 @@ class HerringCog(commands.Cog):
         self.debug_channel = get(self.guild.text_channels, name = settings.HERRING_DISCORD_DEBUG_CHANNEL)
         self.pronoun_roles = self.get_pronoun_roles()
         self.timezone_roles = self.get_timezone_roles()
+        # on_ready fires again after reconnects; one heartbeat loop is enough.
+        if not self.report_status.is_running():
+            self.report_status.start()
         logging.info("listener bot cog is ready")
+
+    @discord_tasks.loop(seconds=DISCORD_STATUS_INTERVAL_SECONDS)
+    async def report_status(self):
+        """Heartbeat for the web UI's Discord status (see puzzles.redis_state)."""
+        try:
+            set_discord_status('listener', self.bot.is_ready())
+        except Exception:
+            logging.warning("listener bot: couldn't report status to Redis", exc_info=True)
+
+    async def cog_unload(self):
+        self.report_status.cancel()
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
@@ -1310,6 +1326,8 @@ def do_in_discord_nonblocking(coro):
 
 
 def log_to_discord(message, exn=None, add_stacktrace=False):
+    """Queues a message (and optionally a stack trace) for the debug channel; a Celery worker posts it."""
+    from puzzles.tasks import post_debug_message  # here, because puzzles.tasks imports this module
     try:
         ct = threading.current_thread()
         thread_info = [ct.name, ct.ident, ct.native_id]
@@ -1317,11 +1335,8 @@ def log_to_discord(message, exn=None, add_stacktrace=False):
             stack_trace = "".join(traceback.format_stack(limit=5))
         else:
             stack_trace = "".join(traceback.format_exception(None, exn, exn.__traceback__, limit=5))
-        if exn or add_stacktrace:
-            stack = discord.Embed(description=discord.utils.escape_markdown(stack_trace)[:MAX_DISCORD_EMBED_LEN])
-        else:
-            stack = None
-        do_in_discord_nonblocking(DISCORD_ANNOUNCER.post_message(settings.HERRING_DISCORD_DEBUG_CHANNEL, f"`log_to_discord`: `{message}` `({thread_info})`", embed=stack))
+        post_debug_message.delay(f"`log_to_discord`: `{message}` `({thread_info})`",
+                                 stack_trace if (exn or add_stacktrace) else None)
     except Exception as e:
         logging.error(f"Logging to Discord failed, ignoring it! message={message} exn={exn} (failed with: {e})")
 

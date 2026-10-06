@@ -12,29 +12,27 @@ SECRETS = {'magic-secret': 'test-magic', 'post-discord-token': 'right-token'}
 @override_settings(HERRING_SECRETS=SECRETS)
 class PostDiscordTests(TestCase):
     def post(self, **fields):
-        with mock.patch('puzzles.views.do_in_discord_nonblocking') as do_in_discord, \
-                mock.patch('puzzles.views.DISCORD_ANNOUNCER') as announcer:
+        with mock.patch('puzzles.views.post_discord_message') as post_discord_message:
             response = self.client.post('/post_discord/', {'channel': 'general', 'text': 'hi', **fields})
-        return response, announcer.post_message, do_in_discord
+        return response, post_discord_message.delay
 
-    def test_correct_token_posts(self):
-        response, post_message, do_in_discord = self.post(token='right-token')
+    def test_correct_token_queues_post(self):
+        response, queue_post = self.post(token='right-token')
         self.assertEqual(response.status_code, 200)
-        post_message.assert_called_once_with('general', 'hi')
-        do_in_discord.assert_called_once()
+        queue_post.assert_called_once_with('general', 'hi')
 
     def test_missing_or_wrong_token_refused(self):
         for fields in [{}, {'token': ''}, {'token': 'wrong'}]:
             with self.subTest(fields=fields):
-                response, post_message, _ = self.post(**fields)
+                response, queue_post = self.post(**fields)
                 self.assertEqual(response.status_code, 403)
-                post_message.assert_not_called()
+                queue_post.assert_not_called()
 
     @override_settings(HERRING_SECRETS={})
     def test_refused_when_token_not_configured(self):
-        response, post_message, _ = self.post(token='')
+        response, queue_post = self.post(token='')
         self.assertEqual(response.status_code, 403)
-        post_message.assert_not_called()
+        queue_post.assert_not_called()
 
     def test_get_not_allowed(self):
         self.assertEqual(self.client.get('/post_discord/').status_code, 405)

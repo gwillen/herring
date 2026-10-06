@@ -4,35 +4,22 @@ from asgiref.sync import sync_to_async
 import asyncio
 from asyncio import run, sleep, wait, get_event_loop
 from cachetools.func import ttl_cache
-from functools import cache
 from celery import shared_task
 from datetime import datetime, timezone
 from django.conf import settings
 from django.db import transaction
 import json
 import kombu.exceptions
-from puzzles.discordbot import run_listener_bot, DISCORD_ANNOUNCER, announcer_is_ready, do_in_discord, LEAVE_EMOJI, TRIUMPH_EMOJI
+import discord
+from puzzles.discordbot import run_listener_bot, DISCORD_ANNOUNCER, MAX_DISCORD_EMBED_LEN, announcer_is_ready, do_in_discord, LEAVE_EMOJI, TRIUMPH_EMOJI
 from puzzles.models import Puzzle, Round, UserProfile
+from puzzles.redis_state import discord_connected, redis_client, set_discord_status
 from puzzles.spreadsheets import check_spreadsheet_service, iterate_changes, make_sheet
-from redis import Redis
 import logging
-from urllib.parse import urlparse
 
 BULLSHIT_CHANNEL="_herring_experimental"
 # XXX specific to the 2020 hunt
 HUNT_URL_PREFIX="https://pennypark.fun"
-
-@cache
-def redis_client():
-    # Every instance of the Redis object creates its own connection pool,
-    # and Redis connections on Heroku are limited! So sharing this Redis
-    # instance is possibly important. TBH, I have no idea why we run out of
-    # Redis connections so quickly; it's possible this doesn't help at all.
-    ssl_kwargs = {}
-    url = urlparse(settings.REDIS_URL)
-    if url.scheme == "rediss":
-        ssl_kwargs["ssl_cert_reqs"] = None  # allow self-signed certificates
-    return Redis.from_url(settings.REDIS_URL, max_connections=1, **ssl_kwargs)
 
 _optional_tasks_enabled = None
 
@@ -274,7 +261,11 @@ def fetch_latest_sheet_changes():
     redis_client().set(start_page_token_key, page_token)
 
 
-@shared_task(rate_limit=0.5)
+# Called from the web process (discord_channel_link), which waits for the
+# result -- the channel ID to redirect to -- so it stores its result, and has no
+# rate limit (a hunt's worth of people clicking Discord links shouldn't queue
+# up; discord.py handles Discord's own rate limits).
+@shared_task(ignore_result=False)
 def add_user_to_puzzle(user_id, puzzle_name):
     logging.debug("add_user_to_puzzle: %r, %r", user_id, puzzle_name)
     if not settings.HERRING_ACTIVATE_DISCORD:
@@ -296,13 +287,38 @@ def get_service_status():
     discord = None
     gapps = None
     if settings.HERRING_ACTIVATE_DISCORD:
-        # Don't wait for a connection here: this runs on every page load, and a
-        # web process's announcer bot may still be connecting (it used to block
-        # the page for seconds on each worker's first request).
-        discord = announcer_is_ready()
+        # Reported to Redis by the processes that hold Discord connections; the
+        # web process never connects to Discord itself.
+        discord = discord_connected()
     if settings.HERRING_ACTIVATE_GAPPS:
         gapps = check_spreadsheet_service()
     return {
         'discord': discord,
         'gapps': gapps,
     }
+
+
+@shared_task(ignore_result=True)
+def report_discord_status():
+    """Periodic (Celery beat): record whether this worker's announcer bot is connected."""
+    set_discord_status('announcer', announcer_is_ready())
+
+
+@shared_task(ignore_result=True)
+def post_discord_message(channel_name, text):
+    """Post `text` to the Discord channel named `channel_name` (for /post_discord/)."""
+    do_in_discord(DISCORD_ANNOUNCER.post_message(channel_name, text))
+
+
+@shared_task(ignore_result=True)
+def post_debug_message(text, embed_text=None):
+    """
+    Post to the debug channel (used by ChatLogHandler and log_to_discord).
+    Never raises, and logs its own failures below WARNING: ChatLogHandler sends
+    WARNING and above here, so a failure logged louder could loop forever.
+    """
+    try:
+        embed = discord.Embed(description=discord.utils.escape_markdown(embed_text)[:MAX_DISCORD_EMBED_LEN]) if embed_text else None
+        do_in_discord(DISCORD_ANNOUNCER.post_message(settings.HERRING_DISCORD_DEBUG_CHANNEL, text, embed=embed))
+    except Exception as e:
+        logging.info("post_debug_message: couldn't post to Discord (%s): %r", e, text)

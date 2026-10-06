@@ -11,7 +11,8 @@ from django.conf import settings
 from django.test import SimpleTestCase, TestCase, override_settings
 
 from herring.celery import app as celery_app
-from puzzles import discordbot
+from puzzles import discordbot, redis_state
+from .helpers import make_user
 
 
 class CeleryTests(TestCase):
@@ -19,7 +20,8 @@ class CeleryTests(TestCase):
         expected = {'puzzles.tasks.post_answer', 'puzzles.tasks.post_update',
                     'puzzles.tasks.create_puzzle_sheet_and_channel', 'puzzles.tasks.create_round_category',
                     'puzzles.tasks.check_connection_to_messaging', 'puzzles.tasks.process_google_sheets_changes',
-                    'puzzles.tasks.add_user_to_puzzle'}
+                    'puzzles.tasks.add_user_to_puzzle', 'puzzles.tasks.report_discord_status',
+                    'puzzles.tasks.post_discord_message', 'puzzles.tasks.post_debug_message'}
         celery_app.loader.import_default_modules()
         self.assertLessEqual(expected, set(celery_app.tasks))
 
@@ -89,21 +91,39 @@ class LazyAnnouncerTests(SimpleTestCase):
             self.assertIs(discordbot.DISCORD_ANNOUNCER._bot, discordbot.LazyAnnouncer._NOT_CREATED)
 
 
+class DiscordStatusTests(SimpleTestCase):
+    def connected_with(self, values):
+        with mock.patch('puzzles.redis_state.redis_client') as redis_client:
+            redis_client.return_value.mget.return_value = values
+            return redis_state.discord_connected()
+
+    def test_connected_only_if_every_component_reported_connected(self):
+        self.assertTrue(self.connected_with([b'1', b'1']))
+        self.assertFalse(self.connected_with([b'1', b'0']))
+        self.assertFalse(self.connected_with([b'1', None]))  # expired: the process stopped reporting
+
+    def test_report_discord_status_records_announcer(self):
+        from puzzles import tasks
+        with mock.patch.object(tasks, 'announcer_is_ready', return_value=True), \
+                mock.patch.object(tasks, 'set_discord_status') as set_status:
+            tasks.report_discord_status()
+        set_status.assert_called_once_with('announcer', True)
+
+
 @override_settings(HERRING_ACTIVATE_DISCORD=True, HERRING_ACTIVATE_GAPPS=False)
-class ServiceStatusTests(SimpleTestCase):
-    def status_with_announcer(self, bot):
+class WebProcessDiscordTests(TestCase):
+    """The web process must never create a Discord connection of its own."""
+
+    def setUp(self):
         from puzzles.tasks import get_service_status
         get_service_status.cache_clear()
-        with mock.patch.object(discordbot, 'DISCORD_ANNOUNCER', discordbot.LazyAnnouncer(lambda: bot)):
-            return get_service_status()['discord']
+        self.addCleanup(get_service_status.cache_clear)
+        self.client.force_login(make_user())
 
-    def test_connecting_bot_reports_not_ready_without_waiting(self):
-        bot = mock.Mock(**{'is_really_ready.return_value': False})
-        self.assertFalse(self.status_with_announcer(bot))
-        bot.do_in_loop.assert_not_called()
-
-    def test_ready_bot(self):
-        self.assertTrue(self.status_with_announcer(mock.Mock(**{'is_really_ready.return_value': True})))
-
-    def test_failed_bot_creation_reports_not_ready(self):
-        self.assertFalse(self.status_with_announcer(None))
+    def test_page_data_reads_status_from_redis_without_announcer(self):
+        def no_announcer_here():
+            raise AssertionError("web request tried to create the announcer bot")
+        with mock.patch.object(discordbot, 'DISCORD_ANNOUNCER', discordbot.LazyAnnouncer(no_announcer_here)), \
+                mock.patch('puzzles.tasks.discord_connected', return_value=True):
+            data = self.client.get('/puzzles/').json()
+        self.assertEqual(data['settings']['service_status']['discord'], True)

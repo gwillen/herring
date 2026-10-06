@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import json
 import os
+import ssl
 
 import environ
 from django.core.exceptions import ImproperlyConfigured
@@ -165,6 +166,16 @@ CELERY_REDBEAT_REDIS_URL = REDIS_URL #+ "?ssl_cert_reqs=none"  # allow self-sign
 #CELERY_REDBEAT_REDIS_USE_SSL = { 'ssl_cert_reqs': 'none' }  # allow self-signed SSL certs
 CELERY_BEAT_SCHEDULER = 'redbeat.RedBeatScheduler'
 
+# Results are only kept for tasks that ask for them (ignore_result=False) --
+# currently just add_user_to_puzzle, whose result the web process waits for --
+# and only briefly.
+CELERY_RESULT_BACKEND = REDIS_URL
+CELERY_TASK_IGNORE_RESULT = True
+CELERY_RESULT_EXPIRES = 600
+if REDIS_URL.startswith('rediss:'):
+    # Same as puzzles.redis_state.redis_client: Heroku's Redis uses self-signed certificates.
+    CELERY_REDIS_BACKEND_USE_SSL = {'ssl_cert_reqs': ssl.CERT_NONE}
+
 CELERY_BEAT_SCHEDULE = {}
 
 if HERRING_ACTIVATE_GAPPS:
@@ -177,6 +188,15 @@ if HERRING_ACTIVATE_DISCORD and not HERRING_ENABLE_STANDALONE_DISCORD:
     CELERY_BEAT_SCHEDULE['check-connection-to-messaging'] = {
         'task': 'puzzles.tasks.check_connection_to_messaging',
         'schedule': 60.0,
+    }
+
+# How often Discord connection status is reported to Redis (see puzzles.redis_state).
+HERRING_DISCORD_STATUS_INTERVAL_SECONDS = 30
+
+if HERRING_ACTIVATE_DISCORD:
+    CELERY_BEAT_SCHEDULE['report-discord-status'] = {
+        'task': 'puzzles.tasks.report_discord_status',
+        'schedule': float(HERRING_DISCORD_STATUS_INTERVAL_SECONDS),
     }
 
 # This indirectly affects the expiration time of the lock RedBeat sets in
