@@ -20,6 +20,8 @@ services:
             DATABASE_URL: postgres://postgres:pgpass@postgres/postgres
             # Local development and tests only.
             SECRET_KEY: insecure-local-dev-key
+            # Plain http locally: no https redirect or secure-only cookies.
+            HTTPS: "0"
         volumes:
             - .:/opt/project
         command: ./docker-project-command.sh

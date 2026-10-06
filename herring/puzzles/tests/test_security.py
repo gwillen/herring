@@ -78,3 +78,17 @@ class SignupSecretTests(TestCase):
         })
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'Thanks for joining')
+
+
+@override_settings(SECURE_SSL_REDIRECT=True, SESSION_COOKIE_SECURE=True, CSRF_COOKIE_SECURE=True)
+class HttpsSettingsTests(TestCase):
+    def test_http_redirects_to_https(self):
+        response = self.client.get('/accounts/login/')
+        self.assertRedirects(response, 'https://testserver/accounts/login/', fetch_redirect_response=False,
+                             status_code=301)
+
+    def test_cookies_are_secure_over_https(self):
+        make_user()
+        response = self.client.post('/accounts/login/?next=/', {'username': 'solver', 'password': 'pw'},
+                                    secure=True)
+        self.assertTrue(response.cookies['sessionid']['secure'])

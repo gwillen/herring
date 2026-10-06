@@ -114,6 +114,24 @@ DEFAULT_AUTO_FIELD='django.db.models.AutoField'
 # Honor the 'X-Forwarded-Proto' header for request.is_secure()
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+# HTTPS-only hardening: redirect http to https, and send cookies only over
+# https. On by default (deployments are behind https); set HTTPS=0 to run
+# over plain http locally (Docker Compose does this).
+HERRING_HTTPS = env.bool('HTTPS', default=True)
+SECURE_SSL_REDIRECT = HERRING_HTTPS
+SESSION_COOKIE_SECURE = HERRING_HTTPS
+CSRF_COOKIE_SECURE = HERRING_HTTPS
+# HSTS tells browsers to use https for this host for this long. Kept short by
+# default, since it can't be revoked before it expires.
+SECURE_HSTS_SECONDS = env.int('HSTS_SECONDS', default=86400) if HERRING_HTTPS else 0
+# Deliberately not enabled: includeSubDomains would apply HSTS to every
+# subdomain of whatever domain hosts Herring, and preload is effectively
+# permanent. Silence the deploy-checklist warnings about them.
+SILENCED_SYSTEM_CHECKS = ['security.W005', 'security.W021']
+# Deliberately not including subdomains or requesting HSTS preload: those
+# would affect other sites under the same domain.
+SILENCED_SYSTEM_CHECKS = ['security.W005', 'security.W021']
+
 # Allow all host headers
 ALLOWED_HOSTS = ['*']
 

@@ -50,7 +50,7 @@ pnpm watch      # or `pnpm build` for a one-off build
 
 Install [uv](https://docs.astral.sh/uv/getting-started/installation/), [pnpm](https://pnpm.io/installation), Postgres, and Redis (e.g. `brew install uv pnpm postgresql redis`, or on Ubuntu, `apt-get install postgresql redis-server` plus the uv and pnpm installers).
 
-Herring requires a `SECRET_KEY` setting, from the environment or `.env` (see `.env.example`). Generate one with `python3 -c 'import secrets; print(secrets.token_urlsafe(50))'` and add a `SECRET_KEY=...` line to `.env`. (Docker Compose sets a dev-only key itself.)
+Herring requires a `SECRET_KEY` setting, from the environment or `.env` (see `.env.example`). Generate one with `python3 -c 'import secrets; print(secrets.token_urlsafe(50))'` and add a `SECRET_KEY=...` line to `.env`. Also add `HTTPS=0`: by default Herring redirects to https and only sends cookies over https, which breaks logging in over plain http. (Docker Compose sets both of these itself.)
 
 Install the Python dependencies (uv downloads the right Python version if needed, and creates `.venv`):
 
