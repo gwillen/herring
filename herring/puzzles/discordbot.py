@@ -1136,6 +1136,10 @@ class HerringAnnouncerBot(discord.Client):
         future = asyncio.run_coroutine_threadsafe(coro, self.loop)
         future.add_done_callback(handle_future_result)
 
+    def is_really_ready(self):
+        """Non-blocking, and safe to call from other threads."""
+        return self._really_ready.is_set()
+
     async def wait_until_really_ready(self, timeout=None):
         try:
             await asyncio.wait_for(self._really_ready.wait(), timeout)
@@ -1281,6 +1285,16 @@ class LazyAnnouncer:
 
 
 DISCORD_ANNOUNCER = LazyAnnouncer(create_announcer_bot)
+
+def announcer_is_ready():
+    """
+    Whether the announcer bot is connected, without waiting for it. The first
+    call in a process starts creating the bot (which takes milliseconds); it
+    connects in the background.
+    """
+    bot = DISCORD_ANNOUNCER.get()
+    return bot is not None and bot.is_really_ready()
+
 
 def do_in_discord(coro):
     try:

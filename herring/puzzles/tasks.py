@@ -11,7 +11,7 @@ from django.conf import settings
 from django.db import transaction
 import json
 import kombu.exceptions
-from puzzles.discordbot import run_listener_bot, DISCORD_ANNOUNCER, do_in_discord, LEAVE_EMOJI, TRIUMPH_EMOJI
+from puzzles.discordbot import run_listener_bot, DISCORD_ANNOUNCER, announcer_is_ready, do_in_discord, LEAVE_EMOJI, TRIUMPH_EMOJI
 from puzzles.models import Puzzle, Round, UserProfile
 from puzzles.spreadsheets import check_spreadsheet_service, iterate_changes, make_sheet
 from redis import Redis
@@ -296,8 +296,10 @@ def get_service_status():
     discord = None
     gapps = None
     if settings.HERRING_ACTIVATE_DISCORD:
-        # this has the side effect of reifying DISCORD_ANNOUNCER
-        discord = do_in_discord(DISCORD_ANNOUNCER.wait_until_really_ready(5))
+        # Don't wait for a connection here: this runs on every page load, and a
+        # web process's announcer bot may still be connecting (it used to block
+        # the page for seconds on each worker's first request).
+        discord = announcer_is_ready()
     if settings.HERRING_ACTIVATE_GAPPS:
         gapps = check_spreadsheet_service()
     return {

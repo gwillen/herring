@@ -8,7 +8,7 @@ from unittest import mock
 import aiohttp
 import discord
 from django.conf import settings
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from herring.celery import app as celery_app
 from puzzles import discordbot
@@ -87,3 +87,23 @@ class LazyAnnouncerTests(SimpleTestCase):
             with self.assertRaises(RuntimeError):
                 discordbot.do_in_discord(None)
             self.assertIs(discordbot.DISCORD_ANNOUNCER._bot, discordbot.LazyAnnouncer._NOT_CREATED)
+
+
+@override_settings(HERRING_ACTIVATE_DISCORD=True, HERRING_ACTIVATE_GAPPS=False)
+class ServiceStatusTests(SimpleTestCase):
+    def status_with_announcer(self, bot):
+        from puzzles.tasks import get_service_status
+        get_service_status.cache_clear()
+        with mock.patch.object(discordbot, 'DISCORD_ANNOUNCER', discordbot.LazyAnnouncer(lambda: bot)):
+            return get_service_status()['discord']
+
+    def test_connecting_bot_reports_not_ready_without_waiting(self):
+        bot = mock.Mock(**{'is_really_ready.return_value': False})
+        self.assertFalse(self.status_with_announcer(bot))
+        bot.do_in_loop.assert_not_called()
+
+    def test_ready_bot(self):
+        self.assertTrue(self.status_with_announcer(mock.Mock(**{'is_really_ready.return_value': True})))
+
+    def test_failed_bot_creation_reports_not_ready(self):
+        self.assertFalse(self.status_with_announcer(None))

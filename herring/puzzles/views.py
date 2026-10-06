@@ -88,7 +88,7 @@ def get_puzzles(request):
     except UserProfile.DoesNotExist:
         profile = {}
     data = {
-        'rounds': Round.objects.filter(hunt_id=settings.HERRING_HUNT_ID),
+        'rounds': Round.objects.filter(hunt_id=settings.HERRING_HUNT_ID).prefetch_related('puzzle_set'),
         'settings': {
             'discord': settings.HERRING_ACTIVATE_DISCORD,
             'gapps': settings.HERRING_ACTIVATE_GAPPS,
@@ -242,6 +242,7 @@ def compute_active_users():
                 name = result.user_id[:hash_pos]
             else:
                 name = result.user_id
-        channel_users[result.channel_puzzle.slug].append(name)
+        # channel_puzzle is keyed by slug (to_field), so its _id is the slug, with no extra query.
+        channel_users[result.channel_puzzle_id].append(name)
 
     return channel_users
