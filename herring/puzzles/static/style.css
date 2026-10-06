@@ -238,16 +238,6 @@ input[type=submit]:hover {
 .puzzle .name a:not(.button):hover {
   color: #87104a;
 }
-.puzzle .name .url-setter {
-  position: absolute;
-  top: 0;
-  right: 0;
-  display: none;
-  outline: none;
-}
-.puzzle .name:hover .url-setter {
-  display: inline;
-}
 .puzzle .name .name-text {
   margin-left: 6px;
 }
@@ -351,12 +341,6 @@ input[type=submit]:hover {
 .celebration .answer {
   font-weight: 900;
   text-transform: uppercase;
-}
-.url-editor form {
-  padding: 12px 0;
-}
-.url-editor input {
-  margin-right: 12px;
 }
 div.editable > span {
   pointer-events: none;

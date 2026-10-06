@@ -5,7 +5,6 @@ import { classNames, postJson } from '../utils';
 import ActivityComponent from './activity';
 import CelebrationModal from './celebration';
 import RoundInfoComponent from './round-info';
-import UrlChangeModal from './url-editor';
 
 // importing these as react/webpack images does NOT work because we don't really have webpack
 // and Django set up to talk to each other
@@ -14,8 +13,7 @@ const gappsIcon = '/static/sheets_64dp.png';
 
 export default class PuzzleComponent extends React.Component {
     state = {
-        celebrating: false,
-        changingUrl: false
+        celebrating: false
     };
     componentDidUpdate(prevProps) {
         // did we solve a new puzzle?
@@ -36,7 +34,6 @@ export default class PuzzleComponent extends React.Component {
           'solved': puzzle.answer
         });
         var celebrationModal;
-        var urlChangeModal;
         var puzzlePageButton;
 
         if (this.state.celebrating) {
@@ -44,11 +41,6 @@ export default class PuzzleComponent extends React.Component {
                                                  roundNumber={ this.props.parent.number }
                                                  roundName={ this.props.parent.name }
                                                  closeCallback={ this.stopCelebrating } />;
-        }
-        if (this.state.changingUrl) {
-            urlChangeModal = <UrlChangeModal puzzle={ puzzle }
-                                             actionCallback={ this.updateUrl }
-                                             closeCallback={ this.closeUrlModal } />
         }
         if (puzzle.hunt_url) {
             puzzlePageButton = (
@@ -98,7 +90,6 @@ export default class PuzzleComponent extends React.Component {
             <div key={ puzzle.id } className="row">
               <div className="col-lg-12">
                 { celebrationModal }
-                { urlChangeModal }
                 <div className={ classes }>
 
                   <div className="row">
@@ -138,14 +129,6 @@ export default class PuzzleComponent extends React.Component {
             </div>
         );
     }
-    showPuzzleUrlModal() {
-        this.setState({
-            changingUrl: true
-        });
-    }
-    updateUrl = val => {
-        this.updateData('url', val);
-    };
     updateAnswer = val => {
         this.updateData('answer', val);
     };
@@ -163,11 +146,6 @@ export default class PuzzleComponent extends React.Component {
     stopCelebrating = () => {
         this.state.celebrating && this.setState({
             celebrating: false
-        });
-    };
-    closeUrlModal = () => {
-        this.setState({
-            changingUrl: false
         });
     };
 }
