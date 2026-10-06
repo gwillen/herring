@@ -28,6 +28,23 @@ To run anything in the Python environment, use `docker compose exec project <com
 * inspect Celery workers: `docker compose exec project celery --app=herring --workdir=herring inspect stats`
 * open a shell to run arbitrary commands: `docker compose exec project sh`
 
+### Using a test Discord server
+
+To run the Discord integration locally, use a **separate bot application** (not the production bot, whose token would connect a second copy of it to every server it's in):
+
+1. In the [Discord Developer Portal](https://discord.com/developers/applications), create an application, and under **Bot** enable the **Server Members** and **Message Content** privileged intents.
+2. Invite it to your test server with `https://discord.com/oauth2/authorize?client_id=APPLICATION_ID&scope=bot+applications.commands&permissions=8` (8 = Administrator, as in production).
+3. In the test server, create text channels named `puzzle-announcements` and `herringbot-debug` (or set `DISCORD_ANNOUNCEMENTS` / `DISCORD_DEBUG_CHANNEL`).
+4. Add to `.env`:
+   ```
+   ACTIVATE_DISCORD=1
+   DISCORD_GUILD=<the test server's ID>
+   ERRORS_TO_DISCORD=1
+   SECRETS={"discord-bot-token":"<the test bot's token>","magic-secret":"<anything>"}
+   ```
+
+`docker compose up` then runs the listener bot inside a Celery worker (or as the separate `discordbot` process, with `ENABLE_STANDALONE_DISCORD=1`). The test scripts keep Discord off regardless of `.env`.
+
 ### Running the tests
 
 `scripts/test.sh` runs the test suite in Docker. It uses a separate Compose project (`herring-test`) with its own database, so it doesn't interfere with a running dev stack, and it cleans up after itself. Arguments are passed to `manage.py test`, e.g. `scripts/test.sh puzzles.tests.test_views`.

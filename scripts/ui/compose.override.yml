@@ -1,0 +1,7 @@
+# Used by scripts/ui-test.sh: keep external integrations off even if .env turns
+# them on (environment variables take precedence over .env in settings.py).
+services:
+    project:
+        environment:
+            ACTIVATE_DISCORD: "0"
+            ACTIVATE_GAPPS: "0"

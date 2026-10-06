@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 OUT=${1:-ui-test-output}
 PORT=${HERRING_UI_TEST_PORT:-18100}
 PLAYWRIGHT_VERSION=1.62.0
-PROJECT="docker compose -p herring-ui"
+PROJECT="docker compose -p herring-ui -f docker-compose.yml -f scripts/ui/compose.override.yml"
 trap '$PROJECT down --volumes --remove-orphans >/dev/null 2>&1' EXIT
 
 mkdir -p "$OUT"
