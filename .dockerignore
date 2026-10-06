@@ -1,5 +1,9 @@
-# The image only needs the dependency manifests; source is bind-mounted.
+# Only what the images need: dependency manifests, and the app source (prod).
 *
 !pyproject.toml
 !uv.lock
 !.python-version
+!herring/
+herring/puzzles/static-src/node_modules/
+herring/staticfiles/
+**/__pycache__/

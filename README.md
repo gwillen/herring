@@ -120,6 +120,32 @@ heroku buildpacks -a $HERRING_HEROKU_APP
 heroku config -a $HERRING_HEROKU_APP | cut -d: -f1   # config var names only
 ```
 
+## Self-hosting with Docker Compose
+
+An alternative to Heroku: `docker-compose.prod.yml` runs Herring on any host with Docker (e.g. an EC2 or Lightsail instance). It builds the `prod` target of the `Dockerfile` (code and static files baked in, gunicorn as a non-root user) and runs:
+
+* `migrate`: applies migrations, then exits; the others wait for it.
+* `web`: gunicorn (`WEB_CONCURRENCY` workers, default 4).
+* `worker`: Celery worker with beat (and the Discord listener, unless it runs standalone).
+
+Optional parts are Compose profiles, chosen with `COMPOSE_PROFILES` in `.env.prod`:
+
+* `bundled-db`: Postgres 17 and Redis on the same host, in named volumes. Leave it out to use managed services (e.g. RDS and ElastiCache) via `DATABASE_URL` and `REDIS_URL`.
+* `caddy`: HTTPS via Caddy, with automatic Let's Encrypt certificates for `HERRING_DOMAIN`; needs DNS pointing at the host and ports 80/443 open. Leave it out if a load balancer terminates TLS (point it at the web port, `HERRING_WEB_PORT`, and have it set `X-Forwarded-Proto`).
+* `discordbot`: the Discord listener in its own container (with `ENABLE_STANDALONE_DISCORD=1`).
+
+Setup:
+
+```
+cp deploy/env.prod.example .env.prod      # then edit it
+scripts/prod.sh up -d --build
+scripts/prod.sh exec web python herring/manage.py createsuperuser
+```
+
+`scripts/prod.sh` passes its arguments to `docker compose` with the right files, and stamps the image with this checkout's `git describe` (logged at startup). To deploy a new version: `git pull && scripts/prod.sh up -d --build`. Other useful commands: `scripts/prod.sh logs -f worker`, `scripts/prod.sh ps`.
+
+With `bundled-db`, back up the database yourself, e.g. `scripts/prod.sh exec -T postgres pg_dump -U herring -Fc herring > herring-$(date +%F).dump`. To move data over from Heroku, restore a Heroku backup (`heroku pg:backups:download`) into it with `pg_restore`.
+
 ## License
 
 This software is licensed under the [MIT License (Expat)](https://www.debian.org/legal/licenses/mit).

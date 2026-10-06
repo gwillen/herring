@@ -1,0 +1,8 @@
+# Used by the "caddy" profile of docker-compose.prod.yml. Caddy obtains and
+# renews a Let's Encrypt certificate for HERRING_DOMAIN automatically (the
+# domain's DNS must point at this host, with ports 80 and 443 reachable), and
+# sets X-Forwarded-Proto, which Django uses to know requests came in over https.
+{$HERRING_DOMAIN} {
+	encode gzip
+	reverse_proxy web:8000
+}

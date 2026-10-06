@@ -1,0 +1,109 @@
+# Self-hosted production deployment (an alternative to Heroku). See the README
+# section "Self-hosting with Docker Compose". Run it through scripts/prod.sh,
+# which supplies --env-file .env.prod and the version build argument.
+#
+# Optional parts are Compose profiles, chosen with COMPOSE_PROFILES in
+# .env.prod:
+#   bundled-db  -- run Postgres and Redis here, instead of pointing
+#                  DATABASE_URL / REDIS_URL at managed services (RDS, ElastiCache)
+#   caddy       -- terminate HTTPS here with Caddy (automatic Let's Encrypt
+#                  certificates), instead of behind a load balancer
+#   discordbot  -- run the Discord listener as its own container
+#                  (requires ENABLE_STANDALONE_DISCORD=1)
+
+x-app: &app
+    build:
+        context: .
+        target: prod
+        args:
+            HERRING_VERSION: "${HERRING_VERSION:-unknown}"
+    image: herring:prod
+    env_file: "${HERRING_PROD_ENV_FILE:-.env.prod}"
+    restart: unless-stopped
+
+services:
+    # Applies database migrations, then exits; the app containers wait for it.
+    migrate:
+        <<: *app
+        command: ["python", "herring/manage.py", "migrate", "--noinput"]
+        restart: "no"
+        depends_on:
+            postgres:
+                condition: service_healthy
+                required: false
+
+    web:
+        <<: *app
+        environment:
+            # gunicorn reads this (Heroku sets it too).
+            WEB_CONCURRENCY: "${WEB_CONCURRENCY:-4}"
+        ports:
+            - "${HERRING_WEB_PORT:-127.0.0.1:8000}:8000"
+        depends_on:
+            migrate:
+                condition: service_completed_successfully
+
+    worker:
+        <<: *app
+        # Same as the Procfile's worker. REMAP_SIGTERM: `docker stop` sends
+        # SIGTERM; treat it as a cold shutdown, like on Heroku.
+        environment:
+            REMAP_SIGTERM: SIGQUIT
+        command: ["celery", "--workdir=herring", "--app=herring", "worker", "-E", "--beat"]
+        depends_on:
+            migrate:
+                condition: service_completed_successfully
+
+    discordbot:
+        <<: *app
+        profiles: [discordbot]
+        command: ["python", "herring/manage.py", "discordbot"]
+        depends_on:
+            migrate:
+                condition: service_completed_successfully
+
+    postgres:
+        image: postgres:17-alpine
+        profiles: [bundled-db]
+        restart: unless-stopped
+        volumes:
+            - postgres-data:/var/lib/postgresql/data
+        environment:
+            POSTGRES_USER: herring
+            POSTGRES_DB: herring
+            POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}"
+        healthcheck:
+            test: ["CMD", "pg_isready", "-U", "herring"]
+            interval: 2s
+            retries: 30
+
+    redis:
+        image: redis:7-alpine
+        profiles: [bundled-db]
+        restart: unless-stopped
+        # Persist Celery Beat's schedule and the Drive change-token across restarts.
+        command: ["redis-server", "--appendonly", "yes"]
+        volumes:
+            - redis-data:/data
+
+    caddy:
+        image: caddy:2-alpine
+        profiles: [caddy]
+        restart: unless-stopped
+        ports:
+            - "${HERRING_HTTP_PORT:-80}:80"
+            - "${HERRING_HTTPS_PORT:-443}:443"
+        environment:
+            HERRING_DOMAIN: "${HERRING_DOMAIN:?set HERRING_DOMAIN in .env.prod}"
+        volumes:
+            - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+            - caddy-data:/data
+            - caddy-config:/config
+        depends_on:
+            - web
+
+volumes:
+    postgres-data:
+    redis-data:
+    caddy-data:
+    caddy-config:

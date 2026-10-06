@@ -10,3 +10,4 @@ package-lock.json
 /postgres-data/
 .venv/
 ui-test-output/
+.env.prod*
