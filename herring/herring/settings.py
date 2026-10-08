@@ -214,7 +214,9 @@ REDBEAT_LOCK_TIMEOUT = 60
 
 # Previously in puzzles/tasks.py
 HERRING_STATUS_CHANNEL = env.get_value('STATUS_CHANNEL', default='_dev_puzzle_status')
-HERRING_HOST = env.get_value('HOST', default='http://localhost:8000')
+# Herring's public base URL, for links built outside a web request (e.g. Discord
+# channel topics, written by Celery workers). A trailing slash is optional.
+HERRING_HOST = env.get_value('HOST', default='http://localhost:8000').rstrip('/')
 HERRING_PUZZLE_ACTIVITY_LOG_URL = env.get_value('PUZZLE_ACTIVITY_LOG_URL', default=None)
 HERRING_PUZZLE_SITE_SESSION_COOKIE = env.get_value('PUZZLE_SITE_SESSION_COOKIE', default=None)
 

@@ -88,30 +88,50 @@ def post_update(slug, updated_field, value):
 
 
 @optional_task
-@shared_task(bind=True, max_retries=10, default_retry_delay=5, rate_limit=0.25)  # rate_limit is in tasks/sec
-def create_puzzle_sheet_and_channel(self, slug):
+@shared_task
+def create_puzzle_sheet_and_channel(slug):
+    """
+    Queued when a puzzle is created. Its sheet and its Discord channels are
+    created by separate tasks, so a failure (and the retries) of one doesn't
+    hold up or repeat the other -- e.g. retrying a failed sheet mustn't redo
+    channel creation, which announces the puzzle.
+    """
     logging.warning("tasks: create_puzzle_sheet_and_channel(%s)", slug)
-
-    try:
-        puzzle = Puzzle.objects.get(slug=slug)
-    except Exception as e:
-        logging.error("tasks: Failed to retrieve puzzle when creating sheet and channel (may be retried) - %s", slug, exc_info=True)
-        raise self.retry(exc=e)
-
     if settings.HERRING_ACTIVATE_GAPPS:
-        if not puzzle.sheet_id:
-            sheet_title = '{} - {}'.format(puzzle.round_prefix(), puzzle.name)
-            sheet_id = make_sheet(sheet_title)
-
-            puzzle.sheet_id = sheet_id
-
-    puzzle.save()
-
+        create_puzzle_sheet.delay(slug)
     if settings.HERRING_ACTIVATE_DISCORD:
-        try:
-            do_in_discord(DISCORD_ANNOUNCER.make_puzzle_channels(puzzle))
-        except Exception:
-            raise self.retry()
+        create_puzzle_channels.delay(slug)
+
+
+def get_puzzle_or_retry(task, slug):
+    try:
+        return Puzzle.objects.get(slug=slug)
+    except Exception as e:
+        logging.error("tasks: %s couldn't load puzzle %s (will retry)", task.name, slug, exc_info=True)
+        raise task.retry(exc=e)
+
+
+@shared_task(bind=True, max_retries=10, default_retry_delay=5, rate_limit=0.25)  # rate_limit is in tasks/sec
+def create_puzzle_sheet(self, slug):
+    puzzle = get_puzzle_or_retry(self, slug)
+    if puzzle.sheet_id:
+        return
+    try:
+        sheet_id = make_sheet(f'{puzzle.round_prefix()} - {puzzle.name}')
+    except Exception as e:
+        logging.error("tasks: creating the sheet for %s failed (will retry)", slug, exc_info=True)
+        raise self.retry(exc=e)
+    Puzzle.objects.filter(id=puzzle.id).update(sheet_id=sheet_id)
+
+
+@shared_task(bind=True, max_retries=10, default_retry_delay=5, rate_limit=0.25)
+def create_puzzle_channels(self, slug):
+    puzzle = get_puzzle_or_retry(self, slug)
+    try:
+        do_in_discord(DISCORD_ANNOUNCER.make_puzzle_channels(puzzle))
+    except Exception as e:
+        logging.error("tasks: creating Discord channels for %s failed (will retry)", slug, exc_info=True)
+        raise self.retry(exc=e)
 
 
 

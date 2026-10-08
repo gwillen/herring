@@ -21,6 +21,7 @@ from discord.ext import tasks as discord_tasks
 from discord.utils import get
 from django.db import transaction
 from django.db.models import Q
+from django.urls import reverse
 
 from django.conf import settings
 from puzzles.models import Round, Puzzle, UserProfile
@@ -1361,7 +1362,7 @@ async def _make_puzzle_channels_inner(category: discord.CategoryChannel, puzzle:
 
 def _build_topic(puzzle):
     puzzle_name = _abbreviate_name(puzzle)
-    topic = f"{puzzle_name} - Sheet: {settings.HERRING_HOST}/s/{puzzle.id} - Puzzle: {puzzle.hunt_url}"
+    topic = f"{puzzle_name} - Sheet: {settings.HERRING_HOST}{reverse('puzzle_spreadsheet', args=[puzzle.id])} - Puzzle: {puzzle.hunt_url}"
     return topic
 
 

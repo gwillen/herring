@@ -1,0 +1,11 @@
+{% extends "puzzles/base_herring.html" %}
+
+{% block content %}
+<h2>No spreadsheet for {{ puzzle.name }}</h2>
+{% if gapps_active %}
+<p>This puzzle's Google Sheet hasn't been created yet. It's normally created within a minute of the puzzle being added; if it still isn't there after that, ask an admin.</p>
+{% else %}
+<p>Herring isn't set up to create Google Sheets (the Google integration is turned off), so puzzles don't get spreadsheets automatically.</p>
+{% endif %}
+<p><a href="/">Back to the puzzle list</a></p>
+{% endblock %}

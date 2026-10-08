@@ -110,7 +110,12 @@ def one_puzzle(request, puzzle_id):
 @login_required
 def puzzle_spreadsheet(request, puzzle_id):
     puzzle = get_object_or_404(Puzzle, pk=puzzle_id)
-    return redirect(f'https://docs.google.com/spreadsheets/d/{puzzle.sheet_id}/edit', permanent=True)
+    if not puzzle.sheet_id:
+        context = {'puzzle': puzzle, 'gapps_active': settings.HERRING_ACTIVATE_GAPPS}
+        return render(request, 'puzzles/no_sheet.html', context, status=404)
+    # Not a permanent redirect: browsers cache those indefinitely, and a puzzle's
+    # sheet can appear later or change.
+    return redirect(f'https://docs.google.com/spreadsheets/d/{puzzle.sheet_id}/edit')
 
 
 DISCORD_JOIN_FAILED_HTML = (

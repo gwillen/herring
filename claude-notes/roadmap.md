@@ -47,6 +47,16 @@ Status (2026-10-06): user asked to hold off on design/implementation while they 
 - Per-puzzle voice channels are no longer created (CREATE_DISCORD_VOICE_CHANNELS off); the team uses a few fixed, pre-created voice channels. Voice-channel issues in cleanup are moot unless that changes.
 - Settings like the announcements/debug channel names (env `DISCORD_ANNOUNCEMENTS` / `DISCORD_DEBUG_CHANNEL`, which must exist in the server) should be configurable in the web UI, should **fail gracefully** if missing, and an admin area should **show configuration problems** as notices.
 
+## More notes from the user (2026-10-08)
+
+- **Puzzle resources beyond Sheets:** let people request a Google Doc or Drawing (etc.) for a puzzle, optionally making it the puzzle's "main" document (the sheet stays available). Implies a list of resources per puzzle (type, external ID, which is main), channel topics regenerated when the set changes (topic edits are rate-limited by Discord: about 2 per 10 minutes per channel), and multiple icons per puzzle in the web UI. Today the topic always links `/s/<puzzle id>`, which explains when there's no sheet.
+
+## Slash command registration (researched 2026-10-08)
+
+- Discord docs: 200 application command *creates* per day per guild; bulk overwrite only counts commands that don't already exist, so re-syncing an unchanged set is cheap. Guild commands update instantly; global commands work in every server the bot is in, and in DMs (with a mutual server); guild commands don't work in DMs. The same name can exist both globally and per guild (risk of duplicates).
+- Herring today: cogs registered as guild commands for `DISCORD_GUILD` (`GUILD_COMMANDS_FOR_TESTING = True`); nothing syncs automatically; owner-only `hb!synctree` syncs global + that guild. A manual sync command is the conventional discord.py pattern.
+- Recommendation for the multi-server redesign: global commands (one sync covers every hunt's server, and DMs work, which fits "DMs go to the primary hunt"), synced automatically at startup only when the command definitions changed (store a hash of the tree in Redis/DB). Keep `synctree` as a manual override.
+
 ## Review of `cleanup_channels` (discordbot.py, 2026-10-07)
 
 How it works: owner-only `hb!cleanup_channels`; DM menu of modes (Full Rebuild / Create and Fix Only / Fix Only / Dry Run). Snapshots the current hunt's rounds and puzzles once, then:

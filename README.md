@@ -41,7 +41,10 @@ To run the Discord integration locally, use a **separate bot application** (not 
    DISCORD_GUILD=<the test server's ID>
    ERRORS_TO_DISCORD=1
    SECRETS={"discord-bot-token":"<the test bot's token>","magic-secret":"<anything>"}
+   HOST=http://<the address you browse the dev site at, e.g. 192.168.1.5:8000>/
    ```
+   `HOST` is used for links the bot writes into Discord (channel topics); it can't be detected automatically, because those are written by the Celery worker, not in response to a browser request.
+5. Slash commands appear after the server owner runs `hb!synctree` once in the server.
 
 `docker compose up` then runs the listener bot inside a Celery worker (or as the separate `discordbot` process, with `ENABLE_STANDALONE_DISCORD=1`). The test scripts keep Discord off regardless of `.env`.
 

@@ -90,7 +90,12 @@ class SolverTests(TestCase):
         Puzzle.objects.filter(id=self.puzzle.id).update(sheet_id='SHEET')
         response = self.client.get(f'/s/{self.puzzle.id}')
         self.assertRedirects(response, 'https://docs.google.com/spreadsheets/d/SHEET/edit',
-                             status_code=301, fetch_redirect_response=False)
+                             fetch_redirect_response=False)
+
+    def test_spreadsheet_link_without_sheet_explains(self):
+        for gapps, text in [(False, "isn't set up"), (True, "hasn't been created yet")]:
+            with self.subTest(gapps=gapps), override_settings(HERRING_ACTIVATE_GAPPS=gapps):
+                self.assertContains(self.client.get(f'/s/{self.puzzle.id}'), text, status_code=404)
 
     def test_edit_profile(self):
         self.assertEqual(self.client.get('/edit_profile/').status_code, 200)
