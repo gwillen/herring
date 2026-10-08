@@ -32,7 +32,7 @@ Status (2026-10-06): user asked to hold off on design/implementation while they 
   - Checked 2026-10-06: Discord's current guild docs no longer list a Create Guild endpoint (bots apparently can't create servers any more), so server creation stays manual. Modify Guild Onboarding (`PUT /guilds/{id}/onboarding`) exists, needs MANAGE_GUILD + MANAGE_ROLES; when enabled, Discord requires ≥7 default channels, ≥5 of them writable by @everyone. Roles, channels, categories and permission overwrites can all be copied via the API ("clone from last hunt's server").
 - **Google Drive visibility:** sheets are owned by a service ("bot/role") account in one shared folder. Occasionally things go wrong (an Android Sheets bug once removed sheets from the folder), and there's no web UI for the service account's Drive, only the API. Want: how many objects it owns, whether they're all in the right folder, and where the others are. (Drive API `files.list` on the service account can answer this.)
 - **Google Forms and Groups:** each year a Form goes out to find who's on the team; a new Google Group per hunt year gets created, populated from the form results, and given access to the Drive folder. Steps get forgotten. Want automation, or at least one place in the app showing the state of it all.
-  - Open question: are these Google Workspace groups (manageable via Admin SDK Directory API / Cloud Identity Groups API) or consumer googlegroups.com groups (no public API that I know of)? Determines what can be automated. Forms API can read responses; Drive API can share the folder with a group.
+  - Answered (2026-10-07): they're consumer googlegroups.com groups, which have no public API (as far as known), so group creation and population stay manual, with guidance and status in the app (like Discord server creation). Forms API can read responses; Drive API can share the folder with a group.
 - **Bulk operations must be safe and reviewable.** The user is afraid to run `cleanup_channels` (opaque; deleted channels lose their history forever; suspects it has bugs, though it hasn't deleted anything regrettable yet). For cleanup, reconcile, and other bulk Discord/Drive operations, want an admin UI that:
   - builds and shows the list of operations,
   - lets an admin select some or all,
@@ -41,6 +41,29 @@ Status (2026-10-06): user asked to hold off on design/implementation while they 
   - Design thoughts: store a plan as DB rows (op, target IDs, preconditions captured at planning time, e.g. channel's last_message_id); applying an op re-checks its preconditions and refuses if the world changed (stale plan); ops declare dependencies (e.g. create category before moving channels into it), selecting an op pulls in its dependencies, execution in dependency order; every applied op goes into an audit log. Prefer archiving (move to an archive category, read-only, after exporting history) over deleting.
 - **Log Discord activity:** the bot records messages and other events (edits, deletions, channel changes) to the database, as protection if anything goes wrong on Discord, and so recent chat could be shown lightly on the site.
   - Thoughts: needs the Message Content intent (already used); history of existing channels can be backfilled; attachment URLs are signed and expire, so keeping attachments means downloading them; team members should be told messages are logged. Size is likely modest (order of 100k messages per hunt), but Heroku Essential-0's 1 GB cap would matter. Pairs with "archive before delete" above.
+
+## Review of `cleanup_channels` (discordbot.py, 2026-10-07)
+
+How it works: owner-only `hb!cleanup_channels`; DM menu of modes (Full Rebuild / Create and Fix Only / Fix Only / Dry Run). Snapshots the current hunt's rounds and puzzles once, then:
+
+1. Deletes channels in every non-protected category that aren't named after a current-hunt puzzle slug, are named like `r<digits>-`, and have no `last_message_id`.
+2. For each round, creates missing categories (20 puzzles per category).
+3. Moves the round's metas to "no category", moves or creates each puzzle's channels by its position in the sorted list, fixes topics, then moves the metas back.
+
+Why nothing regrettable has been lost: only channels with **no messages** are ever deleted, so chat history can't be. Membership (per-member permission overwrites) can be.
+
+Problems found:
+- **Confirmed by running it with mocked Discord objects:** "Dry Run" and "Fix Only" crash with `AttributeError: 'NoneType' object has no attribute 'id'` whenever a round has no category or needs another one (a placeholder `None` category reaches `",".join(str(category.id) ...)`). So dry run fails in exactly the interesting case. In Fix Only, rounds processed before the crash have already been changed.
+- **Race with puzzle creation:** the puzzle snapshot is taken once, and the deletion pass is slow (it sends one DM per channel considered, and DMs are rate-limited). A puzzle created during a hunt in that window gets its brand-new, empty channel deleted.
+- **Scope:** deletion covers every unprotected category in the guild, judged only against the *configured* `HUNT_ID`. With a wrong `HUNT_ID`, or a server shared by two hunts, every empty `r<n>-` channel of the other hunt is deleted. In create mode, categories and channels for the configured hunt are created in whatever guild `DISCORD_GUILD` points at.
+- **Name-based identity everywhere:** `_make_category_inner` reuses any category with the same name (could belong to another round or hunt); `get_channel_pair` takes the first channel with that name anywhere in the guild; duplicates are never noticed.
+- **"Empty" means only `last_message_id is None`:** voice channels are effectively always "empty"; a text channel people joined but haven't typed in loses its membership when deleted.
+- **Churn:** in fix modes, metas are moved out to "no category" and back on *every* run, even when already correct. If the run aborts in between, they're left uncategorized. They can also end up at the bottom of the category instead of the top. Category assignment comes from a puzzle's index in the sorted round, so adding or renumbering one puzzle can shift every later puzzle across a 20-puzzle category boundary, causing mass moves.
+- **No error handling:** any Discord API error (permissions, a full category at 50 channels, network) aborts mid-run with partial changes; there's no record of what was done.
+- **Noise:** one DM per non-puzzle channel in unprotected categories ("Skipping ..."), every run.
+- Meta slugs (`r2m-...`) don't match `r\d+-`, so meta channels are never deletion candidates (inconsistent, but the safe direction).
+
+Implications for the replacement (plan/apply design above): identify channels by stored ID; scope every operation to a hunt and its guild; compute category placement stably (don't renumber everything); no meta shuffle; plan-time preconditions (e.g. `last_message_id`, member overwrites, "created before the plan") checked at apply time; never delete, archive; per-op error handling, continuing or stopping by dependency; audit log.
 
 ## Earlier proposal (before the hunt/server requirements; to be revised)
 
