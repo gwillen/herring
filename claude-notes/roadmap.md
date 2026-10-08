@@ -42,6 +42,11 @@ Status (2026-10-06): user asked to hold off on design/implementation while they 
 - **Log Discord activity:** the bot records messages and other events (edits, deletions, channel changes) to the database, as protection if anything goes wrong on Discord, and so recent chat could be shown lightly on the site.
   - Thoughts: needs the Message Content intent (already used); history of existing channels can be backfilled; attachment URLs are signed and expire, so keeping attachments means downloading them; team members should be told messages are logged. Size is likely modest (order of 100k messages per hunt), but Heroku Essential-0's 1 GB cap would matter. Pairs with "archive before delete" above.
 
+## More notes from the user (2026-10-07)
+
+- Per-puzzle voice channels are no longer created (CREATE_DISCORD_VOICE_CHANNELS off); the team uses a few fixed, pre-created voice channels. Voice-channel issues in cleanup are moot unless that changes.
+- Settings like the announcements/debug channel names (env `DISCORD_ANNOUNCEMENTS` / `DISCORD_DEBUG_CHANNEL`, which must exist in the server) should be configurable in the web UI, should **fail gracefully** if missing, and an admin area should **show configuration problems** as notices.
+
 ## Review of `cleanup_channels` (discordbot.py, 2026-10-07)
 
 How it works: owner-only `hb!cleanup_channels`; DM menu of modes (Full Rebuild / Create and Fix Only / Fix Only / Dry Run). Snapshots the current hunt's rounds and puzzles once, then:

@@ -4,10 +4,13 @@ import environ
 import time
 import datetime
 import signal
+import socket
 import threading
 import sys
 
 from herring.settings import HERRING_ACTIVATE_DISCORD, HERRING_DISCORD_DEBUG_CHANNEL, HEROKU_APP_NAME, HEROKU_DYNO_NAME, HEROKU_RELEASE_VERSION
+
+from herring.version import herring_version
 
 MAX_DISCORD_EMBED_LEN = 2048
 SUPPRESS_STARTUP_SECONDS = 150
@@ -78,14 +81,25 @@ class ChatLogHandler(logging.Handler):
             if record.levelname == "WARNING" and record.name == "asyncio" and "keep_mutex" in record.message:
                 return
 
+            # discord.py's own warnings are routine (rate limits, voice support missing). Posting
+            # them could also feed back: posting this message can itself be rate-limited.
+            if record.levelno < logging.ERROR and record.name.startswith("discord."):
+                return
+
             logging.info(f"About to emit object to discord: {record} of type {type(record)}")
             formatted_record = self.format(record)
             truncated_record = formatted_record[:MAX_DISCORD_EMBED_LEN - 50]  # leave plenty of space for markdown
             if len(truncated_record) < len(formatted_record):
                 truncated_record += " ..."
-            truncated_record += f" ({HEROKU_DYNO_NAME}, {HEROKU_RELEASE_VERSION})"
+            truncated_record += f" ({process_label()})"
             post_debug_message.delay("", truncated_record)
         except Exception as e:
             self.shutdown = True
             # Safe to call logging.error from here once shutdown is True, since we will not try to do anything from emit().
             logging.error(f"Oh no, exception in ChatLogHandler.emit -- we will stop logging to discord until server restart. Details: {e}")
+
+
+def process_label():
+    """Which process logged this: Heroku dyno (or host name elsewhere), and Herring version."""
+    where = HEROKU_DYNO_NAME if HEROKU_DYNO_NAME != '<unknown>' else socket.gethostname()
+    return f"{where}, {herring_version()}"
