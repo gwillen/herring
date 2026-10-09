@@ -1,6 +1,8 @@
 import asyncio
 import collections
 import concurrent.futures
+import hashlib
+import json
 import logging
 import re
 import threading
@@ -25,7 +27,7 @@ from django.urls import reverse
 
 from django.conf import settings
 from puzzles.models import Round, Puzzle, UserProfile
-from puzzles.redis_state import DISCORD_STATUS_INTERVAL_SECONDS, set_discord_status
+from puzzles.redis_state import DISCORD_STATUS_INTERVAL_SECONDS, redis_client, set_discord_status
 
 # Discord limits a user to putting 20 emojis on a message, so if this is more than 19, the menu won't work
 # also, an embed is limited to length 2048, which isn't really very long
@@ -72,7 +74,6 @@ AUTOROLE_MARKER = "-autoroles below-"
 
 MAX_DISCORD_EMBED_LEN = 2048
 
-GUILD_COMMANDS_FOR_TESTING = True
 
 if settings.HERRING_DEBUG_DISCORD_VERBOSELY:
     discord.utils.setup_logging(level=logging.DEBUG)
@@ -353,17 +354,18 @@ class HerringCog(commands.Cog):
     #    await interaction.response.send_message("hello!", ephemeral=True)
     #    await interaction.followup.send("please consider:", view=TestView(), ephemeral=True)
 
-    @commands.hybrid_command(brief="sync app command tree")
+    @commands.hybrid_command(brief="Re-register slash commands with Discord (normally automatic at startup)")
+    @commands.guild_only()
+    @commands.has_permissions(administrator=True)
+    @app_commands.default_permissions(administrator=True)  # hides it from others' slash menus
     async def synctree(self, ctx:commands.Context):
-        """ sync command tree """
-        logging.info("syncing command tree...")
-        result_global = await ctx.bot.tree.sync()
-        result_guild = await ctx.bot.tree.sync(guild=ctx.guild)
-        logging.info("sync complete: global=%s guild=%s", result_global, result_guild)
+        """ Force a slash command sync, even if the commands look unchanged. """
+        synced = await sync_app_commands(ctx.bot, force=True)
+        message = f"Synced {len(synced)} global slash commands: {', '.join(sorted(c.name for c in synced))}"
         if ctx.interaction:
-            await ctx.interaction.response.send_message("Synced command tree: global=%s guild=%s" % (result_global, result_guild), ephemeral=True)
+            await ctx.interaction.response.send_message(message, ephemeral=True)
         else:
-            await ctx.author.send("Synced command tree: global=%s guild=%s" % (result_global, result_guild))
+            await ctx.author.send(message)
 
     async def round_autocomplete(self, interation: discord.Interaction, current: str):
         rounds: list[Round] = await sync_to_async(list)(Round.objects.filter(hunt_id = settings.HERRING_HUNT_ID))
@@ -399,7 +401,11 @@ class HerringCog(commands.Cog):
             m = re.match("huntpuzzle_(.*)_(.*)_(.*)", puzzle)
             (hunt_id, round_id, puzzle_slug) = m.groups()
             puzzle_chosen = await sync_to_async(lambda: Puzzle.objects.get(hunt_id=hunt_id, parent=round_id, slug=puzzle_slug))()
-            member = interaction.guild.get_member(interaction.user.id)
+            # Look the user up in the hunt's server, not interaction.guild: /join also works in DMs.
+            member = self.guild.get_member(interaction.user.id)
+            if member is None:
+                await interaction.response.send_message("You need to be a member of the hunt's Discord server to join puzzles.", ephemeral=True)
+                return
             logging.info(f"adding {interaction.user} to {puzzle_slug}")
             channel, _ = await self.add_user_to_puzzle(member, puzzle_slug)
             # the following appears in the channel, although we can mark it ephemeral, but we could DM it instead -- could make that optional.
@@ -495,10 +501,12 @@ class HerringCog(commands.Cog):
         await ctx.author.send(f"Welcome to the puzzle `{puzzle_chosen.name}`! Click to go there: {channel.mention}! Happy solving!")
 
     @commands.hybrid_command(brief="Leave a puzzle channel")
+    @commands.guild_only()  # acts on the channel it's used in
     async def leave(self, ctx, channel:typing.Optional[discord.TextChannel]):
         await self.leave_inner(ctx, channel)
 
     @commands.hybrid_command(brief="Leave a puzzle channel")
+    @commands.guild_only()  # acts on the channel it's used in
     async def part(self, ctx, channel:typing.Optional[discord.TextChannel]):
         await self.leave_inner(ctx, channel)
 
@@ -533,6 +541,7 @@ class HerringCog(commands.Cog):
             await interaction.response.send_message(f"You have left {'that' if by_name else 'this'} puzzle.{'' if by_name else ' Select another channel from the sidebar.'}", ephemeral=True)
 
     @commands.hybrid_command(aliases=["solve"], brief="You solved a puzzle!")
+    @commands.guild_only()  # acts on the channel it's used in
     async def answer(self, ctx, *, answer):
         """
         Register the answer to a puzzle in Herring. Must be called in a puzzle channel.
@@ -546,6 +555,7 @@ class HerringCog(commands.Cog):
             ctx.interaction.response.defer()
 
     @commands.hybrid_command(brief="Add a tag to a puzzle")
+    @commands.guild_only()  # acts on the channel it's used in
     async def tag(self, ctx, *, tag):
         """
         Add a tag to a puzzle (for example, "konundrum"). Must be called in a puzzle channel. Puzzles can have
@@ -563,6 +573,7 @@ class HerringCog(commands.Cog):
             ctx.interaction.response.defer()
 
     @commands.hybrid_command(brief="Remove a tag from a puzzle")
+    @commands.guild_only()  # acts on the channel it's used in
     async def untag(self, ctx, *, tag):
         """
         Remove a tag from a puzzle. Must be called in a puzzle channel.
@@ -585,6 +596,7 @@ class HerringCog(commands.Cog):
         return ", ".join(tags)
 
     @commands.hybrid_command(brief="Set the note for a puzzle")
+    @commands.guild_only()  # acts on the channel it's used in
     async def note(self, ctx, *, note):
         """
         Set the note for a puzzle, as a suggestion for future solvers. Must be called in a puzzle channel.
@@ -1095,19 +1107,52 @@ class HerringListenerBot(commands.Bot):
         self.client = client
 
     async def setup_hook(self) -> None:
-        # The `guilds=` arg makes the slash commands load faster than if they are global, but then they won't work in DMs.
-        if GUILD_COMMANDS_FOR_TESTING:
-            guilds = [discord.Object(id=settings.HERRING_DISCORD_GUILD_ID)]
-            await self.add_cog(HerringCog(self), guilds=guilds)
-            await self.add_cog(SolvertoolsCog(self, self.client), guilds=guilds)
-        else:
-            await self.add_cog(HerringCog(self))
-            await self.add_cog(SolvertoolsCog(self, self.client))
+        # All slash commands are global (they work in every server the bot is in,
+        # and in DMs, except those marked guild_only). Note: passing guilds= to
+        # add_cog would only scope a cog's pure app_commands, not its hybrid
+        # commands, which discord.py always registers globally.
+        await self.add_cog(HerringCog(self))
+        await self.add_cog(SolvertoolsCog(self, self.client))
         await self.add_cog(CommandErrorHandler(self))
+        try:
+            await sync_app_commands(self)
+        except Exception:
+            logging.error("Syncing slash commands failed; Discord keeps the previously synced ones", exc_info=True)
 
         @self.event
         async def on_error(event, *args, **kwargs):
             logging.error(f"Error in event: {event}, with args {args} and kwargs {kwargs}.", exc_info=True)
+
+APP_COMMANDS_FINGERPRINT_KEY = 'herring:app-commands-fingerprint'
+
+
+def app_commands_fingerprint(tree):
+    """Hash of the global slash command definitions, exactly as a sync would send them to Discord."""
+    payload = [command.to_dict(tree) for command in tree.get_commands()]
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+
+
+async def sync_app_commands(bot, force=False):
+    """
+    Registers the bot's slash commands with Discord, globally, if they changed
+    since the last sync (fingerprint kept in Redis per bot application), or if
+    forced. Unchanged syncs are cheap for Discord but not free, and the bot
+    restarts often (daily on Heroku). Also clears DISCORD_GUILD's per-server
+    commands, left over from when /join was registered per-server, so it
+    doesn't appear twice. Returns the synced commands, or None if skipped.
+    """
+    key = f'{APP_COMMANDS_FINGERPRINT_KEY}:{bot.application_id}'
+    fingerprint = app_commands_fingerprint(bot.tree)
+    if not force and redis_client().get(key) == fingerprint.encode():
+        logging.info("Slash commands unchanged since the last sync; not syncing")
+        return None
+    synced = await bot.tree.sync()
+    if settings.HERRING_DISCORD_GUILD_ID:
+        await bot.tree.sync(guild=discord.Object(id=settings.HERRING_DISCORD_GUILD_ID))
+    redis_client().set(key, fingerprint)
+    logging.info("Synced %d global slash commands: %s", len(synced), sorted(c.name for c in synced))
+    return synced
+
 
 class HerringAnnouncerBot(discord.Client):
     """

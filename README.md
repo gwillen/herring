@@ -44,7 +44,8 @@ To run the Discord integration locally, use a **separate bot application** (not 
    HOST=http://<the address you browse the dev site at, e.g. 192.168.1.5:8000>/
    ```
    `HOST` is used for links the bot writes into Discord (channel topics); it can't be detected automatically, because those are written by the Celery worker, not in response to a browser request.
-5. Slash commands appear after the server owner runs `hb!synctree` once in the server.
+
+Slash commands are registered with Discord automatically when the listener bot starts, if they changed since the last time (a fingerprint is kept in Redis); an administrator can force it with `/synctree`. `python herring/manage.py discord_inspect` shows the server's channels and the slash commands Discord currently has registered.
 
 `docker compose up` then runs the listener bot inside a Celery worker (or as the separate `discordbot` process, with `ENABLE_STANDALONE_DISCORD=1`). The test scripts keep Discord off regardless of `.env`.
 

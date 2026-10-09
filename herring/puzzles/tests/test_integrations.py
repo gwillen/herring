@@ -38,18 +38,24 @@ class CeleryTests(TestCase):
 
 class DiscordBotTests(SimpleTestCase):
     def test_listener_bot_registers_cogs_and_commands(self):
-        cogs, commands, slash_commands = asyncio.run(self.set_up_listener_bot())
-        self.assertEqual(cogs, {'HerringCog', 'SolvertoolsCog', 'CommandErrorHandler'})
-        self.assertLessEqual({'join', 'leave', 'answer', 'anagram'}, commands)
-        self.assertIn('join', slash_commands)
+        bot = asyncio.run(self.set_up_listener_bot())
+        self.assertEqual(set(bot.cogs), {'HerringCog', 'SolvertoolsCog', 'CommandErrorHandler'})
+        self.assertLessEqual({'join', 'leave', 'answer', 'anagram'}, {c.name for c in bot.commands})
+        guild = discord.Object(id=settings.HERRING_DISCORD_GUILD_ID)
+        self.assertEqual(bot.tree.get_commands(guild=guild), [], "all slash commands should be global")
+        self.assertLessEqual({'join', 'synctree', 'answer', 'anagram'}, {c.name for c in bot.tree.get_commands()})
+
+    def test_channel_commands_are_server_only(self):
+        bot = asyncio.run(self.set_up_listener_bot())
+        server_only = {c.name for c in bot.tree.get_commands() if c.guild_only}
+        self.assertEqual(server_only, {'answer', 'tag', 'untag', 'note', 'leave', 'part', 'synctree'})
 
     async def set_up_listener_bot(self):
         async with aiohttp.ClientSession() as client:
             bot = discordbot.HerringListenerBot(client)
-            await bot.setup_hook()
-            guild = discord.Object(id=settings.HERRING_DISCORD_GUILD_ID)
-            slash_commands = {c.name for c in bot.tree.get_commands(guild=guild)}
-            return set(bot.cogs), {c.name for c in bot.commands}, slash_commands
+            with mock.patch.object(discordbot, 'sync_app_commands', mock.AsyncMock()):
+                await bot.setup_hook()
+            return bot
 
     def test_announcer_bot_constructs(self):
         self.assertFalse(discordbot.HerringAnnouncerBot().intents.message_content)
@@ -127,3 +133,32 @@ class WebProcessDiscordTests(TestCase):
                 mock.patch('puzzles.tasks.discord_connected', return_value=True):
             data = self.client.get('/puzzles/').json()
         self.assertEqual(data['settings']['service_status']['discord'], True)
+
+
+def empty_tree():
+    return discord.app_commands.CommandTree(discord.Client(intents=discord.Intents.none()))
+
+
+class SyncAppCommandsTests(SimpleTestCase):
+    def sync(self, stored_fingerprint, force=False):
+        bot = mock.Mock(application_id=42, tree=empty_tree())
+        bot.tree.sync = mock.AsyncMock(return_value=[])
+        redis = mock.Mock(**{'get.return_value': stored_fingerprint})
+        with mock.patch.object(discordbot, 'redis_client', return_value=redis):
+            asyncio.run(discordbot.sync_app_commands(bot, force=force))
+        return bot.tree.sync, redis
+
+    def test_syncs_and_records_fingerprint_when_changed(self):
+        tree_sync, redis = self.sync(stored_fingerprint=None)
+        self.assertTrue(tree_sync.called)
+        redis.set.assert_called_once()
+
+    def test_skips_when_unchanged(self):
+        current = discordbot.app_commands_fingerprint(empty_tree())
+        tree_sync, _ = self.sync(stored_fingerprint=current.encode())
+        tree_sync.assert_not_called()
+
+    def test_force_syncs_even_when_unchanged(self):
+        current = discordbot.app_commands_fingerprint(empty_tree())
+        tree_sync, _ = self.sync(stored_fingerprint=current.encode(), force=True)
+        self.assertTrue(tree_sync.called)

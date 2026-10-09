@@ -1,7 +1,7 @@
 """
-Read-only look at the configured Discord server: categories, channels, and
-(optionally) recent messages, fetched over Discord's HTTP API with the bot's
-token. Changes nothing.
+Read-only look at the configured Discord server: categories, channels,
+(optionally) recent messages, and the registered slash commands, fetched
+over Discord's HTTP API with the bot's token. Changes nothing.
 
     python herring/manage.py discord_inspect [--messages N]
 """
@@ -37,7 +37,7 @@ async def inspect_guild(message_count):
             lines.append(f"[{category.name if category else 'no category'}]")
             for channel in members:
                 lines.extend(await describe_channel(channel, message_count))
-        return lines
+        return lines + await describe_slash_commands(client, guild)
     finally:
         await client.close()
 
@@ -59,3 +59,12 @@ async def describe_channel(channel, message_count):
                      + (f" [embed: {m.embeds[0].description[:100]!r}]" if m.embeds and m.embeds[0].description else "")
                      for m in reversed(messages))
     return lines
+
+
+async def describe_slash_commands(client, guild):
+    """The slash commands registered with Discord (what users see), as opposed to what the code defines."""
+    tree = discord.app_commands.CommandTree(client)
+    global_commands = await tree.fetch_commands()
+    guild_commands = await tree.fetch_commands(guild=guild)
+    return [f"Slash commands registered globally: {', '.join(sorted(c.name for c in global_commands)) or '(none)'}",
+            f"Slash commands registered for this server only: {', '.join(sorted(c.name for c in guild_commands)) or '(none)'}"]
