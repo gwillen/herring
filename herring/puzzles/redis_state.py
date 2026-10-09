@@ -10,6 +10,8 @@ from urllib.parse import urlparse
 from django.conf import settings
 from redis import Redis
 
+logger = logging.getLogger(__name__)
+
 # Each reporter writes its status every HERRING_DISCORD_STATUS_INTERVAL_SECONDS;
 # a status expires if it isn't refreshed, so a dead process shows up as "not
 # connected".
@@ -44,5 +46,5 @@ def set_discord_status(component, connected):
 def discord_connected():
     """True if every Discord component reported itself connected recently."""
     values = redis_client().mget([_status_key(c) for c in DISCORD_COMPONENTS])
-    logging.debug("discord status from redis: %s", dict(zip(DISCORD_COMPONENTS, values)))
+    logger.debug("discord status from redis: %s", dict(zip(DISCORD_COMPONENTS, values)))
     return all(value == b'1' for value in values)

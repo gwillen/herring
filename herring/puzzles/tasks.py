@@ -10,12 +10,13 @@ from django.conf import settings
 from django.db import transaction
 import json
 import kombu.exceptions
-import discord
-from puzzles.discordbot import run_listener_bot, DISCORD_ANNOUNCER, MAX_DISCORD_EMBED_LEN, announcer_is_ready, do_in_discord, LEAVE_EMOJI, TRIUMPH_EMOJI
+from puzzles.discordbot import run_listener_bot, DISCORD_ANNOUNCER, announcer_is_ready, do_in_discord, LEAVE_EMOJI, TRIUMPH_EMOJI
 from puzzles.models import Puzzle, Round, UserProfile
 from puzzles.redis_state import discord_connected, redis_client, set_discord_status
 from puzzles.spreadsheets import check_spreadsheet_service, iterate_changes, make_sheet
 import logging
+
+logger = logging.getLogger(__name__)
 
 BULLSHIT_CHANNEL="_herring_experimental"
 # XXX specific to the 2020 hunt
@@ -29,7 +30,7 @@ def optional_task(t):
     call, a connection to Redis can't be established.
     """
     def dummy_apply_async(*args, **kwargs):
-        logging.warning(
+        logger.warning(
             f"Optional task {t.__name__} has been disabled because a "
             "connection to Redis could not be established. If Redis is "
             "running again, the web server should be restarted.")
@@ -57,14 +58,14 @@ def optional_task(t):
 
 
 def post_local_and_global(local_channel, local_message, global_message, local_reaction=None, global_reaction=None):
-    logging.warning("tasks: post_local_and_global(%s, %s, %s, %s, %s)", local_channel, local_message, global_message, local_reaction, global_reaction)
+    logger.warning("tasks: post_local_and_global(%s, %s, %s, %s, %s)", local_channel, local_message, global_message, local_reaction, global_reaction)
     if settings.HERRING_ACTIVATE_DISCORD:
         do_in_discord(DISCORD_ANNOUNCER.post_local_and_global(local_channel, local_message, global_message, local_reaction, global_reaction))
 
 @optional_task
 @shared_task(rate_limit=0.5)
 def post_answer(slug, answer):
-    logging.warning("tasks: post_answer(%s, %s)", slug, answer)
+    logger.warning("tasks: post_answer(%s, %s)", slug, answer)
 
     puzzle = Puzzle.objects.get(slug=slug)
     answer = answer.upper()
@@ -76,7 +77,7 @@ def post_answer(slug, answer):
 @optional_task
 @shared_task(rate_limit=0.5)
 def post_update(slug, updated_field, value):
-    logging.warning("tasks: post_update(%s, %s, %s)", slug, updated_field, value)
+    logger.warning("tasks: post_update(%s, %s, %s)", slug, updated_field, value)
 
     try:
         puzzle = Puzzle.objects.get(slug=slug)
@@ -96,7 +97,7 @@ def create_puzzle_sheet_and_channel(slug):
     hold up or repeat the other -- e.g. retrying a failed sheet mustn't redo
     channel creation, which announces the puzzle.
     """
-    logging.warning("tasks: create_puzzle_sheet_and_channel(%s)", slug)
+    logger.warning("tasks: create_puzzle_sheet_and_channel(%s)", slug)
     if settings.HERRING_ACTIVATE_GAPPS:
         create_puzzle_sheet.delay(slug)
     if settings.HERRING_ACTIVATE_DISCORD:
@@ -107,7 +108,7 @@ def get_puzzle_or_retry(task, slug):
     try:
         return Puzzle.objects.get(slug=slug)
     except Exception as e:
-        logging.error("tasks: %s couldn't load puzzle %s (will retry)", task.name, slug, exc_info=True)
+        logger.error("tasks: %s couldn't load puzzle %s (will retry)", task.name, slug, exc_info=True)
         raise task.retry(exc=e)
 
 
@@ -119,7 +120,7 @@ def create_puzzle_sheet(self, slug):
     try:
         sheet_id = make_sheet(f'{puzzle.round_prefix()} - {puzzle.name}')
     except Exception as e:
-        logging.error("tasks: creating the sheet for %s failed (will retry)", slug, exc_info=True)
+        logger.error("tasks: creating the sheet for %s failed (will retry)", slug, exc_info=True)
         raise self.retry(exc=e)
     Puzzle.objects.filter(id=puzzle.id).update(sheet_id=sheet_id)
 
@@ -130,7 +131,7 @@ def create_puzzle_channels(self, slug):
     try:
         do_in_discord(DISCORD_ANNOUNCER.make_puzzle_channels(puzzle))
     except Exception as e:
-        logging.error("tasks: creating Discord channels for %s failed (will retry)", slug, exc_info=True)
+        logger.error("tasks: creating Discord channels for %s failed (will retry)", slug, exc_info=True)
         raise self.retry(exc=e)
 
 
@@ -138,14 +139,14 @@ def create_puzzle_channels(self, slug):
 @optional_task
 @shared_task(bind=True, max_retries=10, default_retry_delay=5, rate_limit=0.25)
 def create_round_category(self, round_id):
-    logging.warning("tasks: create_round_category(%d)", round_id)
+    logger.warning("tasks: create_round_category(%d)", round_id)
 
     if settings.HERRING_ACTIVATE_DISCORD:
         with transaction.atomic():
             try:
                 round = Round.objects.select_for_update().get(id=round_id)
             except Exception as e:
-                logging.error("tasks: Couldn't retrieve round %d to create a Discord category", round_id, exc_info=True)
+                logger.error("tasks: Couldn't retrieve round %d to create a Discord category", round_id, exc_info=True)
                 raise self.retry(exc=e)
             try:
                 category = do_in_discord(DISCORD_ANNOUNCER.make_category(round.name))
@@ -159,7 +160,7 @@ def create_round_category(self, round_id):
 """
 @shared_task(rate_limit=0.1)
 def scrape_activity_log():
-    logging.warning("tasks: scrape_activity_log()")
+    logger.warning("tasks: scrape_activity_log()")
 
     log_url = settings.HERRING_PUZZLE_ACTIVITY_LOG_URL
     log_cookies = json.loads(settings.HERRING_PUZZLE_SITE_SESSION_COOKIE)
@@ -210,16 +211,16 @@ def check_connection_to_messaging():
     # Without this check, the task would hold the mutex (and a worker process)
     # forever with nothing to do, and block warm shutdown of its worker.
     if not listener_bot_runs_in_celery():
-        logging.info("check_connection_to_messaging: Discord listener doesn't run under Celery; nothing to do")
+        logger.info("check_connection_to_messaging: Discord listener doesn't run under Celery; nothing to do")
         return
 
     mutex = redis_client().lock('puzzles.tasks.check_connection_to_messaging:mutex', timeout=10)
 
     if not mutex.acquire(blocking=False):
-        logging.info("check_connection_to_messaging: Didn't get mutex, messaging already active")
+        logger.info("check_connection_to_messaging: Didn't get mutex, messaging already active")
         return
 
-    logging.info("check_connection_to_messaging: Acquired mutex")
+    logger.info("check_connection_to_messaging: Acquired mutex")
 
     async def keep_mutex():
         while True:
@@ -237,7 +238,7 @@ def check_connection_to_messaging():
         run(_check_connection_to_messaging())
     finally:
         mutex.release()
-        logging.info("check_connection_to_messaging: Released mutex")
+        logger.info("check_connection_to_messaging: Released mutex")
 
 def listener_bot_runs_in_celery():
     return settings.HERRING_ACTIVATE_DISCORD and not settings.HERRING_ENABLE_STANDALONE_DISCORD
@@ -245,7 +246,7 @@ def listener_bot_runs_in_celery():
 @shared_task(bind=True, rate_limit=0.5)
 @transaction.atomic
 def process_google_sheets_changes(self):
-    logging.info("process_google_sheets_changes: Starting")
+    logger.info("process_google_sheets_changes: Starting")
 
     if settings.HERRING_ACTIVATE_GAPPS:
         puzzles_to_update = set()
@@ -261,7 +262,7 @@ def process_google_sheets_changes(self):
                 puzzles_to_update.add(puzzle)
 
         Puzzle.batch_save_activity(puzzles_to_update)
-        logging.info("process_google_sheets_changes: Finished (%d updated)", len(puzzles_to_update))
+        logger.info("process_google_sheets_changes: Finished (%d updated)", len(puzzles_to_update))
 
 
 def fetch_latest_sheet_changes():
@@ -287,7 +288,7 @@ def fetch_latest_sheet_changes():
 # up; discord.py handles Discord's own rate limits).
 @shared_task(ignore_result=False)
 def add_user_to_puzzle(user_id, puzzle_name):
-    logging.debug("add_user_to_puzzle: %r, %r", user_id, puzzle_name)
+    logger.debug("add_user_to_puzzle: %r, %r", user_id, puzzle_name)
     if not settings.HERRING_ACTIVATE_DISCORD:
         return
     try:
@@ -328,17 +329,3 @@ def report_discord_status():
 def post_discord_message(channel_name, text):
     """Post `text` to the Discord channel named `channel_name` (for /post_discord/)."""
     do_in_discord(DISCORD_ANNOUNCER.post_message(channel_name, text))
-
-
-@shared_task(ignore_result=True)
-def post_debug_message(text, embed_text=None):
-    """
-    Post to the debug channel (used by ChatLogHandler and log_to_discord).
-    Never raises, and logs its own failures below WARNING: ChatLogHandler sends
-    WARNING and above here, so a failure logged louder could loop forever.
-    """
-    try:
-        embed = discord.Embed(description=discord.utils.escape_markdown(embed_text)[:MAX_DISCORD_EMBED_LEN]) if embed_text else None
-        do_in_discord(DISCORD_ANNOUNCER.post_message(settings.HERRING_DISCORD_DEBUG_CHANNEL, text, embed=embed))
-    except Exception as e:
-        logging.info("post_debug_message: couldn't post to Discord (%s): %r", e, text)

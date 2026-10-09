@@ -23,6 +23,8 @@ from puzzles.tasks import add_user_to_puzzle, get_service_status, post_discord_m
 from .forms import UserProfileForm, UserSignupForm, UserEditForm
 from .models import ChannelParticipation, Puzzle, Round, UserProfile, to_json_value
 
+logger = logging.getLogger(__name__)
+
 @never_cache
 @login_required
 def edit_profile(request):
@@ -96,7 +98,7 @@ def get_puzzles(request):
             'service_status': get_service_status(),
         },
     }
-    logging.debug("Serializing puzzle data.")
+    logger.debug("Serializing puzzle data.")
     return JsonResponse(add_metrics(to_json_value(data)))
 
 
@@ -137,15 +139,15 @@ def discord_channel_link(request, puzzle_id, use_app):
     try:
         channel_id = add_user_to_puzzle.delay(request.user.id, puzzle.slug).get(timeout=DISCORD_JOIN_TIMEOUT_SECONDS)
     except Exception:
-        logging.error("discord_channel_link: adding %s to %s failed or timed out", request.user, puzzle.slug, exc_info=True)
+        logger.error("discord_channel_link: adding %s to %s failed or timed out", request.user, puzzle.slug, exc_info=True)
         return HttpResponse("Herring couldn't reach Discord in time. Try again in a minute, or ask an admin.",
                             status=504, content_type='text/plain')
     if channel_id is None:
-        logging.warning("discord_channel_link: couldn't add %s to %s's channel", request.user, puzzle.slug)
+        logger.warning("discord_channel_link: couldn't add %s to %s's channel", request.user, puzzle.slug)
         return HttpResponse(DISCORD_JOIN_FAILED_HTML, status=404)
     protocol = 'discord' if use_app else 'https'
     url = f'{protocol}://discordapp.com/channels/{settings.HERRING_DISCORD_GUILD_ID}/{channel_id}'
-    logging.info(f'redirecting {request.user} to {url}')
+    logger.info(f'redirecting {request.user} to {url}')
     return DiscordRedirect(url)
 
 
@@ -169,7 +171,7 @@ def update_puzzle(request, puzzle_id):
     try:
         updates = parse_puzzle_updates(request.body)
     except ValueError as e:
-        logging.warning("update_puzzle: rejected update to %s from %s: %s", puzzle.slug, request.user, e)
+        logger.warning("update_puzzle: rejected update to %s from %s: %s", puzzle.slug, request.user, e)
         return HttpResponseBadRequest(str(e))
     for key, value in updates.items():
         setattr(puzzle, key, value)
@@ -210,7 +212,7 @@ def post_discord(request):
     without that secret configured, every request is refused.
     """
     if not secret_matches('post-discord-token', request.POST.get('token')):
-        logging.warning("post_discord: refused request with missing or wrong token (from %s, forwarded for %s)",
+        logger.warning("post_discord: refused request with missing or wrong token (from %s, forwarded for %s)",
                         request.META.get('REMOTE_ADDR'), request.META.get('HTTP_X_FORWARDED_FOR'))
         return HttpResponseForbidden("missing or wrong token")
     post_discord_message.delay(request.POST.get('channel'), request.POST.get('text'))

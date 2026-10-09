@@ -3,6 +3,8 @@ import os
 
 from django.apps import AppConfig
 
+logger = logging.getLogger(__name__)
+
 
 class PuzzlesConfig(AppConfig):
     name = 'puzzles'
@@ -11,4 +13,4 @@ class PuzzlesConfig(AppConfig):
     def ready(self):
         import puzzles.signals
         from herring.version import herring_version
-        logging.info("Herring version %s starting (pid %d)", herring_version(), os.getpid())
+        logger.info("Herring version %s starting (pid %d)", herring_version(), os.getpid())

@@ -1,0 +1,18 @@
+{% extends "herring/base.html" %}
+{% load static %}
+
+{% block head_scripts %}
+<link rel="stylesheet" type="text/css" href="{% static 'dashboard/dashboard.css' %}" />
+{% endblock %}
+
+{% block page %}
+<div class="container-fluid dashboard">
+  <ul class="nav nav-pills dashboard-nav">
+    <li class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}"><a href="{% url 'dashboard:home' %}">Dashboard</a></li>
+    <li class="{% if request.resolver_match.url_name == 'logs' %}active{% endif %}"><a href="{% url 'dashboard:logs' %}">Logs</a></li>
+    <li><a href="/admin/">Django admin</a></li>
+    <li><a href="/">Back to Herring</a></li>
+  </ul>
+  {% block content %}{% endblock %}
+</div>
+{% endblock %}

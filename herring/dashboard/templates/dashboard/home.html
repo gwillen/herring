@@ -1,0 +1,17 @@
+{% extends "dashboard/base.html" %}
+
+{% block content %}
+<h2>Admin dashboard</h2>
+<table class="table table-condensed dashboard-facts">
+  <tr><th>Herring version (this web process)</th><td><code>{{ version }}</code></td></tr>
+  <tr><th>Current hunt ID</th><td>{{ hunt_id }}</td></tr>
+  <tr><th>Discord</th><td>
+    {% if not discord_active %}off{% elif discord_connected %}<span class="text-success">connected</span>
+    {% else %}<span class="text-danger">not connected</span> (no recent status from the bot processes; see the logs){% endif %}
+  </td></tr>
+  <tr><th>Google Sheets</th><td>{% if gapps_active %}on{% else %}off{% endif %}</td></tr>
+  <tr><th>Log buffer</th><td>{{ log_entries }} entries (keeps about {{ log_capacity }})</td></tr>
+  <tr><th>Log levels</th><td>{% for name, level in log_levels %}<code>{{ name|default:"(root)" }}</code>: {{ level }}{% if not forloop.last %}, {% endif %}{% endfor %}
+    &mdash; <a href="{% url 'dashboard:logs' %}#levels">change</a></td></tr>
+</table>
+{% endblock %}

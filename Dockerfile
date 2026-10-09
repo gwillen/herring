@@ -20,6 +20,9 @@ COPY pyproject.toml uv.lock .python-version ./
 
 FROM base AS dev
 
+# git lets herring/version.py report the bind-mounted checkout's `git describe`.
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+
 # A user matching the host user that docker-compose.yml runs as.
 ARG HERRING_UID=1000
 ARG HERRING_GID=1000

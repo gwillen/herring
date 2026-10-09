@@ -1,0 +1,16 @@
+.dashboard { padding-top: 12px; padding-bottom: 24px; }
+.dashboard-nav { margin-bottom: 12px; }
+.dashboard-facts th { width: 18em; }
+.log-filters label { margin-right: 12px; font-weight: normal; }
+.log-table { font-size: 12px; }
+.log-table td { vertical-align: top; }
+.log-table .nowrap { white-space: nowrap; }
+.log-message {
+  margin: 0; padding: 0; border: none; background: none; font-size: 12px;
+  white-space: pre-wrap; word-break: break-word; max-height: 4.5em; overflow: hidden; cursor: pointer;
+}
+.log-message.expanded { max-height: none; }
+.level-debug { color: #888; }
+.level-warning { background-color: #fcf8e3; }
+.level-error, .level-critical { background-color: #f2dede; }
+.levels-form table { max-width: 40em; }

@@ -1,0 +1,4 @@
+<tr class="log-entry level-{{ entry.level|lower }}" data-id="{{ entry.id }}">
+  <td class="nowrap">{{ entry.time }}</td><td>{{ entry.level }}</td><td>{{ entry.logger }}</td>
+  <td class="nowrap">{{ entry.process }}</td><td><pre class="log-message">{{ entry.message }}</pre></td>
+</tr>

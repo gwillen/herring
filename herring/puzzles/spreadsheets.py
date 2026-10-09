@@ -4,22 +4,23 @@ from django.conf import settings
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from functools import cache
-from puzzles.discordbot import log_to_discord
+
+logger = logging.getLogger(__name__)
 
 
 @cache
 def drive_service():
     if not settings.HERRING_ACTIVATE_GAPPS:
-        logging.warning("Running without GApps integration!")
+        logger.warning("Running without GApps integration!")
         return None
     try:
-        #logging.info("settings: %s", settings.HERRING_FUCK_OAUTH)
+        #logger.info("settings: %s", settings.HERRING_FUCK_OAUTH)
         credentials = Credentials.from_service_account_info(
             settings.HERRING_FUCK_OAUTH,
             scopes=['https://www.googleapis.com/auth/drive'])
         return build('drive', 'v3', credentials=credentials, cache_discovery=False)
     except ValueError as e:
-        logging.error("Couldn't get the google drive service", exc_info=True)
+        logger.error("Couldn't get the google drive service", exc_info=True)
         return None
 
 

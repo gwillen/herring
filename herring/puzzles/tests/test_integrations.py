@@ -3,10 +3,12 @@ The Discord and Google integrations can't be exercised without credentials, so t
 check that their code still loads and wires up against the installed library versions.
 """
 import asyncio
+import logging
 from unittest import mock
 
 import aiohttp
 import discord
+from discord.ext import commands
 from django.conf import settings
 from django.test import SimpleTestCase, TestCase, override_settings
 
@@ -21,7 +23,7 @@ class CeleryTests(TestCase):
                     'puzzles.tasks.create_puzzle_sheet_and_channel', 'puzzles.tasks.create_round_category',
                     'puzzles.tasks.check_connection_to_messaging', 'puzzles.tasks.process_google_sheets_changes',
                     'puzzles.tasks.add_user_to_puzzle', 'puzzles.tasks.report_discord_status',
-                    'puzzles.tasks.post_discord_message', 'puzzles.tasks.post_debug_message'}
+                    'puzzles.tasks.post_discord_message'}
         celery_app.loader.import_default_modules()
         self.assertLessEqual(expected, set(celery_app.tasks))
 
@@ -44,6 +46,12 @@ class DiscordBotTests(SimpleTestCase):
         guild = discord.Object(id=settings.HERRING_DISCORD_GUILD_ID)
         self.assertEqual(bot.tree.get_commands(guild=guild), [], "all slash commands should be global")
         self.assertLessEqual({'join', 'synctree', 'answer', 'anagram'}, {c.name for c in bot.tree.get_commands()})
+
+    def test_commands_offered_in_servers_and_bot_dms_only(self):
+        bot = asyncio.run(self.set_up_listener_bot())
+        payload = bot.tree.get_command('who').to_dict(bot.tree)
+        self.assertEqual(payload['integration_types'], [0])  # guild install only, not user install
+        self.assertEqual(sorted(payload['contexts']), [0, 1])  # servers, and DMs with the bot
 
     def test_channel_commands_are_server_only(self):
         bot = asyncio.run(self.set_up_listener_bot())
@@ -162,3 +170,34 @@ class SyncAppCommandsTests(SimpleTestCase):
         current = discordbot.app_commands_fingerprint(empty_tree())
         tree_sync, _ = self.sync(stored_fingerprint=current.encode(), force=True)
         self.assertTrue(tree_sync.called)
+
+
+class CommandErrorTests(SimpleTestCase):
+    def test_error_messages_and_log_levels(self):
+        cases = [(commands.NoPrivateMessage(), 'only works in', logging.INFO),
+                 (commands.MissingPermissions(['administrator']), "can't use", logging.WARNING),
+                 (commands.BadArgument('nope'), 'failed: nope', logging.INFO),
+                 (RuntimeError('bug'), 'problem in Herring', logging.ERROR)]
+        for error, text, level in cases:
+            with self.subTest(error=error):
+                message, logged_level = discordbot.describe_command_error('answer', error)
+                self.assertIn(text, message)
+                self.assertEqual(logged_level, level)
+
+    def reply(self, interaction):
+        user = mock.Mock(send=mock.AsyncMock())
+        asyncio.run(discordbot.reply_privately(interaction, user, 'hello'))
+        return user.send
+
+    def test_slash_commands_get_an_ephemeral_answer(self):
+        interaction = mock.Mock(**{'response.is_done.return_value': False, 'response.send_message': mock.AsyncMock()})
+        self.reply(interaction).assert_not_called()
+        interaction.response.send_message.assert_awaited_once_with('hello', ephemeral=True)
+
+    def test_already_answered_slash_commands_get_a_followup(self):
+        interaction = mock.Mock(**{'response.is_done.return_value': True, 'followup.send': mock.AsyncMock()})
+        self.reply(interaction)
+        interaction.followup.send.assert_awaited_once_with('hello', ephemeral=True)
+
+    def test_prefix_commands_get_a_dm(self):
+        self.reply(None).assert_awaited_once_with('hello')

@@ -1,0 +1,58 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+
+{% block content %}
+<h2>Logs</h2>
+<p class="text-muted">From every Herring process (web, Celery workers, Discord bot), newest first.
+  Filters are part of the URL, so reloading keeps them.</p>
+
+<form method="get" class="form-inline log-filters" id="log-filters">
+  <label>Level at least
+    <select name="level" class="form-control input-sm">
+      {% for name in level_names %}<option{% if name == filter.min_level %} selected{% endif %}>{{ name }}</option>{% endfor %}
+    </select></label>
+  <label>Logger <input name="logger" value="{{ filter.logger }}" placeholder="e.g. puzzles" class="form-control input-sm"></label>
+  <label>Process <input name="process" value="{{ filter.process }}" placeholder="e.g. worker" class="form-control input-sm"></label>
+  <label>Text <input name="text" value="{{ filter.text }}" class="form-control input-sm"></label>
+  <button type="submit" class="btn btn-default btn-sm">Filter</button>
+  <label class="live-toggle"><input type="checkbox" id="live"> Live (refresh every 3s)</label>
+</form>
+
+<div id="log-notice" class="alert alert-warning" hidden></div>
+
+<table class="table table-condensed log-table">
+  <thead><tr><th>Time (UTC)</th><th>Level</th><th>Logger</th><th>Process</th><th>Message</th></tr></thead>
+  <tbody id="log-entries">
+    {% for entry in entries %}{% include "dashboard/log_entry.html" %}{% empty %}
+    <tr class="no-entries"><td colspan="5">No matching entries.</td></tr>{% endfor %}
+  </tbody>
+</table>
+<button type="button" class="btn btn-default btn-sm" id="load-older"{% if entries|length < page_size %} hidden{% endif %}>Load older</button>
+
+<h3 id="levels">Capture levels</h3>
+<p class="text-muted">Which loggers are recorded, and from what level. Logger names are hierarchical:
+  <code>discord</code> covers <code>discord.gateway</code>. The root logger (blank name) covers everything not listed.
+  Every process applies changes within about 10 seconds. DEBUG on <code>discord</code> or <code>celery</code> is very
+  verbose, and the buffer only keeps the most recent entries.</p>
+<form method="post" action="{% url 'dashboard:save_log_levels' %}" class="levels-form">
+  {% csrf_token %}
+  <table class="table table-condensed">
+    <thead><tr><th>Logger</th><th>Level</th></tr></thead>
+    <tbody>
+      {% for name, level in levels %}
+      <tr><td><input name="logger" value="{{ name }}" class="form-control input-sm" {% if not name %}readonly placeholder="(root)"{% endif %}></td>
+        <td><select name="level" class="form-control input-sm">
+          {% if name %}<option value="">(remove)</option>{% endif %}
+          {% for option in level_names %}<option{% if option == level %} selected{% endif %}>{{ option }}</option>{% endfor %}
+        </select></td></tr>
+      {% endfor %}
+      <tr><td><input name="logger" placeholder="add a logger, e.g. puzzles.discordbot" class="form-control input-sm"></td>
+        <td><select name="level" class="form-control input-sm"><option value=""></option>
+          {% for option in level_names %}<option>{{ option }}</option>{% endfor %}</select></td></tr>
+    </tbody>
+  </table>
+  <button type="submit" class="btn btn-primary btn-sm">Save levels</button>
+</form>
+
+<script src="{% static 'dashboard/logs.js' %}"></script>
+{% endblock %}

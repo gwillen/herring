@@ -10,8 +10,6 @@ import typing
 from datetime import timezone
 from urllib.parse import urljoin
 import aiohttp
-import traceback
-import sys
 
 from typing import Optional, Any
 
@@ -28,6 +26,8 @@ from django.urls import reverse
 from django.conf import settings
 from puzzles.models import Round, Puzzle, UserProfile
 from puzzles.redis_state import DISCORD_STATUS_INTERVAL_SECONDS, redis_client, set_discord_status
+
+logger = logging.getLogger(__name__)
 
 # Discord limits a user to putting 20 emojis on a message, so if this is more than 19, the menu won't work
 # also, an embed is limited to length 2048, which isn't really very long
@@ -78,13 +78,18 @@ MAX_DISCORD_EMBED_LEN = 2048
 if settings.HERRING_DEBUG_DISCORD_VERBOSELY:
     discord.utils.setup_logging(level=logging.DEBUG)
 
+def is_guild_owner():
+    """Command check: the invoking user owns the server it was used in."""
+    return commands.check(lambda ctx: ctx.guild is not None and ctx.author.id == ctx.guild.owner_id)
+
+
 class TestView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
     @discord.ui.button(label="button")
     async def test_button(self, interaction: discord.Interaction, button):
-        logging.info("test button pressed! %s %s %s", self, interaction, button)
+        logger.info("test button pressed! %s %s %s", self, interaction, button)
         await interaction.response.send_message("test button pressed!", view=TestView(), ephemeral=True)
 
     @discord.ui.select(custom_id="select_gwillen_testing_1", placeholder="select something maybe? I'm not your mom.", options=[
@@ -92,7 +97,7 @@ class TestView(discord.ui.View):
         discord.SelectOption(label="option 2", value="opt2", description="the second option allegedly", emoji="❤️", default=False)
     ])
     async def select_menu(self, interaction: discord.Interaction, select):
-        logging.info("select interacted! %s %s %s", self, interaction, select)
+        logger.info("select interacted! %s %s %s", self, interaction, select)
         await interaction.response.defer()
 
 class PuzzleChoiceList(discord.ui.Select):
@@ -115,8 +120,8 @@ class PuzzleChoiceView(discord.ui.View):
         self.add_item(PuzzleChoiceList(herring_cog, puzzles, "PuzzleChoiceView", "Please choose a puzzle:", lambda i, s: self.item_callback(i, s)))
 
     async def item_callback(self, interaction: discord.Interaction, select):
-        logging.info("puzzle selected! %s %s %s", self, interaction, select)
-        logging.info("interaction details: %s %s %s %s %s",
+        logger.info("puzzle selected! %s %s %s", self, interaction, select)
+        logger.info("interaction details: %s %s %s %s %s",
                      interaction.extras,
                      interaction.message,
                      interaction.data,
@@ -128,7 +133,7 @@ class PuzzleChoiceView(discord.ui.View):
         (hunt_id, round_id, puzzle_slug) = m.groups()
         puzzle_chosen = await sync_to_async(lambda: Puzzle.objects.get(hunt_id=hunt_id, parent=round_id, slug=puzzle_slug))()
         member = interaction.guild.get_member(interaction.user.id)
-        logging.info(f"adding {interaction.user} to {puzzle_slug}")
+        logger.info(f"adding {interaction.user} to {puzzle_slug}")
         channel, _ = await self.herring_cog.add_user_to_puzzle(member, puzzle_slug)
         # the following appears in the channel, although we can mark it ephemeral, but we could DM it instead -- could make that optional.
         await interaction.response.send_message(f"Welcome to the puzzle `{puzzle_chosen.name}`! Click to go there: {channel.mention}! Happy solving!", ephemeral=True)
@@ -152,8 +157,8 @@ class RoundChoiceView(discord.ui.View):
         self.add_item(RoundChoiceList(rounds, "RoundChoiceView", "Please choose a round:", lambda i, s: self.item_callback(i, s)))
 
     async def item_callback(self, interaction: discord.Interaction, select):
-        logging.info("round selected! %s %s %s", self, interaction, select)
-        logging.info("interaction details: %s %s %s %s %s",
+        logger.info("round selected! %s %s %s", self, interaction, select)
+        logger.info("interaction details: %s %s %s %s %s",
                      interaction.extras,
                      interaction.message,
                      interaction.data,
@@ -179,7 +184,6 @@ class HerringCog(commands.Cog):
         self.bot = bot
         self.guild: typing.Optional[discord.Guild] = None
         self.announce_channel = None
-        self.debug_channel = None
         self.pronoun_roles = []
         self.timezone_roles = []
         bot.add_view(RoundChoiceView(self, [])) # XXX
@@ -197,7 +201,7 @@ class HerringCog(commands.Cog):
             # You know what, it's close enough.
             if "/" in role.name:
                 result.append(role)
-        logging.info(f"Auto-detected pronoun roles: {result} (found autorole marker: {found_autoroles})")
+        logger.info(f"Auto-detected pronoun roles: {result} (found autorole marker: {found_autoroles})")
         return result
 
     def get_timezone_roles(self):
@@ -211,20 +215,19 @@ class HerringCog(commands.Cog):
 
             if "UTC" in role.name:
                 result.append(role)
-        logging.info(f"Auto-detected timezone roles: {result} (found autorole marker: {found_autoroles})")
+        logger.info(f"Auto-detected timezone roles: {result} (found autorole marker: {found_autoroles})")
         return result
 
     @commands.Cog.listener()
     async def on_ready(self):
         self.guild = self.bot.get_guild(settings.HERRING_DISCORD_GUILD_ID)
         self.announce_channel = get(self.guild.text_channels, name = settings.HERRING_DISCORD_PUZZLE_ANNOUNCEMENTS)
-        self.debug_channel = get(self.guild.text_channels, name = settings.HERRING_DISCORD_DEBUG_CHANNEL)
         self.pronoun_roles = self.get_pronoun_roles()
         self.timezone_roles = self.get_timezone_roles()
         # on_ready fires again after reconnects; one heartbeat loop is enough.
         if not self.report_status.is_running():
             self.report_status.start()
-        logging.info("listener bot cog is ready")
+        logger.info("listener bot cog is ready")
 
     @discord_tasks.loop(seconds=DISCORD_STATUS_INTERVAL_SECONDS)
     async def report_status(self):
@@ -232,14 +235,14 @@ class HerringCog(commands.Cog):
         try:
             set_discord_status('listener', self.bot.is_ready())
         except Exception:
-            logging.warning("listener bot: couldn't report status to Redis", exc_info=True)
+            logger.warning("listener bot: couldn't report status to Redis", exc_info=True)
 
     async def cog_unload(self):
         self.report_status.cancel()
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
-        logging.info("on_raw_reaction_add: %s", payload)
+        logger.info("on_raw_reaction_add: %s", payload)
         # ignore myself
         if payload.user_id == self.bot.user.id:
             return
@@ -258,7 +261,7 @@ class HerringCog(commands.Cog):
                 except Puzzle.DoesNotExist:
                     return
 
-                logging.info(f"adding {payload.member.name} to {puzzle.slug}")
+                logger.info(f"adding {payload.member.name} to {puzzle.slug}")
                 _, changed = await self.add_user_to_puzzle(payload.member, target_channel.name)
                 if changed and channel.type != discord.ChannelType.private:
                     await message.remove_reaction(SIGNUP_EMOJI, payload.member)
@@ -279,7 +282,7 @@ class HerringCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        logging.info("on_message: %s", message)
+        logger.info("on_message: %s", message)
         if message.author.id == self.bot.user.id:
             return
 
@@ -289,7 +292,7 @@ class HerringCog(commands.Cog):
         context: commands.Context = await self.bot.get_context(message)
         if context.valid:
             # this is a command, not puzzle activity
-            logging.info("ignoring raw message already processed as command message")
+            logger.info("ignoring raw message already processed as command message")
             return
 
         if message.channel.type == discord.ChannelType.private:
@@ -297,7 +300,7 @@ class HerringCog(commands.Cog):
             return
 
         if not message.guild or message.guild.id != settings.HERRING_DISCORD_GUILD_ID:
-            logging.info("Wrong-guild or no-guild non-DM message, this should never happen, ignoring...")
+            logger.info("Wrong-guild or no-guild non-DM message, this should never happen, ignoring...")
             # don't care about other-guild messages
             return
 
@@ -356,7 +359,7 @@ class HerringCog(commands.Cog):
 
     @commands.hybrid_command(brief="Re-register slash commands with Discord (normally automatic at startup)")
     @commands.guild_only()
-    @commands.has_permissions(administrator=True)
+    @commands.check_any(commands.has_permissions(administrator=True), is_guild_owner())
     @app_commands.default_permissions(administrator=True)  # hides it from others' slash menus
     async def synctree(self, ctx:commands.Context):
         """ Force a slash command sync, even if the commands look unchanged. """
@@ -376,7 +379,7 @@ class HerringCog(commands.Cog):
 
     async def puzzle_autocomplete(self, interaction: discord.Interaction, current: str):
         round = None
-        logging.info("puzauto int data: %s", interaction.data)
+        logger.info("puzauto int data: %s", interaction.data)
         for arg in interaction.data['options']:
             if arg['name'] == "round":
                 round = arg['value']
@@ -406,7 +409,7 @@ class HerringCog(commands.Cog):
             if member is None:
                 await interaction.response.send_message("You need to be a member of the hunt's Discord server to join puzzles.", ephemeral=True)
                 return
-            logging.info(f"adding {interaction.user} to {puzzle_slug}")
+            logger.info(f"adding {interaction.user} to {puzzle_slug}")
             channel, _ = await self.add_user_to_puzzle(member, puzzle_slug)
             # the following appears in the channel, although we can mark it ephemeral, but we could DM it instead -- could make that optional.
             await interaction.response.send_message(f"Welcome to the puzzle `{puzzle_chosen.name}`! Click to go there: {channel.mention}! Happy solving!", ephemeral=True)
@@ -443,7 +446,7 @@ class HerringCog(commands.Cog):
             voice_status = f", {people_chatting} in voice" if people_chatting else ""
             return f"{solved}({people_watching} watchers{voice_status})"
         except Exception as e:
-            log_to_discord(f"Failed to printerize puzzle: {puzzle}", exn=e)
+            logger.error("Failed to printerize puzzle: %s", puzzle, exc_info=e)
             return f"{solved}<problem with puzzle channels, admins have been notified>"
 
     def puzzle_join_printerizer(self, puzzle):
@@ -496,7 +499,7 @@ class HerringCog(commands.Cog):
             # timed out, bail
             return
 
-        logging.info(f"adding {member} to {puzzle_chosen.slug}")
+        logger.info(f"adding {member} to {puzzle_chosen.slug}")
         channel, _ = await self.add_user_to_puzzle(member, puzzle_chosen.slug)
         await ctx.author.send(f"Welcome to the puzzle `{puzzle_chosen.name}`! Click to go there: {channel.mention}! Happy solving!")
 
@@ -648,7 +651,7 @@ class HerringCog(commands.Cog):
 
         if puzzle_name is not None:
             try:
-                puzzle = await sync_to_async(Puzzle.objects.get(slug=puzzle_name.name))
+                puzzle = await sync_to_async(Puzzle.objects.get)(slug=puzzle_name.name)
                 output = puzzle_printerizer(puzzle)
                 if interaction:
                     await interaction.response.send_message(output, ephemeral=True)
@@ -656,7 +659,9 @@ class HerringCog(commands.Cog):
                     await ctx.author.send(puzzle_printerizer(puzzle))
             except Puzzle.DoesNotExist:
                 if interaction:
-                    await interaction.response.send_message("Sorry, that puzzle doesn't exist.", ephemeral=True)
+                    await interaction.response.send_message("Sorry, that isn't a puzzle channel.", ephemeral=True)
+                else:
+                    await ctx.author.send("Sorry, that isn't a puzzle channel.")
             return
 
         if interaction:
@@ -967,7 +972,7 @@ class HerringCog(commands.Cog):
             # otherwise print the next page of the menu
             start += len(MENU_REACTIONS)
         # not sure how we would get here but print a log and bail
-        logging.error(f"Ran out of options in a menu! {[printerizer(option) for option in options]}")
+        logger.error(f"Ran out of options in a menu! {[printerizer(option) for option in options]}")
         return None
 
     @commands.command(hidden=True)
@@ -1030,59 +1035,72 @@ class SolvertoolsCog(commands.Cog):
             except aiohttp.ClientError:
                 await ctx.send("Sorry, the connection to ireproof.org doesn't seem to be working today.")
 
-# Copied from https://gist.github.com/EvieePy/7822af90858ef65012ea500bcecf1612
 class CommandErrorHandler(commands.Cog):
+    """Logs every command invocation, and answers and logs command errors."""
+
     def __init__(self, bot):
         self.bot = bot
 
     @commands.Cog.listener()
+    async def on_command(self, ctx):
+        logger.info("Command %s%s by %s in %s", ctx.command.qualified_name, " (slash)" if ctx.interaction else "",
+                    ctx.author, describe_channel(ctx.channel))
+
+    @commands.Cog.listener()
+    async def on_app_command_completion(self, interaction, command):
+        logger.info("Slash command /%s completed for %s in %s", command.qualified_name, interaction.user,
+                    describe_channel(interaction.channel))
+
+    @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
-        """The event triggered when an error is raised while invoking a command.
-        Parameters
-        ------------
-        ctx: commands.Context
-            The context used for command invocation.
-        error: commands.CommandError
-            The Exception raised.
-        """
-
-        # This prevents any commands with local handlers being handled here in on_command_error.
-        if hasattr(ctx.command, 'on_error'):
-            return
-
-        # This prevents any cogs with an overwritten cog_command_error being handled here.
-        cog = ctx.cog
-        if cog:
-            if cog._get_overridden_method(cog.cog_command_error) is not None:
-                return
-
-        ignored = (commands.CommandNotFound, )
-
-        # Allows us to check for original exceptions raised and sent to CommandInvokeError.
-        # If nothing is found. We keep the exception passed to on_command_error.
         error = getattr(error, 'original', error)
-
-        # Anything in ignored will return and prevent anything happening.
-        if isinstance(error, ignored):
+        if isinstance(error, commands.CommandNotFound):
+            logger.info("Unknown command from %s in %s: %r", ctx.author, describe_channel(ctx.channel),
+                        ctx.message.content[:100])
             return
+        message, level = describe_command_error(ctx.command, error)
+        logger.log(level, "Command %s by %s in %s failed: %s", ctx.command, ctx.author, describe_channel(ctx.channel),
+                   error, exc_info=error if level >= logging.ERROR else None)
+        await reply_privately(ctx.interaction, ctx.author, message)
 
-        if isinstance(error, commands.DisabledCommand):
-            await ctx.author.send(f'{ctx.command} has been disabled.')
-        elif isinstance(error, commands.NoPrivateMessage):
-            try:
-                await ctx.author.send(f'{ctx.command} can not be used in Private Messages.')
-            except discord.HTTPException:
-                pass
-        elif isinstance(error, commands.NotOwner):
-            await ctx.author.send(f'{ctx.command} can only be used by the bot owner.')
-        elif isinstance(error, commands.UserInputError):
-            await ctx.author.send(f'{ctx.command} failed: {error}')
+
+def describe_command_error(command, error):
+    """What to tell the user about a failed command, and how loudly to log it."""
+    if isinstance(error, commands.NoPrivateMessage):
+        return f"{command} only works in the hunt's server, not in DMs.", logging.INFO
+    if isinstance(error, (commands.CheckFailure, commands.DisabledCommand)):
+        return f"You can't use {command}: {error}", logging.WARNING
+    if isinstance(error, commands.UserInputError):
+        return f"{command} failed: {error}", logging.INFO
+    return f"{command} failed because of a problem in Herring. The error has been logged for the admins.", logging.ERROR
+
+
+async def on_app_command_error(interaction, error):
+    """CommandTree error handler, for pure slash commands (hybrid commands' errors go to on_command_error)."""
+    error = getattr(error, 'original', error)
+    command = interaction.command.qualified_name if interaction.command else '(unknown command)'
+    logger.error("Slash command /%s by %s in %s failed", command, interaction.user,
+                 describe_channel(interaction.channel), exc_info=error)
+    await reply_privately(interaction, interaction.user,
+                          f"/{command} failed because of a problem in Herring. The error has been logged for the admins.")
+
+
+async def reply_privately(interaction, user, text):
+    """Answers a slash command ephemerally (it must be answered, or Discord says it didn't respond); else DMs."""
+    try:
+        if interaction is None:
+            await user.send(text)
+        elif interaction.response.is_done():
+            await interaction.followup.send(text, ephemeral=True)
         else:
-            await ctx.author.send(f'{ctx.command} failed for some reason. The admins have been notified, probably.')
-            # All other Errors not returned come here. And we can just print the default TraceBack.
-            traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-            if settings.HERRING_ERRORS_TO_DISCORD:
-                log_to_discord("on_command_error", exn=error)
+            await interaction.response.send_message(text, ephemeral=True)
+    except discord.HTTPException:
+        logger.warning("Couldn't tell %s: %r", user, text, exc_info=True)
+
+
+def describe_channel(channel):
+    guild = getattr(channel, 'guild', None)
+    return f"#{channel.name} ({guild.name})" if guild else "a DM"
 
 
 def command_prefix(bot, message:discord.Message):
@@ -1103,7 +1121,14 @@ class HerringListenerBot(commands.Bot):
         intents = discord.Intents.default()
         intents.members = True
         intents.message_content = True
-        super().__init__(command_prefix, *args, intents=intents, **kwargs)
+        super().__init__(
+            command_prefix, *args, intents=intents,
+            # Slash commands are offered in servers the bot is in and in DMs with the bot. Not
+            # via "user install" (which Discord enables by default for new apps), where the bot
+            # couldn't see or answer anything.
+            allowed_installs=app_commands.AppInstallationType(guild=True, user=False),
+            allowed_contexts=app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=False),
+            **kwargs)
         self.client = client
 
     async def setup_hook(self) -> None:
@@ -1114,14 +1139,15 @@ class HerringListenerBot(commands.Bot):
         await self.add_cog(HerringCog(self))
         await self.add_cog(SolvertoolsCog(self, self.client))
         await self.add_cog(CommandErrorHandler(self))
+        self.tree.on_error = on_app_command_error
         try:
             await sync_app_commands(self)
         except Exception:
-            logging.error("Syncing slash commands failed; Discord keeps the previously synced ones", exc_info=True)
+            logger.error("Syncing slash commands failed; Discord keeps the previously synced ones", exc_info=True)
 
         @self.event
         async def on_error(event, *args, **kwargs):
-            logging.error(f"Error in event: {event}, with args {args} and kwargs {kwargs}.", exc_info=True)
+            logger.error(f"Error in event: {event}, with args {args} and kwargs {kwargs}.", exc_info=True)
 
 APP_COMMANDS_FINGERPRINT_KEY = 'herring:app-commands-fingerprint'
 
@@ -1144,13 +1170,13 @@ async def sync_app_commands(bot, force=False):
     key = f'{APP_COMMANDS_FINGERPRINT_KEY}:{bot.application_id}'
     fingerprint = app_commands_fingerprint(bot.tree)
     if not force and redis_client().get(key) == fingerprint.encode():
-        logging.info("Slash commands unchanged since the last sync; not syncing")
+        logger.info("Slash commands unchanged since the last sync; not syncing")
         return None
     synced = await bot.tree.sync()
     if settings.HERRING_DISCORD_GUILD_ID:
         await bot.tree.sync(guild=discord.Object(id=settings.HERRING_DISCORD_GUILD_ID))
     redis_client().set(key, fingerprint)
-    logging.info("Synced %d global slash commands: %s", len(synced), sorted(c.name for c in synced))
+    logger.info("Synced %d global slash commands: %s", len(synced), sorted(c.name for c in synced))
     return synced
 
 
@@ -1174,18 +1200,18 @@ class HerringAnnouncerBot(discord.Client):
     async def on_ready(self):
         self.guild = self.get_guild(settings.HERRING_DISCORD_GUILD_ID)
         if not self.guild:
-            logging.info("couldn't find the right guild; are you sure you have the right bot token?")
+            logger.info("couldn't find the right guild; are you sure you have the right bot token?")
 
         self.announce_channel = get(self.guild.text_channels, name = settings.HERRING_DISCORD_PUZZLE_ANNOUNCEMENTS)
         self._really_ready.set()
-        logging.info("announcer bot is really ready")
+        logger.info("announcer bot is really ready")
 
     def do_in_loop(self, coro, timeout=20):
         future = asyncio.run_coroutine_threadsafe(coro, self.loop)
         try:
             return future.result(timeout=timeout)
         except concurrent.futures.TimeoutError:
-            logging.error(f"Timed out running {coro} in bot from thread {threading.current_thread()}", exc_info=True)
+            logger.error(f"Timed out running {coro} in bot from thread {threading.current_thread()}", exc_info=True)
             raise RuntimeError("seems like the announcer bot is dead")
 
     def do_in_loop_nonblocking(self, coro):
@@ -1211,7 +1237,7 @@ class HerringAnnouncerBot(discord.Client):
 
     async def make_category(self, name):
         await self._really_ready.wait()
-        logging.info(f"making category called {name}")
+        logger.info(f"making category called {name}")
         return await _make_category_inner(self.guild, name)
 
     async def make_puzzle_channels(self, puzzle: Puzzle):
@@ -1239,7 +1265,7 @@ class HerringAnnouncerBot(discord.Client):
                 category = self.get_channel(categories[-1])
                 if category is None:
                     raise ValueError(f"category {categories[-1]} not found!")
-                logging.debug(f"found category {category.name}")
+                logger.debug(f"found category {category.name}")
             return round, category
 
         round, category = await ensure_category_ready()
@@ -1252,7 +1278,7 @@ class HerringAnnouncerBot(discord.Client):
         await self._really_ready.wait()
         channel: discord.TextChannel = get(self.guild.text_channels, name=channel_name)
         if channel is None:
-            logging.error(f"Couldn't get Discord channel {channel_name} in post_local_and_global!")
+            logger.error(f"Couldn't get Discord channel {channel_name} in post_local_and_global!")
             return
         await channel.send(message, **kwargs)
 
@@ -1260,7 +1286,7 @@ class HerringAnnouncerBot(discord.Client):
         await self._really_ready.wait()
         channel: discord.TextChannel = get(self.guild.text_channels, name=puzzle_name)
         if channel is None:
-            logging.error(f"Couldn't get Discord channel {puzzle_name} in post_local_and_global!")
+            logger.error(f"Couldn't get Discord channel {puzzle_name} in post_local_and_global!")
             return
 
         local_message = await channel.send(local_content)
@@ -1278,7 +1304,7 @@ class HerringAnnouncerBot(discord.Client):
             return
         member = self.guild.get_member_named(user_profile.discord_identifier)
         if member is None:
-            logging.warning(f"couldn't find member named {user_profile.discord_identifier}")
+            logger.warning(f"couldn't find member named {user_profile.discord_identifier}")
             return
         changed = await _add_user_to_channels(member, text_channel, voice_channel)
         membership = [member for member in text_channel.overwrites if member.id != self.guild.me.id and member.id != self.guild.default_role.id]
@@ -1294,15 +1320,13 @@ class HerringAnnouncerBot(discord.Client):
 
 def create_announcer_bot() -> Optional[HerringAnnouncerBot]:
     if not settings.HERRING_ACTIVATE_DISCORD:
-        logging.warning("Running without Discord integration!")
+        logger.warning("Running without Discord integration!")
         return None
     bot = make_announcer_bot()
     if bot:
-        # Absolutely must not use any other method to send this here, because they all directly or indirectly call DISCORD_ANNOUNCER and would explode.
-        #bot.do_in_loop(bot.post_message(settings.HERRING_DISCORD_DEBUG_CHANNEL, f"Discord announcer bot created in app: {settings.HEROKU_APP_NAME} / dyno {settings.HEROKU_DYNO_NAME}"))
         return bot
     else:
-        logging.info("Oh no, failed to create discord announcer bot :-(")
+        logger.info("Oh no, failed to create discord announcer bot :-(")
         return None  # whoever called us will fail to say things to discover forever after :-\
 
 
@@ -1329,8 +1353,7 @@ class LazyAnnouncer:
         return self._bot
 
     def _create(self):
-        # Logging during creation can reach ChatLogHandler, which uses the
-        # announcer; fail that inner use instead of recursing.
+        # Fail a re-entrant use during creation instead of recursing.
         if self._creating:
             raise RuntimeError("announcer bot used while it was being created")
         self._creating = True
@@ -1363,28 +1386,13 @@ def do_in_discord(coro):
         return DISCORD_ANNOUNCER.do_in_loop(coro)
     except RuntimeError:
         # probably the discord bot is busted, try to make it rebuild
-        logging.error("Invalidating discord announcer bot!")
+        logger.error("Invalidating discord announcer bot!")
         DISCORD_ANNOUNCER.reset()
         raise
 
 def do_in_discord_nonblocking(coro):
     DISCORD_ANNOUNCER.do_in_loop_nonblocking(coro)
 
-
-def log_to_discord(message, exn=None, add_stacktrace=False):
-    """Queues a message (and optionally a stack trace) for the debug channel; a Celery worker posts it."""
-    from puzzles.tasks import post_debug_message  # here, because puzzles.tasks imports this module
-    try:
-        ct = threading.current_thread()
-        thread_info = [ct.name, ct.ident, ct.native_id]
-        if exn is None:
-            stack_trace = "".join(traceback.format_stack(limit=5))
-        else:
-            stack_trace = "".join(traceback.format_exception(None, exn, exn.__traceback__, limit=5))
-        post_debug_message.delay(f"`log_to_discord`: `{message}` `({thread_info})`",
-                                 stack_trace if (exn or add_stacktrace) else None)
-    except Exception as e:
-        logging.error(f"Logging to Discord failed, ignoring it! message={message} exn={exn} (failed with: {e})")
 
 # Shared utilities that both bots use
 
@@ -1458,7 +1466,7 @@ async def _add_user_to_channels(member, text_channel:discord.TextChannel, voice_
 
 def _update_channel_participation_inner(puzzle, membership):
     n = len(membership)
-    logging.info(f"updating membership for {puzzle.slug} to {membership}")
+    logger.info(f"updating membership for {puzzle.slug} to {membership}")
     puzzle.channel_count = n
     puzzle.channelparticipation_set \
         .exclude(user_id__in=[str(member.id) for member in membership]) \
@@ -1478,8 +1486,7 @@ def _update_channel_participation_inner(puzzle, membership):
 # Public factory methods
 
 async def run_listener_bot():
-    logging.info("Starting Discord listener bot")
-    log_to_discord("Starting Discord listener bot")
+    logger.info("Starting Discord listener bot")
     async with aiohttp.ClientSession() as client:
         async with HerringListenerBot(client) as bot:
             await bot.start(settings.HERRING_SECRETS['discord-bot-token'])
@@ -1493,28 +1500,28 @@ def make_announcer_bot():
     def start_bot_thread():
         nonlocal bot
         try:
-            logging.info("Trying to start announcer bot in thread...")
+            logger.info("Trying to start announcer bot in thread...")
             # Hack hack: prevent discord from emitting a warning during startup, which would wreck our day
             discord.VoiceClient.warn_nacl = False
             async def run_bot():
                 nonlocal bot
                 async with HerringAnnouncerBot() as bot:
-                    logging.info("Created announcer bot object, signalling Event.")
+                    logger.info("Created announcer bot object, signalling Event.")
                     evt.set()
                     await bot.start(settings.HERRING_SECRETS['discord-bot-token'])
 
             asyncio.run(run_bot())
         except Exception as e:
             # This is at info because I don't want to risk problems (this code can be called from logs at WARNING and higher)
-            logging.info("Oh no, announcer bot thread exception! {e}")
+            logger.info("Oh no, announcer bot thread exception! {e}")
 
     # make it a daemon thread so it doesn't keep the process alive
     bot_thread = threading.Thread(target=start_bot_thread, daemon=True)
     bot_thread.start()
     result = evt.wait(timeout=5)
     if result:
-        logging.info(f"got bot, it is a {type(bot)}")
+        logger.info(f"got bot, it is a {type(bot)}")
         return bot
     else:
-        logging.error(f"failed to create discord announcer bot (timed out trying). Is bot thread alive: {bot_thread.is_alive()}. bot_thread: {bot_thread}")
+        logger.error(f"failed to create discord announcer bot (timed out trying). Is bot thread alive: {bot_thread.is_alive()}. bot_thread: {bot_thread}")
         return None

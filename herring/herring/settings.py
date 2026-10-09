@@ -50,6 +50,7 @@ INSTALLED_APPS = (
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'puzzles',
+    'dashboard',
 )
 
 MIDDLEWARE = (
@@ -223,7 +224,6 @@ HERRING_PUZZLE_SITE_SESSION_COOKIE = env.get_value('PUZZLE_SITE_SESSION_COOKIE',
 HERRING_DISCORD_GUILD_ID = int(env.get_value('DISCORD_GUILD', default=0))
 HERRING_DISCORD_PROTECTED_CATEGORIES = set(json.loads(env.get_value('DISCORD_PROTECTED_CATEGORIES', default='[]')))
 HERRING_DISCORD_PUZZLE_ANNOUNCEMENTS = env.get_value('DISCORD_ANNOUNCEMENTS', default='puzzle-announcements')
-HERRING_DISCORD_DEBUG_CHANNEL = env.get_value('DISCORD_DEBUG_CHANNEL', default='herringbot-debug')
 HERRING_DISCORD_BITRATE = env.int('DISCORD_BITRATE', default=128000)
 
 # Previously in herring/secrets.py
@@ -234,17 +234,16 @@ HERRING_FUCK_OAUTH = json.loads(env.get_value('FUCK_OAUTH', default='{}'))
 HERRING_HUNT_ID = int(env.get_value('HUNT_ID', default=0))
 HERRING_TEAM_NAME = env.get_value('TEAM_NAME', default="Non-Abelian Rage Theory")
 
-HERRING_ERRORS_TO_DISCORD = env.bool('ERRORS_TO_DISCORD', default=False)
-
 HERRING_SOLVERTOOLS_URL = env.get_value('SOLVERTOOLS_URL', default="http://ireproof.org/")
 
-# https://devcenter.heroku.com/articles/dyno-metadata
-HEROKU_APP_NAME = env.get_value('HEROKU_APP_NAME', default='<unknown>')
-HEROKU_RELEASE_VERSION = env.get_value('HEROKU_RELEASE_VERSION', default='<unknown>')
-# https://devcenter.heroku.com/articles/dynos#local-environment-variables
-HEROKU_DYNO_NAME = env.get_value('DYNO', default='<unknown>')
+# Log capture for the admin dashboard's log viewer (see herring/log_buffer.py):
+# every process writes its records to a capped Redis stream. Which loggers are
+# captured at what level is set at runtime from the dashboard.
+HERRING_LOG_STREAM_KEY = 'herring:logs'
+HERRING_LOG_LEVELS_KEY = 'herring:log-levels'
+HERRING_LOG_BUFFER_ENTRIES = env.int('LOG_BUFFER_ENTRIES', default=20000)
 
-# https://docs.djangoproject.com/en/4.2/topics/logging/
+# https://docs.djangoproject.com/en/5.2/topics/logging/
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -252,20 +251,25 @@ LOGGING = {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'default',
+            # The console stays at LOG_LEVEL even when the dashboard turns on DEBUG capture.
+            'level': env.get_value('LOG_LEVEL', default='INFO'),
         },
-        'chat': {
-            'class': 'herring.log_custom.ChatLogHandler',
-            'level': 'WARNING',
-            #'formatter': 'default',
+        'buffer': {
+            'class': 'herring.log_buffer.RedisLogHandler',
+            'redis_url': REDIS_URL,
+            'stream_key': HERRING_LOG_STREAM_KEY,
+            'levels_key': HERRING_LOG_LEVELS_KEY,
+            'max_entries': HERRING_LOG_BUFFER_ENTRIES,
         },
     },
     'root': {
-        'handlers': ['console'],
-        'level': env.get_value('LOG_LEVEL', default='INFO'),
+        'handlers': ['console', 'buffer'],
+        # Until a process reads the dashboard's level settings (at its first log record).
+        'level': 'INFO',
     },
     'loggers': {
         'django.db.backends': {
-            'handlers': ['console'],
+            'handlers': ['console', 'buffer'],
             'level': env.get_value(
                 'DJANGO_DB_LOG_LEVEL',
                 default='DEBUG' if DEBUG else 'INFO'),
@@ -280,8 +284,3 @@ LOGGING = {
         },
     },
 }
-
-# Only turn this on if explicitly enabled, since it's kind of hazardous.
-if HERRING_ACTIVATE_DISCORD and HERRING_ERRORS_TO_DISCORD:
-    LOGGING['root']['handlers'].append('chat')
-    LOGGING['loggers']['django.db.backends']['handlers'].append('chat')

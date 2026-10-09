@@ -58,6 +58,11 @@ Status (2026-10-06): user asked to hold off on design/implementation while they 
 - **Done (2026-10-08):** all slash commands global (`GUILD_COMMANDS_FOR_TESTING` removed); `/join` looks the member up in the hunt's server, so it works from DMs; channel-specific commands (answer, tag, untag, note, leave, part) marked `commands.guild_only()` so they don't appear in DMs; `sync_app_commands` runs from the listener's `setup_hook`, syncing only when the fingerprint (sha256 of the tree's `to_dict` payloads) differs from the one in Redis (`herring:app-commands-fingerprint:<application id>`), and also clears `DISCORD_GUILD`'s per-server commands (the old per-server `/join`); `/synctree` forces it, administrators only, server-only. Verified live: first start synced 12 global commands and left none per-server; later restarts logged "unchanged; not syncing".
 - Still to do with the multi-server redesign: clearing leftover per-server commands only covers `DISCORD_GUILD`.
 
+## Bot interface (user, 2026-10-09)
+
+- Menus are still emoji-reaction menus in DMs (`do_menu`, e.g. `hb!join`, `hb!who`, `cleanup_channels`); `/join` uses Discord's native autocomplete. User would like everything moved to native interactions (slash commands with autocomplete, select menus, buttons). discord.py `ui.View` / `ui.Select` are already used for `/join`'s round and puzzle choice.
+- Pending user retest (after reloading Discord): `/join` missing from the DM command list (probably client caching of a newly created global command); red "missing permissions" text for some slash commands in DMs. Commands are now registered with `integration_types [0]` (guild install only) and `contexts [0, 1]`, which may explain the latter. Errors are now answered in place and logged with details, so the log viewer should show what happens.
+
 ## Review of `cleanup_channels` (discordbot.py, 2026-10-07)
 
 How it works: owner-only `hb!cleanup_channels`; DM menu of modes (Full Rebuild / Create and Fix Only / Fix Only / Dry Run). Snapshots the current hunt's rounds and puzzles once, then:

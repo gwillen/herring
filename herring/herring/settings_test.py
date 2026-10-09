@@ -20,3 +20,10 @@ SECURE_HSTS_SECONDS = 0
 
 # Hashing passwords slowly is pointless in tests.
 PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']
+
+# Captured logs and log level settings go to separate Redis keys in tests.
+import copy  # noqa: E402
+HERRING_LOG_STREAM_KEY = 'herring-test:logs'
+HERRING_LOG_LEVELS_KEY = 'herring-test:log-levels'
+LOGGING = copy.deepcopy(LOGGING)  # noqa: F405
+LOGGING['handlers']['buffer'].update(stream_key=HERRING_LOG_STREAM_KEY, levels_key=HERRING_LOG_LEVELS_KEY)

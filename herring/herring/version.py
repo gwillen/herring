@@ -7,6 +7,8 @@ import os
 import subprocess
 from functools import cache
 
+logger = logging.getLogger(__name__)
+
 REPO_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
@@ -15,7 +17,7 @@ def _from_git():
         result = subprocess.run(['git', 'describe', '--always', '--dirty', '--tags'], cwd=REPO_DIR,
                                 capture_output=True, text=True, timeout=5)
     except (OSError, subprocess.SubprocessError) as e:
-        logging.debug("version: git describe unavailable: %s", e)
+        logger.debug("version: git describe unavailable: %s", e)
         return None
     return result.stdout.strip() if result.returncode == 0 else None
 

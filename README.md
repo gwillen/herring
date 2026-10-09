@@ -34,12 +34,11 @@ To run the Discord integration locally, use a **separate bot application** (not 
 
 1. In the [Discord Developer Portal](https://discord.com/developers/applications), create an application, and under **Bot** enable the **Server Members** and **Message Content** privileged intents.
 2. Invite it to your test server with `https://discord.com/oauth2/authorize?client_id=APPLICATION_ID&scope=bot+applications.commands&permissions=8` (8 = Administrator, as in production).
-3. In the test server, create text channels named `puzzle-announcements` and `herringbot-debug` (or set `DISCORD_ANNOUNCEMENTS` / `DISCORD_DEBUG_CHANNEL`).
+3. In the test server, create a text channel named `puzzle-announcements` (or set `DISCORD_ANNOUNCEMENTS`).
 4. Add to `.env`:
    ```
    ACTIVATE_DISCORD=1
    DISCORD_GUILD=<the test server's ID>
-   ERRORS_TO_DISCORD=1
    SECRETS={"discord-bot-token":"<the test bot's token>","magic-secret":"<anything>"}
    HOST=http://<the address you browse the dev site at, e.g. 192.168.1.5:8000>/
    ```
@@ -48,6 +47,12 @@ To run the Discord integration locally, use a **separate bot application** (not 
 Slash commands are registered with Discord automatically when the listener bot starts, if they changed since the last time (a fingerprint is kept in Redis); an administrator can force it with `/synctree`. `python herring/manage.py discord_inspect` shows the server's channels and the slash commands Discord currently has registered.
 
 `docker compose up` then runs the listener bot inside a Celery worker (or as the separate `discordbot` process, with `ENABLE_STANDALONE_DISCORD=1`). The test scripts keep Discord off regardless of `.env`.
+
+### Admin dashboard and logs
+
+Staff users (e.g. the `admin` superuser) get an "Admin dashboard" link in the menu, at `/dashboard/`. It shows the running version and integration status, and a log viewer: every process (web, Celery workers, Discord bot) writes its log records into a capped Redis stream (`LOG_BUFFER_ENTRIES`, default 20000 entries), which the viewer filters by level, logger, process and text, with a live tail. The capture levels per logger (down to DEBUG) are set on that page and take effect in every process within about 10 seconds. The console log stays at `LOG_LEVEL` (default INFO).
+
+On Heroku, the Redis plan's memory limit bounds the buffer: 20000 entries is roughly 5–10 MB, more with long tracebacks. Lower `LOG_BUFFER_ENTRIES` for a small plan.
 
 ### Running the tests
 
