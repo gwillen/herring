@@ -68,6 +68,7 @@ class SetupOperation(models.Model):
     preconditions = models.JSONField(default=list)
     depends_on = models.JSONField(default=list)  # keys of operations that must be applied first
     default_selected = models.BooleanField(default=True)
+    partial = models.BooleanField(default=False)  # see setup_plan.Operation.partial
     status = models.CharField(max_length=10, default='pending', choices=[(s, s) for s in STATUSES])
     result = models.JSONField(null=True)  # Discord's response, kept as-is
     error = models.TextField(blank=True)

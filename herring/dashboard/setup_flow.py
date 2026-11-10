@@ -35,15 +35,18 @@ def usage_warnings(usage):
     return [reason for failed, reason in checks if failed]
 
 
-def bot_role_notices(target_sections, bot_user_id):
-    """Discord only lets the bot arrange roles below its own, so its role has to be at the top first."""
+def bot_role_notices(target_sections, bot_user_id, roles_to_arrange):
+    """
+    Discord only lets the bot arrange roles below its own role's position number, and doesn't renumber
+    roles as they're created, so a person has to drag the bot's role to the top (see check_bot_role_on_top).
+    """
     roles = target_sections.get('roles', [])
-    bot_roles = [r for r in roles if (r.get('tags') or {}).get('bot_id') == bot_user_id]
-    top = max((r['position'] for r in roles), default=0)
-    if bot_roles and max(r['position'] for r in bot_roles) >= top:
+    bot_top = max((r['position'] for r in roles if (r.get('tags') or {}).get('bot_id') == bot_user_id), default=0)
+    if bot_top > roles_to_arrange and bot_top >= max((r['position'] for r in roles), default=0):
         return []
-    return ["The bot's role isn't at the top of the server's role list. In Discord: Server Settings → Roles, "
-            "drag the bot's role to the top. Until then the role steps will fail (and say so)."]
+    return ["Arranging the roles needs a hand from you: once the roles have been created (apply the plan), go to "
+            "Server Settings → Roles in Discord and drag the bot's role to the very top of the list. That renumbers "
+            "the roles so the bot may arrange them; then apply the 'Arrange the roles' step again."]
 
 
 def puzzle_category_ids():
@@ -75,7 +78,7 @@ def save_plan(source, target, setup, usage, user):
     plan = SetupPlan.objects.create(
         source=source, target=target, target_guild_id=target.guild_id, server_name=setup.server_name,
         created_by=user, usage=usage, warnings=usage_warnings(usage), notes=draft.notes, id_map=draft.id_map,
-        notices=bot_role_notices(setup.target, setup.bot_id))
+        notices=bot_role_notices(setup.target, setup.bot_id, len(setup_plan.copyable_roles(setup.source))))
     depends_on = setup_plan.dependencies(draft.operations, draft.id_map)
     SetupOperation.objects.bulk_create(operation_row(plan, seq, op, depends_on[op.key])
                                        for seq, op in enumerate(draft.operations))
@@ -85,4 +88,5 @@ def save_plan(source, target, setup, usage, user):
 def operation_row(plan, seq, op, depends_on):
     return SetupOperation(plan=plan, seq=seq, key=op.key, stage=op.stage, description=op.description,
                           method=op.method, path=op.path, body=op.body, file=op.file, creates=op.creates or '',
-                          preconditions=list(op.preconditions), depends_on=depends_on, default_selected=op.selected)
+                          preconditions=list(op.preconditions), depends_on=depends_on, default_selected=op.selected,
+                          partial=op.partial)

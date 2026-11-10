@@ -36,6 +36,10 @@ class Operation:
     after: tuple = ()  # keys of operations that must be applied first, beyond those creating its refs
     file: dict = None  # for stickers: {'url', 'content_type', 'data_b64'}, sent as multipart
     selected: bool = True  # ticked by default on the plan page
+    # An 'arrange' operation: its body is a list of {'id': ref, ...} entries, and entries whose ref doesn't
+    # exist when it's applied (not created, or not chosen) are left out. Its refs don't make it depend on
+    # the operations creating them; plan order puts it after them.
+    partial: bool = False
 
 
 @dataclass(frozen=True)
@@ -78,9 +82,14 @@ def resolve(value, id_map):
 def dependencies(operations, initial_id_map):
     """{operation key: sorted keys of the operations it depends on}."""
     creators = {op.creates: op.key for op in operations if op.creates}
-    return {op.key: sorted({creators[r] for r in refs_in([op.path, op.body]) - set(initial_id_map) if r in creators}
-                           | set(op.after))
+    hard_refs = lambda op: set() if op.partial else refs_in([op.path, op.body]) - set(initial_id_map)
+    return {op.key: sorted({creators[r] for r in hard_refs(op) if r in creators} | set(op.after))
             for op in operations}
+
+
+def resolve_partial(entries, id_map):
+    """An 'arrange' body with the entries whose ref isn't resolvable left out (see Operation.partial)."""
+    return [resolved for resolved in (resolve(entry, id_map) for entry in entries) if resolved is not None]
 
 
 # --- Reading snapshots -------------------------------------------------------
@@ -283,10 +292,10 @@ def role_copy_operations(setup, id_map, role):
 def role_order_operation(setup):
     """Put the copied roles in last year's order, just above @everyone (and below the bot's role)."""
     roles = copyable_roles(setup.source)
-    return Operation('role.order', 'Roles', f"Arrange the {len(roles)} roles in last year's order", 'PATCH',
+    return Operation('role.order', 'Roles', f"Arrange the roles in last year's order", 'PATCH',
                      guild_path(setup, '/roles'),
                      [{'id': ref('role', role['id']), 'position': i + 1} for i, role in enumerate(roles)],
-                     preconditions=({'bot_role_on_top': len(roles)},))
+                     preconditions=({'bot_role_on_top': len(roles)},), partial=True)
 
 
 def copied_role_ids(setup):
@@ -418,12 +427,11 @@ def describe_change(field_name, value):
 
 
 def position_operations(setup, id_map, earlier):
-    """Last year's order. Runs after every channel create and move, so each channel is in its final category."""
+    """Last year's order, for whichever categories and channels exist by then (it comes after the creates and moves)."""
     copied = source_categories(setup) + source_channels(setup)
-    moves = tuple(op.key for op in earlier if op.stage in ('Categories', 'Channels'))
-    return [Operation('channel.order', 'Channels', f"Arrange the {len(copied)} categories and channels in last year's order",
+    return [Operation('channel.order', 'Channels', "Arrange the categories and channels in last year's order",
                       'PATCH', guild_path(setup, '/channels'),
-                      [{'id': ref('channel', c['id']), 'position': c.get('position', 0)} for c in copied], after=moves)]
+                      [{'id': ref('channel', c['id']), 'position': c.get('position', 0)} for c in copied], partial=True)]
 
 
 def delete_operations(setup, id_map, earlier):
@@ -432,8 +440,8 @@ def delete_operations(setup, id_map, earlier):
     leftovers = [c for c in setup.target.get('channels', []) if c['id'] not in matched and c['type'] not in THREAD_TYPES
                  and not is_target_puzzle_channel(setup, c)]
     channels = [delete_channel_operation(c) for c in leftovers if c['type'] != CATEGORY]
-    moves = tuple(op.key for op in earlier + channels if op.stage in ('Categories', 'Channels', 'Cleanup'))
-    return channels + [delete_category_operation(c, moves) for c in leftovers if c['type'] == CATEGORY]
+    # Category deletes come after the channel moves and deletes in plan order, and check then that they're empty.
+    return channels + [delete_category_operation(c) for c in leftovers if c['type'] == CATEGORY]
 
 
 def is_target_puzzle_channel(setup, channel):
@@ -450,10 +458,10 @@ def delete_channel_operation(channel):
                      preconditions=({'exists': 'channels', 'id': channel['id']}, {'no_messages': channel['id']}))
 
 
-def delete_category_operation(category, after):
+def delete_category_operation(category):
     return Operation(f"category.delete.{category['id']}", 'Cleanup',
                      f"Delete {channel_label(category)} (not in last year's server; only if it's empty by then)",
-                     'DELETE', f"/channels/{category['id']}", after=after,
+                     'DELETE', f"/channels/{category['id']}",
                      preconditions=({'exists': 'channels', 'id': category['id']}, {'empty_category': category['id']}))
 
 

@@ -26,6 +26,14 @@ def apply(plan, keys, discord):
 
 
 class ApplyTests(TestCase):
+    def test_unticked_operations_stay_unapplied(self):
+        plan, discord = make_plan(), FakeDiscord()
+        discord.state['roles'][1]['position'] = 10
+        results = apply(plan, [op.key for op in plan.operations.all() if op.default_selected], discord)
+        self.assertEqual(results['category.create.30'].status, 'pending')
+        self.assertNotIn('Spare', [c['name'] for c in discord.state['channels']])
+        self.assertEqual(results['channel.order'].status, 'applied')
+
     def test_queueing_pulls_in_dependencies(self):
         plan = make_plan()
         queued = setup_apply.queue_operations(plan, ['channel.create.14'])
@@ -33,6 +41,7 @@ class ApplyTests(TestCase):
 
     def test_applies_everything_in_order_with_created_ids(self):
         plan, discord = make_plan(), FakeDiscord()
+        discord.state['roles'][1]['position'] = 10  # someone dragged the bot's role to the top
         results = apply(plan, [op.key for op in plan.operations.all()], discord)
         self.assertEqual({k for k, op in results.items() if op.status != 'applied'}, set(),
                          {k: op.error for k, op in results.items() if op.error})
@@ -57,12 +66,14 @@ class ApplyTests(TestCase):
         self.assertEqual(results['role.create.3'].error, "Not applied: there's already one named 'Solver'")
         self.assertEqual(results['channel.delete.113'].error, "Not applied: it has messages")
 
-    def test_bot_role_must_be_on_top(self):
-        plan = make_plan()
+    def test_bot_role_must_be_on_top_and_numbered_above_the_roles(self):
+        results = apply(make_plan(), ['role.order'], FakeDiscord())  # new roles all at 1, like Discord does
+        self.assertIn("drag the bot's role to the very top", results['role.order'].error)
+
+    def test_role_order_applies_once_bot_role_is_renumbered(self):
         discord = FakeDiscord()
-        discord.state['roles'].append({'id': '102', 'name': 'Owner', 'position': 5})
-        results = apply(plan, ['role.order'], discord)
-        self.assertIn("bot's role isn't at the top", results['role.order'].error)
+        discord.state['roles'][1]['position'] = 10
+        self.assertEqual(apply(make_plan(), ['role.order'], discord)['role.order'].status, 'applied')
 
     def test_applied_operations_are_not_repeated(self):
         plan, discord = make_plan(), FakeDiscord()
@@ -78,9 +89,9 @@ class SafetyTests(TestCase):
         self.assertEqual(len(warnings), 3)
 
     def test_bot_role_notice(self):
-        self.assertEqual(setup_flow.bot_role_notices(TARGET, BOT_ID), [])
-        low_bot = {**TARGET, 'roles': TARGET['roles'] + [{'id': '7', 'name': 'Mods', 'position': 4}]}
-        self.assertEqual(len(setup_flow.bot_role_notices(low_bot, BOT_ID)), 1)
+        self.assertEqual(len(setup_flow.bot_role_notices(TARGET, BOT_ID, roles_to_arrange=2)), 1)  # bot at position 1
+        renumbered = {**TARGET, 'roles': [{**r, 'position': 5} if r['id'] == '101' else r for r in TARGET['roles']]}
+        self.assertEqual(setup_flow.bot_role_notices(renumbered, BOT_ID, roles_to_arrange=2), [])
 
 
 @override_settings(HERRING_ACTIVATE_DISCORD=True)
@@ -104,3 +115,17 @@ class SetupViewTests(TestCase):
             self.client.post(f'/dashboard/discord/setup/{plan.id}/apply/', {'operation': ['server.name'], 'acknowledge': 'yes'})
             delay.assert_called_once_with(plan.id, self.user.id)
         self.assertEqual(SetupPlan.objects.get(id=plan.id).acknowledged_by, self.user)
+
+
+class DiscordSessionTests(TestCase):
+    def test_sends_a_body_only_when_given(self):
+        from dashboard.discord_api import DiscordSession
+        session = DiscordSession.__new__(DiscordSession)
+        session.client = mock.Mock(**{'http.request': mock.AsyncMock(return_value=[])})
+        import asyncio
+        session.loop = asyncio.new_event_loop()
+        self.addCleanup(session.loop.close)
+        session.request('GET', '/guilds/1/roles')
+        session.request('POST', '/guilds/1/roles', {'name': 'x'})
+        (_, get_kwargs), (_, post_kwargs) = [(c.args, c.kwargs) for c in session.client.http.request.call_args_list]
+        self.assertEqual((get_kwargs, post_kwargs), ({}, {'json': {'name': 'x'}}))

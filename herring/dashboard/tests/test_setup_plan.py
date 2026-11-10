@@ -65,7 +65,8 @@ class OperationTests(SimpleTestCase):
         self.assertIn({'no_messages': '113'}, voice.preconditions)
         category = operation(draft, 'category.delete.112')
         self.assertIn({'empty_category': '112'}, category.preconditions)
-        self.assertIn('channel.delete.113', category.after)
+        keys = [op.key for op in draft.operations]
+        self.assertLess(keys.index('channel.delete.113'), keys.index('category.delete.112'))
 
     def test_community_onboarding_and_welcome_screen(self):
         draft = plan()
@@ -113,3 +114,12 @@ class DependencyTests(SimpleTestCase):
             {'id': '122', 'type': 4, 'name': 'Round 2', 'position': 3, 'permission_overwrites': []}]}
         keys = {op.key for op in plan(target=target, puzzle_categories=frozenset({'122'})).operations}
         self.assertFalse({'channel.delete.121', 'category.delete.120', 'category.delete.122'} & keys)
+
+    def test_arrange_steps_pull_nothing_in(self):
+        draft = plan()
+        deps = setup_plan.dependencies(draft.operations, draft.id_map)
+        self.assertEqual((deps['channel.order'], deps['role.order']), ([], []))
+
+    def test_partial_resolve_drops_missing_entries(self):
+        entries = [{'id': ref('role', '2'), 'position': 1}, {'id': ref('role', '3'), 'position': 2}]
+        self.assertEqual(setup_plan.resolve_partial(entries, {ref('role', '3'): '503'}), [{'id': '503', 'position': 2}])

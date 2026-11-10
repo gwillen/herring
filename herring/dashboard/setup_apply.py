@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from . import discord_api
 from .models import SetupPlan
-from .setup_plan import refs_in, resolve
+from .setup_plan import refs_in, resolve, resolve_partial
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +79,8 @@ def finish(operation, status, user, result=None, error=''):
 
 
 def send(plan, operation, discord):
-    path, body = resolve(operation.path, plan.id_map), resolve(operation.body, plan.id_map)
+    path = resolve(operation.path, plan.id_map)
+    body = (resolve_partial if operation.partial else resolve)(operation.body, plan.id_map)
     if path is None or (operation.body is not None and body is None):
         missing = sorted(refs_in([operation.path, operation.body]) - set(plan.id_map))
         raise ValueError(f"no target IDs yet for {', '.join(missing)}")
@@ -135,11 +136,18 @@ def check_empty_category(plan, condition, discord):
 
 
 def check_bot_role_on_top(plan, condition, discord):
+    """
+    Discord doesn't renumber roles when they're created (new ones all get position 1), and the bot can
+    only give roles positions below its own role's position number. So arranging N roles needs the bot's
+    role above all of them *and* at a position above N; dragging it in Discord renumbers every role.
+    """
     roles = live(plan, discord, 'roles')
     bot = discord.request('GET', f"/guilds/{plan.target_guild_id}/members/{discord.bot_user_id}")
     bot_top = max((r['position'] for r in roles if r['id'] in bot['roles']), default=0)
-    return None if bot_top >= max(r['position'] for r in roles) else (
-        "the bot's role isn't at the top of the role list (in Discord: Server Settings → Roles, drag it to the top)")
+    if bot_top > condition['bot_role_on_top'] and bot_top >= max(r['position'] for r in roles):
+        return None
+    return ("Discord only lets the bot arrange roles below its own role. In Discord: Server Settings → Roles, "
+            "drag the bot's role to the very top (that renumbers all the roles), then apply this step again.")
 
 
 CHECKS = {'absent': check_absent, 'exists': check_exists, 'no_messages': check_no_messages,

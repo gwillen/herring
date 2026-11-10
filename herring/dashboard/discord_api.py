@@ -206,7 +206,10 @@ class DiscordSession:
 
     def request(self, method, path, body=None, params=None):
         """Discord's JSON response (None for an empty one)."""
-        coroutine = self.client.http.request(Route(method, path), json=body, params=params)
+        # Only pass what's given: discord.py sends json=None as a literal 'null' body, which Discord's
+        # front end rejects on GET and DELETE ("malformed or illegal request").
+        options = {k: v for k, v in (('json', body), ('params', params)) if v is not None}
+        coroutine = self.client.http.request(Route(method, path), **options)
         return self.loop.run_until_complete(asyncio.wait_for(coroutine, TIMEOUT_SECONDS))
 
     def create_sticker(self, guild_id, body, file):
