@@ -58,6 +58,12 @@ Status (2026-10-06): user asked to hold off on design/implementation while they 
 - **Done (2026-10-08):** all slash commands global (`GUILD_COMMANDS_FOR_TESTING` removed); `/join` looks the member up in the hunt's server, so it works from DMs; channel-specific commands (answer, tag, untag, note, leave, part) marked `commands.guild_only()` so they don't appear in DMs; `sync_app_commands` runs from the listener's `setup_hook`, syncing only when the fingerprint (sha256 of the tree's `to_dict` payloads) differs from the one in Redis (`herring:app-commands-fingerprint:<application id>`), and also clears `DISCORD_GUILD`'s per-server commands (the old per-server `/join`); `/synctree` forces it, administrators only, server-only. Verified live: first start synced 12 global commands and left none per-server; later restarts logged "unchanged; not syncing".
 - Still to do with the multi-server redesign: clearing leftover per-server commands only covers `DISCORD_GUILD`.
 
+## Dashboard settings (done 2026-11-11)
+
+- `puzzles.SiteSettings` (single row) + `SiteSettingChange` history; read via `puzzles.site_settings` (5 s cache; from async code via a reader thread that closes its DB connection after each read; tests use cache 0). Holds: discord_enabled, gapps_enabled (effective = env hard switch AND flag), discord_guild_id, hunt_id, protected_category_ids. Migration 0017 seeded them from DISCORD_GUILD / HUNT_ID / DISCORD_PROTECTED_CATEGORIES; those env vars are initial values only now.
+- Bots look up the current guild per use (properties), so switching servers needs no restart (verified live). Switching Discord off: commands reply "switched off", events ignored, each bot's `close_when_disabled` watcher disconnects it within ~5 s (verified: ~3 s); the listener supervisor stops and the 60 s beat restarts it when back on (verified: 64 s).
+- Not yet in the dashboard (user: change rarely): announcements channel name, debug/other env settings. Multi-server bot is the next step toward the hunt redesign; this "current server" setting then only governs DMs and website links.
+
 ## New hunt server setup (started 2026-11-09; user's current priority)
 
 Goal: user creates the new year's Discord server by hand; Herring does everything else, copying last year's server.

@@ -38,13 +38,14 @@ To run the Discord integration locally, use a **separate bot application** (not 
 4. Add to `.env`:
    ```
    ACTIVATE_DISCORD=1
-   DISCORD_GUILD=<the test server's ID>
    SECRETS={"discord-bot-token":"<the test bot's token>","magic-secret":"<anything>"}
    HOST=http://<the address you browse the dev site at, e.g. 192.168.1.5:8000>/
    ```
    `HOST` is used for links the bot writes into Discord (channel topics); it can't be detected automatically, because those are written by the Celery worker, not in response to a browser request.
 
 Slash commands are registered with Discord automatically when the listener bot starts, if they changed since the last time (a fingerprint is kept in Redis); an administrator can force it with `/synctree`. `python herring/manage.py discord_inspect` shows the server's channels and the slash commands Discord currently has registered.
+
+   Then, in the admin dashboard's **Settings** page, choose the test server as the current hunt's server.
 
 `docker compose up` then runs the listener bot inside a Celery worker (or as the separate `discordbot` process, with `ENABLE_STANDALONE_DISCORD=1`). The test scripts keep Discord off regardless of `.env`.
 
@@ -53,6 +54,16 @@ Slash commands are registered with Discord automatically when the listener bot s
 Staff users (e.g. the `admin` superuser) get an "Admin dashboard" link in the menu, at `/dashboard/`. It shows the running version and integration status, and a log viewer: every process (web, Celery workers, Discord bot) writes its log records into a capped Redis stream (`LOG_BUFFER_ENTRIES`, default 20000 entries), which the viewer filters by level, logger, process and text, with a live tail. The capture levels per logger (down to DEBUG) are set on that page and take effect in every process within about 10 seconds. The console log stays at `LOG_LEVEL` (default INFO).
 
 On Heroku, the Redis plan's memory limit bounds the buffer: 20000 entries is roughly 5–10 MB, more with long tracebacks. Lower `LOG_BUFFER_ENTRIES` for a small plan.
+
+### Settings: environment vs. dashboard
+
+Deployment settings (database and Redis URLs, secrets, `HOST`, ...) come from the environment or `.env`. The things admins change during the year are on the admin dashboard's **Settings** page instead, take effect within seconds in every process, and have a change history:
+
+* the current hunt ID, and the current hunt's Discord server (chosen from the servers the bot is in; with none set, Herring does nothing in Discord);
+* Discord and Google Sheets on/off. `ACTIVATE_DISCORD` and `ACTIVATE_GAPPS` stay as hard switches: when one is `0`, that integration is off whatever the dashboard says (and its background jobs aren't even scheduled);
+* the categories `cleanup_channels` must never touch.
+
+`DISCORD_GUILD`, `HUNT_ID` and `DISCORD_PROTECTED_CATEGORIES` in the environment are only copied in once, by the migration that created these settings; changing them later has no effect.
 
 ### Running the tests
 

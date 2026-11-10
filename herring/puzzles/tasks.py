@@ -212,7 +212,7 @@ def check_connection_to_messaging():
     # Without this check, the task would hold the mutex (and a worker process)
     # forever with nothing to do, and block warm shutdown of its worker.
     if not listener_bot_runs_in_celery():
-        logger.info("check_connection_to_messaging: Discord listener doesn't run under Celery; nothing to do")
+        logger.info("check_connection_to_messaging: nothing to do (Discord is switched off, or the listener runs standalone)")
         return
 
     mutex = redis_client().lock('puzzles.tasks.check_connection_to_messaging:mutex', timeout=10)
