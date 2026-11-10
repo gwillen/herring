@@ -429,10 +429,18 @@ def position_operations(setup, id_map, earlier):
 def delete_operations(setup, id_map, earlier):
     """Target channels and categories with no counterpart: deleted only if unused (checked again when applied)."""
     matched = set(id_map.values())
-    leftovers = [c for c in setup.target.get('channels', []) if c['id'] not in matched and c['type'] not in THREAD_TYPES]
+    leftovers = [c for c in setup.target.get('channels', []) if c['id'] not in matched and c['type'] not in THREAD_TYPES
+                 and not is_target_puzzle_channel(setup, c)]
     channels = [delete_channel_operation(c) for c in leftovers if c['type'] != CATEGORY]
     moves = tuple(op.key for op in earlier + channels if op.stage in ('Categories', 'Channels', 'Cleanup'))
     return channels + [delete_category_operation(c, moves) for c in leftovers if c['type'] == CATEGORY]
+
+
+def is_target_puzzle_channel(setup, channel):
+    """The new server's own puzzle channels and round categories (puzzles added before setup) are never deleted."""
+    if channel['type'] == CATEGORY:
+        return is_puzzle_category(setup.target, channel, setup.puzzle_category_ids)
+    return is_puzzle_channel(channel)
 
 
 def delete_channel_operation(channel):

@@ -105,3 +105,11 @@ class DependencyTests(SimpleTestCase):
         id_map = {ref('role', '2'): '502'}
         self.assertEqual(setup_plan.resolve({'ids': [ref('role', '2')]}, id_map), {'ids': ['502']})
         self.assertIsNone(setup_plan.resolve({'ids': [ref('role', '3')]}, id_map))
+
+    def test_target_puzzle_channels_are_never_deleted(self):
+        target = {**TARGET, 'channels': TARGET['channels'] + [
+            {'id': '120', 'type': 4, 'name': 'Round 1', 'position': 2, 'permission_overwrites': []},
+            {'id': '121', 'type': 0, 'name': 'r1-new-puzzle', 'position': 0, 'parent_id': '120', 'permission_overwrites': []},
+            {'id': '122', 'type': 4, 'name': 'Round 2', 'position': 3, 'permission_overwrites': []}]}
+        keys = {op.key for op in plan(target=target, puzzle_categories=frozenset({'122'})).operations}
+        self.assertFalse({'channel.delete.121', 'category.delete.120', 'category.delete.122'} & keys)
