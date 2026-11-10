@@ -8,7 +8,7 @@
 <p>Copying <a href="{% url 'dashboard:snapshot' plan.source.id %}">{{ plan.source.guild_name }}</a> into
   <b>{{ plan.target.guild_name }}</b> <code>{{ plan.target_guild_id }}</code>
   (<a href="{% url 'dashboard:snapshot' plan.target.id %}">as it was when planned</a>, {{ plan.created_at|date:"Y-m-d H:i" }} UTC).
-  {% if counts.applied or counts.failed or counts.skipped %}So far: {{ counts.applied }} applied, {{ counts.failed }} failed, {{ counts.skipped }} skipped.{% endif %}</p>
+  {% if counts.applied or counts.existing or counts.failed or counts.skipped %}So far: {{ counts.applied }} applied, {{ counts.existing }} already there, {{ counts.failed }} failed, {{ counts.skipped }} skipped.{% endif %}</p>
 
 <p>Target server: created {{ plan.usage.age_days }} days ago, {{ plan.usage.human_members }} non-bot members,
   {% if plan.usage.human_messages > 50 %}more than 50{% else %}{{ plan.usage.human_messages }}{% endif %} messages from non-bot users.</p>
@@ -29,7 +29,7 @@
     <tbody>
     {% for op in operations %}
       <tr class="status-{{ op.status }}">
-        <td>{% if op.status != 'applied' %}<input type="checkbox" name="operation" value="{{ op.key }}" data-deps="{{ op.depends_on|join:' ' }}"
+        <td>{% if op.status != 'applied' and op.status != 'existing' %}<input type="checkbox" name="operation" value="{{ op.key }}" data-deps="{{ op.depends_on|join:' ' }}"
           {% if op.default_selected and op.status == 'pending' %}checked{% endif %} {% if in_progress %}disabled{% endif %}>{% endif %}</td>
         <td>{{ op.stage }}</td>
         <td><details><summary>{{ op.description }}</summary>

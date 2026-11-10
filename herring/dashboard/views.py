@@ -154,7 +154,7 @@ def setup_plan_detail(request, plan_id):
     plan = get_object_or_404(SetupPlan.objects.select_related('source', 'target', 'acknowledged_by'), id=plan_id)
     operations = [with_display_fields(op) for op in plan.operations.all()]
     context = {'plan': plan, 'operations': operations, 'in_progress': any(op.status == 'queued' for op in operations),
-               'counts': {s: sum(1 for op in operations if op.status == s) for s in ('applied', 'failed', 'skipped')}}
+               'counts': {s: sum(1 for op in operations if op.status == s) for s in ('applied', 'existing', 'failed', 'skipped')}}
     return render(request, 'dashboard/setup_plan.html', context)
 
 

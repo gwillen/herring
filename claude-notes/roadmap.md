@@ -62,7 +62,15 @@ Status (2026-10-06): user asked to hold off on design/implementation while they 
 
 Goal: user creates the new year's Discord server by hand; Herring does everything else, copying last year's server.
 - **Step 1, done (1444b4a):** dashboard "Discord servers" page: servers the bot is in (marks DISCORD_GUILD), invite link, "Take snapshot" → `dashboard.models.DiscordServerSnapshot` (raw JSON per section from `dashboard/discord_api.py` SNAPSHOT_SECTIONS; refused sections in `errors`). REST only, no gateway. Live-tested on the test server.
-- **Step 2, next:** "copy structure" plan: diff a source snapshot (last year) against a fresh snapshot of the target server → list of operations with stored payloads, preconditions, dependencies; source→target ID mapping (roles, channels) for overwrites and onboarding; exclude last year's puzzle categories/channels.
+- **Steps 2–3, built (2026-11-10):** `dashboard/setup_plan.py` (pure planner), `setup_flow.py` (snapshot target, usage gate, save plan), `setup_apply.py` (Celery executor), plan page with dependency-aware checkboxes. Live-tested: applied last year's template (imported via its discord.new link) onto the test server; all but role ordering applied.
+- **Discord behaviors learned live (2026-11-10):**
+  - discord.py sends `json=None` as a literal `null` body; Discord's front end rejects GET/DELETE with a body ("malformed or illegal request", plus Cloudflare 502s). Only pass a body when there is one.
+  - New roles all get position 1 (no renumbering). The bot can only set positions below its own role's *number*, so arranging N roles needs a human to drag the bot's role to the top once (renumbers everything). Check and plan notice say so.
+  - Community: PATCH guild with features+COMMUNITY, rules_channel_id, public_updates_channel_id, verification_level ≥1, explicit_content_filter 2 works; Discord adds NEWS, and creates an AutoMod rule "Block Mention Spam" by itself.
+  - Onboarding PUT requires `id` on prompts (and options); any made-up snowflake works, Discord assigns its own.
+  - Creates that find the object already there are marked `existing` and adopted (their ID used by later steps).
+- Test server "Herring Test Server For Claude" now holds last year's layout (from the template) plus Community, welcome screen, onboarding, an emoji, a sticker and an AutoMod rule (snapshot 4 in the dev DB): the "rich source" for an end-to-end copy into a second test server.
+- **Step 2, original notes:** "copy structure" plan: diff a source snapshot (last year) against a fresh snapshot of the target server → list of operations with stored payloads, preconditions, dependencies; source→target ID mapping (roles, channels) for overwrites and onboarding; exclude last year's puzzle categories/channels.
 - **Step 3:** review/apply page: select operations (dependencies pulled in), apply exactly as stored in dependency order in a Celery task, re-check preconditions against live state, record per-op results (created IDs) in an audit log.
 - **Decisions (user, 2026-11-10):**
   - Copy: roles; non-puzzle categories/channels with permissions/settings; Community, rules channel, onboarding, welcome screen; **emojis, stickers, AutoMod rules** (probably few or none of the latter). Not copied: icon (a designer makes one later), members, messages, invites, webhooks.

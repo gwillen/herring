@@ -12,7 +12,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from . import discord_api
-from .models import SetupPlan
+from .models import SetupOperation, SetupPlan
 from .setup_plan import refs_in, resolve, resolve_partial
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ def queue_operations(plan, keys):
     """Queues the chosen operations plus any unapplied ones they depend on; returns the queued keys."""
     operations = {op.key: op for op in plan.operations.all()}
     wanted = dependency_closure(keys, operations)
-    to_queue = sorted(k for k in wanted if operations[k].status != 'applied')
+    to_queue = sorted(k for k in wanted if operations[k].status not in SetupOperation.DONE)
     plan.operations.filter(key__in=to_queue).update(status='queued', error='')
     return to_queue
 
@@ -53,6 +53,9 @@ def apply_operation(plan, operation, discord, user):
     if waiting:
         return finish(operation, 'skipped', user, error=f"Not applied, because these weren't: {', '.join(waiting)}")
     try:
+        existing = already_exists(plan, operation, discord)
+        if existing:
+            return adopt(plan, operation, existing, user)
         problem = failed_precondition(plan, operation, discord)
         if problem:
             return finish(operation, 'failed', user, error=f"Not applied: {problem}")
@@ -65,7 +68,7 @@ def apply_operation(plan, operation, discord, user):
 
 
 def unapplied_dependencies(plan, operation):
-    return sorted(plan.operations.filter(key__in=operation.depends_on).exclude(status='applied')
+    return sorted(plan.operations.filter(key__in=operation.depends_on).exclude(status__in=SetupOperation.DONE)
                   .values_list('key', flat=True))
 
 
@@ -73,7 +76,7 @@ def finish(operation, status, user, result=None, error=''):
     operation.status, operation.result, operation.error = status, result, error
     operation.applied_at, operation.applied_by = timezone.now(), user
     operation.save(update_fields=['status', 'result', 'error', 'applied_at', 'applied_by'])
-    log = logger.info if status == 'applied' else logger.warning
+    log = logger.info if status in SetupOperation.DONE else logger.warning
     log("Setup plan %s: %s %s (%s)%s", operation.plan_id, operation.key, status, operation.description,
         f": {error}" if error else "")
 
@@ -87,6 +90,22 @@ def send(plan, operation, discord):
     if operation.file:
         return discord.create_sticker(plan.target_guild_id, body, operation.file)
     return discord.request(operation.method, path, body)
+
+
+def already_exists(plan, operation, discord):
+    """For a create: the live object it would duplicate (same name, and type for channels), if any."""
+    condition = next((c for c in operation.preconditions if 'absent' in c), None)
+    if condition is None:
+        return None
+    return next((o for o in live(plan, discord, condition['absent'])
+                 if o['name'] == condition['name'] and condition.get('type', o.get('type')) == o.get('type')), None)
+
+
+def adopt(plan, operation, existing, user):
+    """Nothing to create: later steps use the existing object instead (e.g. AutoMod rules Community adds itself)."""
+    record_created_id(plan, operation, existing)
+    finish(operation, 'existing', user, result=existing,
+           error="Already there, so not created" + ("; later steps use the existing one" if operation.creates else ""))
 
 
 def record_created_id(plan, operation, result):
@@ -112,12 +131,6 @@ def failed_precondition(plan, operation, discord):
 
 def live(plan, discord, collection):
     return discord.request('GET', f"/guilds/{plan.target_guild_id}{COLLECTION_PATHS[collection]}")
-
-
-def check_absent(plan, condition, discord):
-    clash = [o for o in live(plan, discord, condition['absent'])
-             if o['name'] == condition['name'] and condition.get('type', o.get('type')) == o.get('type')]
-    return f"there's already one named {condition['name']!r}" if clash else None
 
 
 def check_exists(plan, condition, discord):
@@ -150,5 +163,6 @@ def check_bot_role_on_top(plan, condition, discord):
             "drag the bot's role to the very top (that renumbers all the roles), then apply this step again.")
 
 
-CHECKS = {'absent': check_absent, 'exists': check_exists, 'no_messages': check_no_messages,
+# ('absent' conditions are handled by already_exists/adopt, before these.)
+CHECKS = {'absent': lambda plan, condition, discord: None, 'exists': check_exists, 'no_messages': check_no_messages,
           'empty_category': check_empty_category, 'bot_role_on_top': check_bot_role_on_top}

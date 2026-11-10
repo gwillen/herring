@@ -53,7 +53,9 @@ class SetupPlan(models.Model):
 
 class SetupOperation(models.Model):
     """One Discord API request in a SetupPlan, stored exactly as it will be sent (refs aside)."""
-    STATUSES = ['pending', 'queued', 'applied', 'failed', 'skipped']
+    # 'existing': a create found the object already there and used it as is.
+    STATUSES = ['pending', 'queued', 'applied', 'existing', 'failed', 'skipped']
+    DONE = ('applied', 'existing')
 
     plan = models.ForeignKey(SetupPlan, on_delete=models.CASCADE, related_name='operations')
     seq = models.IntegerField()

@@ -63,8 +63,18 @@ class ApplyTests(TestCase):
         discord = FakeDiscord(messages={'113': [{'id': '1'}]})
         discord.state['roles'].append({'id': '555', 'name': 'Solver', 'position': 1})
         results = apply(plan, ['role.create.3', 'channel.delete.113'], discord)
-        self.assertEqual(results['role.create.3'].error, "Not applied: there's already one named 'Solver'")
         self.assertEqual(results['channel.delete.113'].error, "Not applied: it has messages")
+        self.assertEqual(results['role.create.3'].status, 'existing')
+
+    def test_existing_object_is_adopted_instead_of_duplicated(self):
+        plan, discord = make_plan(), FakeDiscord()
+        discord.state['roles'].append({'id': '555', 'name': 'Admin', 'position': 1})
+        results = apply(plan, ['channel.create.14'], discord)
+        self.assertEqual(results['role.create.2'].status, 'existing')
+        self.assertIn('later steps use the existing one', results['role.create.2'].error)
+        announcements = next(c for c in discord.state['channels'] if c['name'] == 'announcements')
+        self.assertEqual(announcements['permission_overwrites'][0]['id'], '555')
+        self.assertEqual(sum(1 for r in discord.state['roles'] if r['name'] == 'Admin'), 1)
 
     def test_bot_role_must_be_on_top_and_numbered_above_the_roles(self):
         results = apply(make_plan(), ['role.order'], FakeDiscord())  # new roles all at 1, like Discord does

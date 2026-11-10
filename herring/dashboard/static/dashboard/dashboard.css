@@ -23,7 +23,7 @@
 .plan-table { font-size: 13px; }
 .plan-table summary { cursor: pointer; }
 .op-request { font-size: 11px; max-height: 30em; overflow: auto; margin: 4px 0 0; }
-.status-applied { color: #3c763d; }
+.status-applied, .status-existing { color: #3c763d; }
 .status-failed .op-error { color: #a94442; }
 .status-skipped { color: #8a6d3b; }
 .acknowledge { font-weight: normal; margin: 8px 0; }
