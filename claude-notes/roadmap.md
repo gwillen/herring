@@ -58,6 +58,15 @@ Status (2026-10-06): user asked to hold off on design/implementation while they 
 - **Done (2026-10-08):** all slash commands global (`GUILD_COMMANDS_FOR_TESTING` removed); `/join` looks the member up in the hunt's server, so it works from DMs; channel-specific commands (answer, tag, untag, note, leave, part) marked `commands.guild_only()` so they don't appear in DMs; `sync_app_commands` runs from the listener's `setup_hook`, syncing only when the fingerprint (sha256 of the tree's `to_dict` payloads) differs from the one in Redis (`herring:app-commands-fingerprint:<application id>`), and also clears `DISCORD_GUILD`'s per-server commands (the old per-server `/join`); `/synctree` forces it, administrators only, server-only. Verified live: first start synced 12 global commands and left none per-server; later restarts logged "unchanged; not syncing".
 - Still to do with the multi-server redesign: clearing leftover per-server commands only covers `DISCORD_GUILD`.
 
+## New hunt server setup (started 2026-11-09; user's current priority)
+
+Goal: user creates the new year's Discord server by hand; Herring does everything else, copying last year's server.
+- **Step 1, done (1444b4a):** dashboard "Discord servers" page: servers the bot is in (marks DISCORD_GUILD), invite link, "Take snapshot" → `dashboard.models.DiscordServerSnapshot` (raw JSON per section from `dashboard/discord_api.py` SNAPSHOT_SECTIONS; refused sections in `errors`). REST only, no gateway. Live-tested on the test server.
+- **Step 2, next:** "copy structure" plan: diff a source snapshot (last year) against a fresh snapshot of the target server → list of operations with stored payloads, preconditions, dependencies; source→target ID mapping (roles, channels) for overwrites and onboarding; exclude last year's puzzle categories/channels.
+- **Step 3:** review/apply page: select operations (dependencies pulled in), apply exactly as stored in dependency order in a Celery task, re-check preconditions against live state, record per-op results (created IDs) in an audit log.
+- Blocker for the real run: this branch isn't deployed to production; the production bot (in last year's server) must run the tool. Deploy checklist in modernization.md.
+- Discord API facts: bots can't create servers (Create Guild no longer documented); Community requires rules + public updates channels; onboarding needs ≥7 default channels (≥5 writable by @everyone) when enabled.
+
 ## Bot interface (user, 2026-10-09)
 
 - Menus are still emoji-reaction menus in DMs (`do_menu`, e.g. `hb!join`, `hb!who`, `cleanup_channels`); `/join` uses Discord's native autocomplete. User would like everything moved to native interactions (slash commands with autocomplete, select menus, buttons). discord.py `ui.View` / `ui.Select` are already used for `/join`'s round and puzzle choice.
