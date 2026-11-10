@@ -45,7 +45,7 @@ class DiscordBotTests(SimpleTestCase):
         self.assertLessEqual({'join', 'leave', 'answer', 'anagram'}, {c.name for c in bot.commands})
         guild = discord.Object(id=settings.HERRING_DISCORD_GUILD_ID)
         self.assertEqual(bot.tree.get_commands(guild=guild), [], "all slash commands should be global")
-        self.assertLessEqual({'join', 'synctree', 'answer', 'anagram'}, {c.name for c in bot.tree.get_commands()})
+        self.assertLessEqual({'join', 'synctree', 'answer', 'anagram', 'about'}, {c.name for c in bot.tree.get_commands()})
 
     def test_commands_offered_in_servers_and_bot_dms_only(self):
         bot = asyncio.run(self.set_up_listener_bot())
@@ -170,6 +170,18 @@ class SyncAppCommandsTests(SimpleTestCase):
         current = discordbot.app_commands_fingerprint(empty_tree())
         tree_sync, _ = self.sync(stored_fingerprint=current.encode(), force=True)
         self.assertTrue(tree_sync.called)
+
+
+class AboutTests(SimpleTestCase):
+    @override_settings(HERRING_HOST='http://192.0.2.1:18000', HERRING_HUNT_ID=2027, HERRING_DISCORD_GUILD_ID=555)
+    def test_about_text(self):
+        from datetime import datetime, timezone
+        bot = mock.Mock(started_at=datetime(2026, 11, 10, 12, 0, tzinfo=timezone.utc))
+        bot.get_guild.return_value.name = 'Hunt 2027'
+        text = discordbot.about_text(bot)
+        for expected in ['Herring version:', 'http://192.0.2.1:18000', 'running since 2026-11-10 12:00 UTC',
+                         'Hunt ID 2027', 'Hunt 2027', '555']:
+            self.assertIn(expected, text)
 
 
 class CommandErrorTests(SimpleTestCase):

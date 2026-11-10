@@ -7,7 +7,7 @@ import logging
 import re
 import threading
 import typing
-from datetime import timezone
+from datetime import datetime, timezone
 from urllib.parse import urljoin
 import aiohttp
 
@@ -25,6 +25,8 @@ from django.urls import reverse
 
 from django.conf import settings
 from puzzles.models import Round, Puzzle, UserProfile
+from herring.log_buffer import process_label
+from herring.version import herring_version
 from puzzles.redis_state import DISCORD_STATUS_INTERVAL_SECONDS, redis_client, set_discord_status
 
 logger = logging.getLogger(__name__)
@@ -356,6 +358,11 @@ class HerringCog(commands.Cog):
     #    print("test", file=sys.stderr)
     #    await interaction.response.send_message("hello!", ephemeral=True)
     #    await interaction.followup.send("please consider:", view=TestView(), ephemeral=True)
+
+    @commands.hybrid_command(brief="Which Herring this is: version, web address, host")
+    async def about(self, ctx: commands.Context):
+        """ Shows the bot's version, the web address it uses, and where it's running. """
+        await reply_privately(ctx.interaction, ctx.author, about_text(self.bot))
 
     @commands.hybrid_command(brief="Re-register slash commands with Discord (normally automatic at startup)")
     @commands.guild_only()
@@ -1064,6 +1071,18 @@ class CommandErrorHandler(commands.Cog):
         await reply_privately(ctx.interaction, ctx.author, message)
 
 
+def about_text(bot):
+    """For /about. The version was read once, when this process started (herring_version is cached)."""
+    guild = bot.get_guild(settings.HERRING_DISCORD_GUILD_ID)
+    return "\n".join([
+        f"Herring version: `{herring_version()}`",
+        f"Web: {settings.HERRING_HOST}",
+        f"Bot process: `{process_label()}`, running since {bot.started_at:%Y-%m-%d %H:%M} UTC",
+        f"Hunt ID {settings.HERRING_HUNT_ID}; server: {guild.name if guild else '(not found)'} "
+        f"(`{settings.HERRING_DISCORD_GUILD_ID}`)",
+    ])
+
+
 def describe_command_error(command, error):
     """What to tell the user about a failed command, and how loudly to log it."""
     if isinstance(error, commands.NoPrivateMessage):
@@ -1130,6 +1149,7 @@ class HerringListenerBot(commands.Bot):
             allowed_contexts=app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=False),
             **kwargs)
         self.client = client
+        self.started_at = datetime.now(timezone.utc)
 
     async def setup_hook(self) -> None:
         # All slash commands are global (they work in every server the bot is in,
