@@ -24,6 +24,7 @@ from django.db.models import Q
 from django.urls import reverse
 
 from django.conf import settings
+from puzzles import site_settings
 from puzzles.models import Round, Puzzle, UserProfile
 from herring.log_buffer import process_label
 from herring.version import herring_version
@@ -184,8 +185,6 @@ class RoundChoiceView(discord.ui.View):
 class HerringCog(commands.Cog):
     def __init__(self, bot:commands.Bot):
         self.bot = bot
-        self.guild: typing.Optional[discord.Guild] = None
-        self.announce_channel = None
         self.pronoun_roles = []
         self.timezone_roles = []
         bot.add_view(RoundChoiceView(self, [])) # XXX
@@ -220,12 +219,20 @@ class HerringCog(commands.Cog):
         logger.info(f"Auto-detected timezone roles: {result} (found autorole marker: {found_autoroles})")
         return result
 
+    @property
+    def guild(self) -> Optional[discord.Guild]:
+        return current_guild(self.bot)
+
+    @property
+    def announce_channel(self):
+        return announcements_channel(self.guild)
+
     @commands.Cog.listener()
     async def on_ready(self):
-        self.guild = self.bot.get_guild(settings.HERRING_DISCORD_GUILD_ID)
-        self.announce_channel = get(self.guild.text_channels, name = settings.HERRING_DISCORD_PUZZLE_ANNOUNCEMENTS)
-        self.pronoun_roles = self.get_pronoun_roles()
-        self.timezone_roles = self.get_timezone_roles()
+        if self.guild is None:
+            logger.warning("listener bot: no current hunt server is set (or the bot isn't in it); see the dashboard's settings")
+        self.pronoun_roles = self.get_pronoun_roles() if self.guild else []
+        self.timezone_roles = self.get_timezone_roles() if self.guild else []
         # on_ready fires again after reconnects; one heartbeat loop is enough.
         if not self.report_status.is_running():
             self.report_status.start()
@@ -245,6 +252,8 @@ class HerringCog(commands.Cog):
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
         logger.info("on_raw_reaction_add: %s", payload)
+        if not site_settings.discord_on():
+            return
         # ignore myself
         if payload.user_id == self.bot.user.id:
             return
@@ -285,6 +294,8 @@ class HerringCog(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         logger.info("on_message: %s", message)
+        if not site_settings.discord_on():
+            return
         if message.author.id == self.bot.user.id:
             return
 
@@ -301,7 +312,7 @@ class HerringCog(commands.Cog):
             await message.channel.send("Sorry, I didn't understand that.")
             return
 
-        if not message.guild or message.guild.id != settings.HERRING_DISCORD_GUILD_ID:
+        if not message.guild or message.guild.id != site_settings.guild_id():
             logger.info("Wrong-guild or no-guild non-DM message, this should never happen, ignoring...")
             # don't care about other-guild messages
             return
@@ -378,7 +389,7 @@ class HerringCog(commands.Cog):
             await ctx.author.send(message)
 
     async def round_autocomplete(self, interation: discord.Interaction, current: str):
-        rounds: list[Round] = await sync_to_async(list)(Round.objects.filter(hunt_id = settings.HERRING_HUNT_ID))
+        rounds: list[Round] = await sync_to_async(list)(Round.objects.filter(hunt_id = site_settings.hunt_id()))
         return [
             app_commands.Choice(name=f"{round.number} - {round.name}", value=f"huntround_{round.hunt_id}_{round.id}")
             for round in rounds if current.lower() in round.name.lower()
@@ -397,7 +408,7 @@ class HerringCog(commands.Cog):
         if round is not None:
             puzzles: list[Puzzle] = await sync_to_async(list)(Puzzle.objects.filter(hunt_id = int(hunt_id), parent_id = int(round_id)))
         else:
-            puzzles: list[Puzzle] = await sync_to_async(list)(Puzzle.objects.filter(hunt_id = settings.HERRING_HUNT_ID))
+            puzzles: list[Puzzle] = await sync_to_async(list)(Puzzle.objects.filter(hunt_id = site_settings.hunt_id()))
 
         return [
             app_commands.Choice(name=puzzle.name, value=f"huntpuzzle_{puzzle.hunt_id}_{puzzle.parent_id}_{puzzle.slug}")
@@ -407,6 +418,9 @@ class HerringCog(commands.Cog):
     @app_commands.command(name="join", description="Join a puzzle channel")
     @app_commands.autocomplete(round=round_autocomplete, puzzle=puzzle_autocomplete)
     async def slash_join(self, interaction: discord.Interaction, round: str = None, puzzle: str = None) -> None:
+        if not site_settings.discord_on():
+            await interaction.response.send_message("Herring's Discord integration is switched off right now.", ephemeral=True)
+            return
         if puzzle is not None:
             m = re.match("huntpuzzle_(.*)_(.*)_(.*)", puzzle)
             (hunt_id, round_id, puzzle_slug) = m.groups()
@@ -435,7 +449,7 @@ class HerringCog(commands.Cog):
             await interaction.response.send_message(f'Please choose a puzzle in {round_chosen.name} to join:', view=new_view, ephemeral=True)
             return
 
-        rounds = await sync_to_async(list)(Round.objects.filter(hunt_id = settings.HERRING_HUNT_ID))
+        rounds = await sync_to_async(list)(Round.objects.filter(hunt_id = site_settings.hunt_id()))
         if len(rounds) == 0:
             await interaction.response.send_message("Sorry, there are no rounds available!", ephemeral=True)
             return
@@ -475,7 +489,7 @@ class HerringCog(commands.Cog):
             await self.add_user_to_puzzle(member, channel.name)
             return
 
-        rounds = await sync_to_async(list)(Round.objects.filter(hunt_id = settings.HERRING_HUNT_ID))
+        rounds = await sync_to_async(list)(Round.objects.filter(hunt_id = site_settings.hunt_id()))
         if len(rounds) == 0:
             await ctx.author.send("Sorry, there are no rounds available!")
             return
@@ -675,7 +689,7 @@ class HerringCog(commands.Cog):
             await interaction.response.send_message("Sorry, this functionality doesn't work with slash commands at this time.", ephemeral=True)
             return
 
-        rounds = await sync_to_async(list)(Round.objects.filter(hunt_id = settings.HERRING_HUNT_ID))
+        rounds = await sync_to_async(list)(Round.objects.filter(hunt_id = site_settings.hunt_id()))
         if len(rounds) == 0:
             await ctx.author.send("Sorry, there are no rounds available!")
             return
@@ -791,8 +805,8 @@ class HerringCog(commands.Cog):
 
         @sync_to_async
         def get_rounds_and_puzzles():
-            rounds = list(Round.objects.filter(hunt_id=settings.HERRING_HUNT_ID))
-            puzzles = list(Puzzle.objects.filter(hunt_id=settings.HERRING_HUNT_ID))
+            rounds = list(Round.objects.filter(hunt_id=site_settings.hunt_id()))
+            puzzles = list(Puzzle.objects.filter(hunt_id=site_settings.hunt_id()))
             return rounds, puzzles
 
         rounds, puzzles = await get_rounds_and_puzzles()
@@ -814,7 +828,7 @@ class HerringCog(commands.Cog):
 
         # first delete anything that doesn't seem to be attached to an actual puzzle
         for category in self.guild.categories:
-            if category.id in settings.HERRING_DISCORD_PROTECTED_CATEGORIES:
+            if str(category.id) in site_settings.current().protected_category_ids:
                 # these aren't puzzle categories
                 continue
             for channel in category.channels:
@@ -1042,6 +1056,37 @@ class SolvertoolsCog(commands.Cog):
             except aiohttp.ClientError:
                 await ctx.send("Sorry, the connection to ireproof.org doesn't seem to be working today.")
 
+def current_guild(client):
+    """The current hunt's server (set in the dashboard), or None if none is set or the bot isn't in it."""
+    guild_id = site_settings.guild_id()
+    return client.get_guild(guild_id) if guild_id else None
+
+
+def announcements_channel(guild):
+    return get(guild.text_channels, name=settings.HERRING_DISCORD_PUZZLE_ANNOUNCEMENTS) if guild else None
+
+
+# How often each bot checks whether Discord has been switched off in the dashboard.
+DISABLE_CHECK_SECONDS = 5
+
+
+async def close_when_disabled(bot, on_close=lambda: None):
+    """Disconnects `bot` once the Discord integration is switched off in the dashboard."""
+    while not bot.is_closed():
+        await asyncio.sleep(DISABLE_CHECK_SECONDS)
+        if not site_settings.discord_on():
+            logger.info("Discord integration switched off in the dashboard; disconnecting the %s", type(bot).__name__)
+            on_close()
+            await bot.close()
+
+
+def integration_is_on(ctx):
+    """Bot-wide command check: commands just say so while the integration is switched off."""
+    if not site_settings.discord_on():
+        raise commands.CheckFailure("Herring's Discord integration is switched off right now.")
+    return True
+
+
 class CommandErrorHandler(commands.Cog):
     """Logs every command invocation, and answers and logs command errors."""
 
@@ -1073,13 +1118,13 @@ class CommandErrorHandler(commands.Cog):
 
 def about_text(bot):
     """For /about. The version was read once, when this process started (herring_version is cached)."""
-    guild = bot.get_guild(settings.HERRING_DISCORD_GUILD_ID)
+    guild = current_guild(bot)
     return "\n".join([
         f"Herring version: `{herring_version()}`",
         f"Web: {settings.HERRING_HOST}",
         f"Bot process: `{process_label()}`, running since {bot.started_at:%Y-%m-%d %H:%M} UTC",
-        f"Hunt ID {settings.HERRING_HUNT_ID}; server: {guild.name if guild else '(not found)'} "
-        f"(`{settings.HERRING_DISCORD_GUILD_ID}`)",
+        f"Hunt ID {site_settings.hunt_id()}; server: {guild.name if guild else '(none set, or the bot is not in it)'} "
+        f"(`{site_settings.guild_id()}`); Discord integration {'on' if site_settings.discord_on() else 'off'}",
     ])
 
 
@@ -1159,7 +1204,9 @@ class HerringListenerBot(commands.Bot):
         await self.add_cog(HerringCog(self))
         await self.add_cog(SolvertoolsCog(self, self.client))
         await self.add_cog(CommandErrorHandler(self))
+        self.add_check(integration_is_on)
         self.tree.on_error = on_app_command_error
+        asyncio.create_task(close_when_disabled(self))
         try:
             await sync_app_commands(self)
         except Exception:
@@ -1193,8 +1240,8 @@ async def sync_app_commands(bot, force=False):
         logger.info("Slash commands unchanged since the last sync; not syncing")
         return None
     synced = await bot.tree.sync()
-    if settings.HERRING_DISCORD_GUILD_ID:
-        await bot.tree.sync(guild=discord.Object(id=settings.HERRING_DISCORD_GUILD_ID))
+    if site_settings.guild_id():
+        await bot.tree.sync(guild=discord.Object(id=site_settings.guild_id()))
     redis_client().set(key, fingerprint)
     logger.info("Synced %d global slash commands: %s", len(synced), sorted(c.name for c in synced))
     return synced
@@ -1213,16 +1260,22 @@ class HerringAnnouncerBot(discord.Client):
         # we don't want this bot to respond to messages; just don't ask for the intent
         intents.message_content = False
         super(HerringAnnouncerBot, self).__init__(*args, intents=intents, **kwargs)
-        self.guild : Optional[discord.Guild] = None
-        self.announce_channel : Optional[discord.TextChannel] = None
         self._really_ready = asyncio.Event()
 
-    async def on_ready(self):
-        self.guild = self.get_guild(settings.HERRING_DISCORD_GUILD_ID)
-        if not self.guild:
-            logger.info("couldn't find the right guild; are you sure you have the right bot token?")
+    @property
+    def guild(self) -> Optional[discord.Guild]:
+        return current_guild(self)
 
-        self.announce_channel = get(self.guild.text_channels, name = settings.HERRING_DISCORD_PUZZLE_ANNOUNCEMENTS)
+    @property
+    def announce_channel(self) -> Optional[discord.TextChannel]:
+        return announcements_channel(self.guild)
+
+    async def setup_hook(self):
+        asyncio.create_task(close_when_disabled(self, on_close=DISCORD_ANNOUNCER.reset))
+
+    async def on_ready(self):
+        if not self.guild:
+            logger.warning("announcer bot: no current hunt server is set (or the bot isn't in it); see the dashboard's settings")
         self._really_ready.set()
         logger.info("announcer bot is really ready")
 
@@ -1460,7 +1513,7 @@ def _manipulate_puzzle(puzzle:typing.Union[Puzzle, str], func):
     try:
         with transaction.atomic():
             if isinstance(puzzle, str):
-                locked_puzzle = Puzzle.objects.select_for_update().get(slug=puzzle, hunt_id=settings.HERRING_HUNT_ID)
+                locked_puzzle = Puzzle.objects.select_for_update().get(slug=puzzle, hunt_id=site_settings.hunt_id())
             else:
                 locked_puzzle = Puzzle.objects.select_for_update().get(id=puzzle.id)
             result = func(locked_puzzle)
@@ -1471,7 +1524,7 @@ def _manipulate_puzzle(puzzle:typing.Union[Puzzle, str], func):
 
 @sync_to_async
 def _get_puzzle_by_slug(slug):
-    return Puzzle.objects.get(slug=slug, hunt_id=settings.HERRING_HUNT_ID)
+    return Puzzle.objects.get(slug=slug, hunt_id=site_settings.hunt_id())
 
 async def _add_user_to_channels(member, text_channel:discord.TextChannel, voice_channel):
     if member.bot: return False
@@ -1533,7 +1586,7 @@ def make_announcer_bot():
             asyncio.run(run_bot())
         except Exception as e:
             # This is at info because I don't want to risk problems (this code can be called from logs at WARNING and higher)
-            logger.info("Oh no, announcer bot thread exception! {e}")
+            logger.info(f"Oh no, announcer bot thread exception! {e}")
 
     # make it a daemon thread so it doesn't keep the process alive
     bot_thread = threading.Thread(target=start_bot_thread, daemon=True)

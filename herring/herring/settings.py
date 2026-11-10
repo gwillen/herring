@@ -221,6 +221,8 @@ HERRING_HOST = env.get_value('HOST', default='http://localhost:8000').rstrip('/'
 HERRING_PUZZLE_ACTIVITY_LOG_URL = env.get_value('PUZZLE_ACTIVITY_LOG_URL', default=None)
 HERRING_PUZZLE_SITE_SESSION_COOKIE = env.get_value('PUZZLE_SITE_SESSION_COOKIE', default=None)
 
+# Initial values only: a migration copies them into the dashboard's site settings (puzzles.SiteSettings),
+# which are what Herring uses from then on.
 HERRING_DISCORD_GUILD_ID = int(env.get_value('DISCORD_GUILD', default=0))
 HERRING_DISCORD_PROTECTED_CATEGORIES = set(json.loads(env.get_value('DISCORD_PROTECTED_CATEGORIES', default='[]')))
 HERRING_DISCORD_PUZZLE_ANNOUNCEMENTS = env.get_value('DISCORD_ANNOUNCEMENTS', default='puzzle-announcements')
@@ -231,7 +233,10 @@ HERRING_SECRETS = json.loads(env.get_value('SECRETS', default='{}'))
 HERRING_FUCK_OAUTH = json.loads(env.get_value('FUCK_OAUTH', default='{}'))
 
 # This should be more dynamic in the future.
-HERRING_HUNT_ID = int(env.get_value('HUNT_ID', default=0))
+HERRING_HUNT_ID = int(env.get_value('HUNT_ID', default=0))  # initial value only, like DISCORD_GUILD
+
+# How long each process caches the dashboard's site settings (puzzles.site_settings).
+SITE_SETTINGS_CACHE_SECONDS = 5
 HERRING_TEAM_NAME = env.get_value('TEAM_NAME', default="Non-Abelian Rage Theory")
 
 HERRING_SOLVERTOOLS_URL = env.get_value('SOLVERTOOLS_URL', default="http://ireproof.org/")

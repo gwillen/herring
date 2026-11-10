@@ -11,26 +11,33 @@ import discord
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
+from puzzles import site_settings
+
 
 class Command(BaseCommand):
     help = "Show the configured Discord server's categories, channels and recent messages (read-only)"
 
     def add_arguments(self, parser):
+        parser.add_argument('--guild', type=int, default=None,
+                            help="server ID (default: the current hunt's server, from the dashboard's settings)")
         parser.add_argument('--messages', type=int, default=0,
                             help="also show this many recent messages per text channel")
 
     def handle(self, *args, **options):
         if not settings.HERRING_ACTIVATE_DISCORD:
             raise CommandError("ACTIVATE_DISCORD is off")
-        for line in asyncio.run(inspect_guild(options['messages'])):
+        guild_id = options['guild'] or site_settings.guild_id()
+        if not guild_id:
+            raise CommandError("No server given, and no current hunt server is set in the dashboard")
+        for line in asyncio.run(inspect_guild(guild_id, options['messages'])):
             self.stdout.write(line)
 
 
-async def inspect_guild(message_count):
+async def inspect_guild(guild_id, message_count):
     client = discord.Client(intents=discord.Intents.none())
     await client.login(settings.HERRING_SECRETS['discord-bot-token'])
     try:
-        guild = await client.fetch_guild(settings.HERRING_DISCORD_GUILD_ID)
+        guild = await client.fetch_guild(guild_id)
         channels = await guild.fetch_channels()
         lines = [f"Guild: {guild.name} ({guild.id})", f"Bot user: {client.user}"]
         for category, members in group_by_category(channels):

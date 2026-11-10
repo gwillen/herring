@@ -11,6 +11,12 @@ HERRING_ACTIVATE_DISCORD = False
 HERRING_ACTIVATE_GAPPS = False
 HERRING_ENABLE_STANDALONE_DISCORD = False
 HERRING_SECRETS = {'magic-secret': 'test-magic'}
+# The site settings start empty in tests, whatever .env says (the seeding migration copies these).
+HERRING_DISCORD_GUILD_ID = 0
+HERRING_HUNT_ID = 0
+HERRING_DISCORD_PROTECTED_CATEGORIES = set()
+# Each test sees the site settings as they are (tests change them within their own transactions).
+SITE_SETTINGS_CACHE_SECONDS = 0
 
 # The test client speaks plain http (tests that need HTTPS settings override these).
 SECURE_SSL_REDIRECT = False

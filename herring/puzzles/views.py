@@ -19,6 +19,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
+from puzzles import site_settings
 from puzzles.tasks import add_user_to_puzzle, get_service_status, post_discord_message
 from .forms import UserProfileForm, UserSignupForm, UserEditForm
 from .models import ChannelParticipation, Puzzle, Round, UserProfile, to_json_value
@@ -71,7 +72,7 @@ def index(request):
     admins = django.contrib.auth.models.User.objects.filter(is_staff=True)
     context = {
         'username': request.user.username,
-        'rounds': Round.objects.filter(hunt_id=settings.HERRING_HUNT_ID),
+        'rounds': Round.objects.filter(hunt_id=site_settings.hunt_id()),
         'channel': 'general_chat',
         'admins': admins,
     }
@@ -90,10 +91,10 @@ def get_puzzles(request):
     except UserProfile.DoesNotExist:
         profile = {}
     data = {
-        'rounds': Round.objects.filter(hunt_id=settings.HERRING_HUNT_ID).prefetch_related('puzzle_set'),
+        'rounds': Round.objects.filter(hunt_id=site_settings.hunt_id()).prefetch_related('puzzle_set'),
         'settings': {
-            'discord': settings.HERRING_ACTIVATE_DISCORD,
-            'gapps': settings.HERRING_ACTIVATE_GAPPS,
+            'discord': site_settings.discord_on(),
+            'gapps': site_settings.gapps_on(),
             'profile': profile,
             'service_status': get_service_status(),
         },
@@ -113,7 +114,7 @@ def one_puzzle(request, puzzle_id):
 def puzzle_spreadsheet(request, puzzle_id):
     puzzle = get_object_or_404(Puzzle, pk=puzzle_id)
     if not puzzle.sheet_id:
-        context = {'puzzle': puzzle, 'gapps_active': settings.HERRING_ACTIVATE_GAPPS}
+        context = {'puzzle': puzzle, 'gapps_active': site_settings.gapps_on()}
         return render(request, 'puzzles/no_sheet.html', context, status=404)
     # Not a permanent redirect: browsers cache those indefinitely, and a puzzle's
     # sheet can appear later or change.
@@ -134,6 +135,9 @@ DISCORD_JOIN_TIMEOUT_SECONDS = 20
 @login_required
 def discord_channel_link(request, puzzle_id, use_app):
     puzzle = get_object_or_404(Puzzle, pk=puzzle_id)
+    if not site_settings.discord_on() or not site_settings.guild_id():
+        return HttpResponse("Herring's Discord integration is switched off, or no Discord server is set for this hunt.",
+                            status=503, content_type='text/plain')
     # A Celery worker (which holds the Discord connection) adds the user to the
     # channel. Wait for it, so the channel is visible once Discord opens it.
     try:
@@ -146,7 +150,7 @@ def discord_channel_link(request, puzzle_id, use_app):
         logger.warning("discord_channel_link: couldn't add %s to %s's channel", request.user, puzzle.slug)
         return HttpResponse(DISCORD_JOIN_FAILED_HTML, status=404)
     protocol = 'discord' if use_app else 'https'
-    url = f'{protocol}://discordapp.com/channels/{settings.HERRING_DISCORD_GUILD_ID}/{channel_id}'
+    url = f'{protocol}://discordapp.com/channels/{site_settings.guild_id()}/{channel_id}'
     logger.info(f'redirecting {request.user} to {url}')
     return DiscordRedirect(url)
 

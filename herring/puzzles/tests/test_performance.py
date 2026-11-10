@@ -30,6 +30,7 @@ class PuzzleDataQueryTests(TestCase):
 
     def count_queries(self):
         views.compute_active_users.cache_clear()
+        views.get_service_status.cache_clear()
         with CaptureQueriesContext(connection) as queries:
             self.assertEqual(self.client.get('/puzzles/').status_code, 200)
         return len(queries)

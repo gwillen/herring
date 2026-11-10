@@ -6,7 +6,7 @@ from django.test import TestCase, override_settings
 
 from puzzles import views
 from puzzles.models import ChannelParticipation, Puzzle
-from .helpers import make_puzzle, make_round, make_superuser, make_user
+from .helpers import make_puzzle, make_round, make_superuser, make_user, set_site_settings
 
 
 class AnonymousTests(TestCase):
@@ -157,9 +157,10 @@ class AdminTests(TestCase):
         self.assertTrue(Puzzle.objects.filter(name='Inline Puzzle', parent__name='Round Two').exists())
 
 
-@override_settings(HERRING_ACTIVATE_DISCORD=True, HERRING_DISCORD_GUILD_ID=555)
+@override_settings(HERRING_ACTIVATE_DISCORD=True)
 class DiscordChannelLinkTests(TestCase):
     def setUp(self):
+        set_site_settings(discord_guild_id=555)
         self.client.force_login(make_user(email='solver@example.com'))
         self.puzzle = make_puzzle(make_round())
 

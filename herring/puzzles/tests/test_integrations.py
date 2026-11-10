@@ -14,7 +14,7 @@ from django.test import SimpleTestCase, TestCase, override_settings
 
 from herring.celery import app as celery_app
 from puzzles import discordbot, redis_state
-from .helpers import make_user
+from .helpers import make_user, set_site_settings
 
 
 class CeleryTests(TestCase):
@@ -38,12 +38,12 @@ class CeleryTests(TestCase):
         post_update.delay('no-such-slug', 'tags', 'x')  # returns early when the puzzle is missing
 
 
-class DiscordBotTests(SimpleTestCase):
+class DiscordBotTests(TestCase):
     def test_listener_bot_registers_cogs_and_commands(self):
         bot = asyncio.run(self.set_up_listener_bot())
         self.assertEqual(set(bot.cogs), {'HerringCog', 'SolvertoolsCog', 'CommandErrorHandler'})
         self.assertLessEqual({'join', 'leave', 'answer', 'anagram'}, {c.name for c in bot.commands})
-        guild = discord.Object(id=settings.HERRING_DISCORD_GUILD_ID)
+        guild = discord.Object(id=1)
         self.assertEqual(bot.tree.get_commands(guild=guild), [], "all slash commands should be global")
         self.assertLessEqual({'join', 'synctree', 'answer', 'anagram', 'about'}, {c.name for c in bot.tree.get_commands()})
 
@@ -105,7 +105,7 @@ class LazyAnnouncerTests(SimpleTestCase):
             self.assertIs(discordbot.DISCORD_ANNOUNCER._bot, discordbot.LazyAnnouncer._NOT_CREATED)
 
 
-class DiscordStatusTests(SimpleTestCase):
+class DiscordStatusTests(TestCase):
     def connected_with(self, values):
         with mock.patch('puzzles.redis_state.redis_client') as redis_client:
             redis_client.return_value.mget.return_value = values
@@ -116,6 +116,7 @@ class DiscordStatusTests(SimpleTestCase):
         self.assertFalse(self.connected_with([b'1', b'0']))
         self.assertFalse(self.connected_with([b'1', None]))  # expired: the process stopped reporting
 
+    @override_settings(HERRING_ACTIVATE_DISCORD=True)
     def test_report_discord_status_records_announcer(self):
         from puzzles import tasks
         with mock.patch.object(tasks, 'announcer_is_ready', return_value=True), \
@@ -147,7 +148,7 @@ def empty_tree():
     return discord.app_commands.CommandTree(discord.Client(intents=discord.Intents.none()))
 
 
-class SyncAppCommandsTests(SimpleTestCase):
+class SyncAppCommandsTests(TestCase):
     def sync(self, stored_fingerprint, force=False):
         bot = mock.Mock(application_id=42, tree=empty_tree())
         bot.tree.sync = mock.AsyncMock(return_value=[])
@@ -172,9 +173,10 @@ class SyncAppCommandsTests(SimpleTestCase):
         self.assertTrue(tree_sync.called)
 
 
-class AboutTests(SimpleTestCase):
-    @override_settings(HERRING_HOST='http://192.0.2.1:18000', HERRING_HUNT_ID=2027, HERRING_DISCORD_GUILD_ID=555)
+class AboutTests(TestCase):
+    @override_settings(HERRING_HOST='http://192.0.2.1:18000')
     def test_about_text(self):
+        set_site_settings(hunt_id=2027, discord_guild_id=555)
         from datetime import datetime, timezone
         bot = mock.Mock(started_at=datetime(2026, 11, 10, 12, 0, tzinfo=timezone.utc))
         bot.get_guild.return_value.name = 'Hunt 2027'

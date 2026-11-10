@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 from django.conf import settings
+from puzzles import site_settings
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from functools import cache
@@ -71,6 +72,6 @@ class SheetChange:
 
 
 def check_spreadsheet_service():
-    if settings.HERRING_ACTIVATE_GAPPS:
+    if site_settings.gapps_on():
         return drive_service() is not None
     return None

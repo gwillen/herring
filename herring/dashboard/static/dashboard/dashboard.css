@@ -27,3 +27,7 @@
 .status-failed .op-error { color: #a94442; }
 .status-skipped { color: #8a6d3b; }
 .acknowledge { font-weight: normal; margin: 8px 0; }
+.settings-form label { font-weight: normal; }
+.settings-form select, .settings-form input[name=hunt_id] { display: inline-block; width: auto; margin-left: 6px; }
+.category-choice { display: block; margin-left: 12px; }
+.small-legend { font-size: 14px; border: none; margin-bottom: 4px; }

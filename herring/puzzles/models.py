@@ -4,6 +4,7 @@ from django.db import models
 from autoslug import AutoSlugField
 from puzzles.slugtools import puzzle_to_slug
 from model_utils import FieldTracker
+from puzzles.site_settings import default_hunt_id
 
 
 # **optional shortcut for optional fields
@@ -43,7 +44,7 @@ def to_json_value(field):
 
 class Round(models.Model,JSONMixin):
     # shell model for defining rounds
-    hunt_id = models.IntegerField(default=settings.HERRING_HUNT_ID)  # which hunt is this for? Will turn into a foreign key later.
+    hunt_id = models.IntegerField(default=default_hunt_id)  # which hunt is this for? Will turn into a foreign key later.
     number = models.IntegerField(default=1)
     name = models.CharField(max_length=200)
     hunt_url = models.CharField(max_length=1000, default='', **optional)
@@ -60,7 +61,7 @@ class Round(models.Model,JSONMixin):
 
 class Puzzle(models.Model,JSONMixin):
     # class for all puzzles, including metas
-    hunt_id = models.IntegerField(default=settings.HERRING_HUNT_ID)  # which hunt is this for? Will turn into a foreign key later.
+    hunt_id = models.IntegerField(default=default_hunt_id)  # which hunt is this for? Will turn into a foreign key later.
     parent = models.ForeignKey(Round, on_delete=models.PROTECT)
     name = models.CharField(max_length=200)
     slug = AutoSlugField(
@@ -191,3 +192,30 @@ class ChannelParticipation(models.Model):
 
     class Meta:
         indexes = [models.Index(fields=['channel_puzzle', 'user_id'])]
+
+
+class SiteSettings(models.Model):
+    """
+    Settings admins change in the dashboard (a single row; see puzzles.site_settings for reading
+    them). The ACTIVATE_DISCORD / ACTIVATE_GAPPS environment variables remain hard switches: these
+    flags can only turn a feature off within them.
+    """
+    discord_enabled = models.BooleanField(default=True)
+    gapps_enabled = models.BooleanField(default=True)
+    discord_guild_id = models.BigIntegerField(null=True, blank=True,
+                                              help_text="The current hunt's Discord server; none means Herring does nothing there")
+    hunt_id = models.IntegerField(null=True, blank=True, help_text="The current hunt")
+    protected_category_ids = models.JSONField(default=list, blank=True,
+                                              help_text="Discord categories cleanup_channels never touches")
+
+
+class SiteSettingChange(models.Model):
+    """A record of each change to SiteSettings."""
+    changed_at = models.DateTimeField(auto_now_add=True)
+    changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
+    field = models.CharField(max_length=50)
+    old_value = models.JSONField(null=True)
+    new_value = models.JSONField(null=True)
+
+    class Meta:
+        ordering = ['-changed_at']

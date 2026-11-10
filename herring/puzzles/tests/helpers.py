@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 
+from puzzles import site_settings
 from puzzles.models import Puzzle, Round
 
 
@@ -17,3 +18,8 @@ def make_user(username='solver', **fields):
 
 def make_superuser(username='boss'):
     return get_user_model().objects.create_superuser(username=username, password='pw')
+
+
+def set_site_settings(**changes):
+    """Changes the dashboard's site settings, as an admin would."""
+    site_settings.update(None, **changes)

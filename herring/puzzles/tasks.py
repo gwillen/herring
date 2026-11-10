@@ -12,6 +12,7 @@ import json
 import kombu.exceptions
 from puzzles.discordbot import run_listener_bot, DISCORD_ANNOUNCER, announcer_is_ready, do_in_discord, LEAVE_EMOJI, TRIUMPH_EMOJI
 from puzzles.models import Puzzle, Round, UserProfile
+from puzzles import site_settings
 from puzzles.redis_state import discord_connected, redis_client, set_discord_status
 from puzzles.spreadsheets import check_spreadsheet_service, iterate_changes, make_sheet
 import logging
@@ -59,7 +60,7 @@ def optional_task(t):
 
 def post_local_and_global(local_channel, local_message, global_message, local_reaction=None, global_reaction=None):
     logger.warning("tasks: post_local_and_global(%s, %s, %s, %s, %s)", local_channel, local_message, global_message, local_reaction, global_reaction)
-    if settings.HERRING_ACTIVATE_DISCORD:
+    if site_settings.discord_on():
         do_in_discord(DISCORD_ANNOUNCER.post_local_and_global(local_channel, local_message, global_message, local_reaction, global_reaction))
 
 @optional_task
@@ -98,9 +99,9 @@ def create_puzzle_sheet_and_channel(slug):
     channel creation, which announces the puzzle.
     """
     logger.warning("tasks: create_puzzle_sheet_and_channel(%s)", slug)
-    if settings.HERRING_ACTIVATE_GAPPS:
+    if site_settings.gapps_on():
         create_puzzle_sheet.delay(slug)
-    if settings.HERRING_ACTIVATE_DISCORD:
+    if site_settings.discord_on():
         create_puzzle_channels.delay(slug)
 
 
@@ -141,7 +142,7 @@ def create_puzzle_channels(self, slug):
 def create_round_category(self, round_id):
     logger.warning("tasks: create_round_category(%d)", round_id)
 
-    if settings.HERRING_ACTIVATE_DISCORD:
+    if site_settings.discord_on():
         with transaction.atomic():
             try:
                 round = Round.objects.select_for_update().get(id=round_id)
@@ -228,11 +229,14 @@ def check_connection_to_messaging():
             mutex.reacquire()
 
     async def _check_connection_to_messaging():
-        awaitables = [
-            asyncio.create_task(run_listener_bot(), name="run_listener_bot"),
-            asyncio.create_task(keep_mutex(), name="keep_mutex")
-        ]
-        return await asyncio.gather(*awaitables)
+        # The bot stops when the integration is switched off in the dashboard; then stop keeping the mutex
+        # too, and the scheduler starts a new bot here once it's switched back on.
+        bot = asyncio.create_task(run_listener_bot(), name="run_listener_bot")
+        mutex_keeper = asyncio.create_task(keep_mutex(), name="keep_mutex")
+        done, pending = await asyncio.wait([bot, mutex_keeper], return_when=asyncio.FIRST_COMPLETED)
+        for task in pending:
+            task.cancel()
+        return [task.result() for task in done]
 
     try:
         run(_check_connection_to_messaging())
@@ -241,14 +245,14 @@ def check_connection_to_messaging():
         logger.info("check_connection_to_messaging: Released mutex")
 
 def listener_bot_runs_in_celery():
-    return settings.HERRING_ACTIVATE_DISCORD and not settings.HERRING_ENABLE_STANDALONE_DISCORD
+    return site_settings.discord_on() and not settings.HERRING_ENABLE_STANDALONE_DISCORD
 
 @shared_task(bind=True, rate_limit=0.5)
 @transaction.atomic
 def process_google_sheets_changes(self):
     logger.info("process_google_sheets_changes: Starting")
 
-    if settings.HERRING_ACTIVATE_GAPPS:
+    if site_settings.gapps_on():
         puzzles_to_update = set()
         for change in fetch_latest_sheet_changes():
             try:
@@ -289,7 +293,7 @@ def fetch_latest_sheet_changes():
 @shared_task(ignore_result=False)
 def add_user_to_puzzle(user_id, puzzle_name):
     logger.debug("add_user_to_puzzle: %r, %r", user_id, puzzle_name)
-    if not settings.HERRING_ACTIVATE_DISCORD:
+    if not site_settings.discord_on():
         return
     try:
         user = UserProfile.objects.get(user_id=user_id)
@@ -307,11 +311,11 @@ def add_user_to_puzzle(user_id, puzzle_name):
 def get_service_status():
     discord = None
     gapps = None
-    if settings.HERRING_ACTIVATE_DISCORD:
+    if site_settings.discord_on():
         # Reported to Redis by the processes that hold Discord connections; the
         # web process never connects to Discord itself.
         discord = discord_connected()
-    if settings.HERRING_ACTIVATE_GAPPS:
+    if site_settings.gapps_on():
         gapps = check_spreadsheet_service()
     return {
         'discord': discord,
@@ -322,7 +326,8 @@ def get_service_status():
 @shared_task(ignore_result=True)
 def report_discord_status():
     """Periodic (Celery beat): record whether this worker's announcer bot is connected."""
-    set_discord_status('announcer', announcer_is_ready())
+    # While switched off, don't start an announcer just to ask (it would disconnect itself again).
+    set_discord_status('announcer', site_settings.discord_on() and announcer_is_ready())
 
 
 @shared_task(ignore_result=True)

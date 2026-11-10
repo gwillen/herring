@@ -1,0 +1,60 @@
+{% extends "dashboard/base.html" %}
+
+{% block content %}
+<h2>Settings</h2>
+<p class="text-muted">These take effect in every Herring process within a few seconds; no restart needed.</p>
+
+<form method="post" action="{% url 'dashboard:save_settings' %}" class="settings-form">
+  {% csrf_token %}
+  <h3>Current hunt</h3>
+  <label>Hunt ID <input name="hunt_id" value="{{ row.hunt_id|default_if_none:'' }}" class="form-control input-sm" inputmode="numeric"></label>
+  <p class="help-block">The hunt the puzzle list, the bot and the admin pages work with. Blank: none.</p>
+
+  <h3>Discord</h3>
+  {% if not env.HERRING_ACTIVATE_DISCORD %}
+    <p>Off for this deployment (the <code>ACTIVATE_DISCORD</code> environment variable), so it can't be turned on here.</p>
+  {% else %}
+    <label><input type="checkbox" name="discord_enabled" {% if row.discord_enabled %}checked{% endif %}> Discord integration on</label>
+    <p class="help-block">Off: Herring does nothing in Discord (commands say it's off) and the bot disconnects within seconds.
+      Back on: it reconnects within about a minute.</p>
+    {% if discord_error %}<div class="alert alert-danger">Couldn't ask Discord which servers the bot is in: {{ discord_error }}</div>{% endif %}
+    <label>Current hunt's server
+      <select name="discord_guild_id" class="form-control input-sm">
+        <option value="">(none: Herring does nothing in Discord)</option>
+        {% if not guild_known %}<option value="{{ row.discord_guild_id }}" selected>{{ row.discord_guild_id }} (the bot isn't in this server)</option>{% endif %}
+        {% for guild in guilds %}<option value="{{ guild.id }}" {% if guild.id == site.discord_guild_id|stringformat:"s" %}selected{% endif %}>{{ guild.name }} ({{ guild.id }})</option>{% endfor %}
+      </select></label>
+    <p class="help-block">Where puzzle channels go, and which server the bot uses for DMs and website links. Don't switch
+      during a hunt: Herring finds existing puzzle channels in the current server.</p>
+    {% if categories %}
+    <fieldset><legend class="small-legend">Protected categories (in the current server; <code>cleanup_channels</code> never touches these)</legend>
+      {% for category in categories %}
+      <label class="category-choice"><input type="checkbox" name="protected_category_ids" value="{{ category.id }}"
+        {% if category.id in site.protected_category_ids %}checked{% endif %}> {{ category.name }}</label>
+      {% endfor %}
+    </fieldset>
+    {% endif %}
+  {% endif %}
+  {% for category_id in row.protected_category_ids %}{% if not categories %}<input type="hidden" name="protected_category_ids" value="{{ category_id }}">{% endif %}{% endfor %}
+
+  <h3>Google Sheets</h3>
+  {% if not env.HERRING_ACTIVATE_GAPPS %}
+    <p>Off for this deployment (the <code>ACTIVATE_GAPPS</code> environment variable), so it can't be turned on here.</p>
+  {% else %}
+    <label><input type="checkbox" name="gapps_enabled" {% if row.gapps_enabled %}checked{% endif %}> Google Sheets integration on</label>
+    <p class="help-block">Off: new puzzles don't get sheets, and sheet activity isn't tracked.</p>
+  {% endif %}
+
+  <button type="submit" class="btn btn-primary">Save</button>
+</form>
+
+<h3>History</h3>
+<table class="table table-condensed">
+  <thead><tr><th>When (UTC)</th><th>Who</th><th>Setting</th><th>From</th><th>To</th></tr></thead>
+  <tbody>{% for change in changes %}
+    <tr><td>{{ change.changed_at|date:"Y-m-d H:i:s" }}</td><td>{{ change.changed_by|default:"" }}</td><td>{{ change.field }}</td>
+      <td><code>{{ change.old_value }}</code></td><td><code>{{ change.new_value }}</code></td></tr>
+  {% empty %}<tr><td colspan="5">No changes yet.</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endblock %}

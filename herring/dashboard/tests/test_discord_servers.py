@@ -4,7 +4,7 @@ from django.test import TestCase, override_settings
 
 from dashboard import server_structure
 from dashboard.models import DiscordServerSnapshot
-from puzzles.tests.helpers import make_superuser, make_user
+from puzzles.tests.helpers import make_superuser, make_user, set_site_settings
 
 GUILD_ID = '111'
 SECTIONS = {
@@ -47,8 +47,8 @@ class DiscordServerViewTests(TestCase):
         self.client.force_login(make_user())
         self.assertEqual(self.client.get('/dashboard/discord/').status_code, 302)
 
-    @override_settings(HERRING_DISCORD_GUILD_ID=111)
     def test_lists_servers_and_marks_current_one(self):
+        set_site_settings(discord_guild_id=111)
         async def fake_guilds():
             return [{'id': GUILD_ID, 'name': 'Hunt 2026'}, {'id': '222', 'name': 'Hunt 2027'}], 999
         with mock.patch('dashboard.discord_api.fetch_bot_guilds', fake_guilds):

@@ -117,6 +117,13 @@ async def fetch_file(client, url):
     return {'url': url, 'content_type': content_type, 'data_b64': base64.b64encode(data).decode()}, None
 
 
+async def fetch_categories(guild_id):
+    """A server's categories (raw JSON), in Discord's order."""
+    async with bot_http() as client:
+        channels = await client.http.request(Route('GET', '/guilds/{guild_id}/channels', guild_id=guild_id))
+    return sorted((c for c in channels if c['type'] == discord.ChannelType.category.value), key=lambda c: c['position'])
+
+
 async def fetch_template(code):
     """A server template's raw JSON (readable without the bot being in the template's server)."""
     async with bot_http() as client:

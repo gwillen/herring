@@ -13,6 +13,8 @@ from django.views.decorators.http import require_POST
 
 from herring.log_buffer import LEVEL_NAMES
 from herring.version import herring_version
+from puzzles import site_settings
+from puzzles.models import SiteSettingChange
 from puzzles.redis_state import discord_connected
 from . import discord_api, logs, server_structure, setup_apply, setup_flow
 from .models import DiscordServerSnapshot, SetupPlan
@@ -26,10 +28,8 @@ PAGE_SIZE = 200
 def home(request):
     context = {
         'version': herring_version(),
-        'discord_active': settings.HERRING_ACTIVATE_DISCORD,
-        'discord_connected': settings.HERRING_ACTIVATE_DISCORD and discord_connected(),
-        'gapps_active': settings.HERRING_ACTIVATE_GAPPS,
-        'hunt_id': settings.HERRING_HUNT_ID,
+        'site': site_settings.current(),
+        'discord_connected': site_settings.discord_on() and discord_connected(),
         'log_entries': logs.buffer_size(),
         'log_capacity': settings.HERRING_LOG_BUFFER_ENTRIES,
         'log_levels': sorted(logs.current_levels().items()),
@@ -80,7 +80,7 @@ def discord_servers(request):
     """The servers the bot is in, with snapshot buttons, and the saved snapshots."""
     context = {'snapshots': DiscordServerSnapshot.objects.only('guild_id', 'guild_name', 'taken_at', 'taken_by', 'errors', 'origin'),
                'plans': SetupPlan.objects.select_related('source', 'target'),
-               'configured_guild_id': str(settings.HERRING_DISCORD_GUILD_ID)}
+               'configured_guild_id': str(site_settings.guild_id())}
     if not settings.HERRING_ACTIVATE_DISCORD:
         context['guilds_error'] = "the Discord integration is off (ACTIVATE_DISCORD)"
         return render(request, 'dashboard/discord_servers.html', context)
@@ -195,3 +195,59 @@ def start_applying(request, plan):
     logger.info("%s queued %d operations of setup plan %s: %s", request.user, len(queued), plan.id, queued)
     setup_apply.apply_setup_plan.delay(plan.id, request.user.id)
     messages.success(request, f"Applying {len(queued)} operations; this page updates as they finish.")
+
+
+@staff_member_required
+def settings_page(request):
+    site = site_settings.current()
+    context = {'site': site, 'row': site_settings.read_row(), 'env': settings,
+               'changes': SiteSettingChange.objects.select_related('changed_by')[:50]}
+    if settings.HERRING_ACTIVATE_DISCORD:
+        context |= discord_choices(site.discord_guild_id)
+    return render(request, 'dashboard/settings.html', context)
+
+
+def discord_choices(guild_id):
+    """The servers the bot is in, and the current server's categories, for the settings form."""
+    try:
+        guilds, _ = discord_api.run(discord_api.fetch_bot_guilds())
+        categories = discord_api.run(discord_api.fetch_categories(guild_id)) if guild_id else []
+    except Exception as e:
+        logger.error("Couldn't read servers/categories from Discord for the settings page", exc_info=True)
+        return {'discord_error': f"{type(e).__name__}: {e}"}
+    return {'guilds': guilds, 'categories': categories,
+            'guild_known': guild_id is None or str(guild_id) in {g['id'] for g in guilds}}
+
+
+@staff_member_required
+@require_POST
+def save_settings(request):
+    try:
+        changes = settings_from_form(request.POST)
+    except ValueError as e:
+        messages.error(request, f"Not saved: {e}")
+        return redirect('dashboard:settings')
+    changed = site_settings.update(request.user, **changes)
+    messages.success(request, f"Saved: {', '.join(changed)}." if changed else "Nothing changed.")
+    return redirect('dashboard:settings')
+
+
+def settings_from_form(form):
+    """The site settings the form sets. Switches the environment has turned off aren't on the form, so stay as they are."""
+    changes = {'hunt_id': optional_int(form.get('hunt_id', ''), 'hunt ID'),
+               'protected_category_ids': sorted(form.getlist('protected_category_ids'))}
+    if settings.HERRING_ACTIVATE_DISCORD:
+        changes |= {'discord_enabled': 'discord_enabled' in form,
+                    'discord_guild_id': optional_int(form.get('discord_guild_id', ''), 'server ID')}
+    if settings.HERRING_ACTIVATE_GAPPS:
+        changes['gapps_enabled'] = 'gapps_enabled' in form
+    return changes
+
+
+def optional_int(text, label):
+    text = text.strip()
+    if not text:
+        return None
+    if not text.isdigit():
+        raise ValueError(f"the {label} must be a number")
+    return int(text)

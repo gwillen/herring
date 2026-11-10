@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
 from django.conf import settings
+from puzzles import site_settings
 
 from .models import Round, Puzzle, UserProfile
 
@@ -23,7 +24,7 @@ class HuntIdListFilter(admin.SimpleListFilter):
         """
         return [
             # Only ofer the current hunt; hide all others
-            (settings.HERRING_HUNT_ID, settings.HERRING_HUNT_ID),
+            (site_settings.hunt_id(), site_settings.hunt_id()),
         ]
 
     def queryset(self, request, queryset):
@@ -36,7 +37,7 @@ class HuntIdListFilter(admin.SimpleListFilter):
 
     # always filter for only the current hunt
     def value(self):
-        return settings.HERRING_HUNT_ID
+        return site_settings.hunt_id()
 
 class PuzzleInline(admin.TabularInline):
     model = Puzzle
@@ -60,7 +61,7 @@ class PuzzleAdmin(admin.ModelAdmin):
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "parent":
-            kwargs["queryset"] = Round.objects.filter(hunt_id=settings.HERRING_HUNT_ID)
+            kwargs["queryset"] = Round.objects.filter(hunt_id=site_settings.hunt_id())
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
