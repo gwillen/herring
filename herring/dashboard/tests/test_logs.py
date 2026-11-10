@@ -100,3 +100,9 @@ class DashboardViewTests(TestCase):
                                     {'logger': ['', 'puzzles', 'discord'], 'level': ['WARNING', 'DEBUG', '']})
         self.assertRedirects(response, '/dashboard/logs/#levels', fetch_redirect_response=False)
         self.assertEqual(logs.current_levels(), {'': 'WARNING', 'puzzles': 'DEBUG'})
+
+    def test_home_warns_about_unapplied_migrations(self):
+        self.client.force_login(make_superuser())
+        self.assertNotContains(self.client.get('/dashboard/'), 'missing')
+        with mock.patch('dashboard.views.unapplied_migrations', return_value=['dashboard.0099_new']):
+            self.assertContains(self.client.get('/dashboard/'), 'dashboard.0099_new')

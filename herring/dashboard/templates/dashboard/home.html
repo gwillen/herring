@@ -2,6 +2,11 @@
 
 {% block content %}
 <h2>Admin dashboard</h2>
+{% if unapplied_migrations %}
+<div class="alert alert-danger"><b>The database is missing {{ unapplied_migrations|length }} migration(s)</b>, so some pages will fail:
+  {{ unapplied_migrations|join:", " }}. Run <code>python herring/manage.py migrate</code>
+  (on Heroku: <code>heroku run -a APP python herring/manage.py migrate</code>; deploys normally do it themselves).</div>
+{% endif %}
 <table class="table table-condensed dashboard-facts">
   <tr><th>Herring version (this web process)</th><td><code>{{ version }}</code></td></tr>
   <tr><th>Current hunt ID</th><td>{{ hunt_id }}</td></tr>

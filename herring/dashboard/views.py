@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
+from django.db import connection
+from django.db.migrations.executor import MigrationExecutor
 import json
 import logging
 
@@ -31,8 +33,16 @@ def home(request):
         'log_entries': logs.buffer_size(),
         'log_capacity': settings.HERRING_LOG_BUFFER_ENTRIES,
         'log_levels': sorted(logs.current_levels().items()),
+        'unapplied_migrations': unapplied_migrations(),
     }
     return render(request, 'dashboard/home.html', context)
+
+
+def unapplied_migrations():
+    """Names of migrations the database is missing (pages using their tables would fail)."""
+    executor = MigrationExecutor(connection)
+    return [f"{migration.app_label}.{migration.name}"
+            for migration, backwards in executor.migration_plan(executor.loader.graph.leaf_nodes())]
 
 
 @staff_member_required

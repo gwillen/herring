@@ -126,6 +126,8 @@ To use the Discord and Google Drive integrations, you need to be running a worke
 
 ## Deploying to Heroku
 
+Each deploy runs `python herring/manage.py migrate` first (the `release` line in the `Procfile`); if that fails, the new release doesn't go live. To run it by hand: `heroku run -a $HERRING_HEROKU_APP python herring/manage.py migrate`. The admin dashboard's home page warns about unapplied migrations.
+
 Heroku's Python buildpack installs from `uv.lock` (`uv sync --locked --no-default-groups`, so the `dev` group is skipped) using the Python version in `.python-version`, and runs `collectstatic` itself. The `Procfile` defines the `web` and `worker` processes.
 
 Required configuration (config vars):
