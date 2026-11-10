@@ -1,0 +1,49 @@
+{% extends "dashboard/base.html" %}
+
+{% block content %}
+<h2>Snapshot of {{ snapshot.guild_name }}</h2>
+<p>Server <code>{{ snapshot.guild_id }}</code>, taken {{ snapshot.taken_at|date:"Y-m-d H:i:s" }} UTC
+  {% if snapshot.taken_by %}by {{ snapshot.taken_by }}{% endif %} (Herring <code>{{ snapshot.herring_version }}</code>).
+  <a href="{% url 'dashboard:discord' %}">All snapshots</a></p>
+<p>{% for name, count in counts.items %}{{ count }} {{ name }}{% if not forloop.last %} &middot; {% endif %}{% endfor %}
+  &middot; features: {{ guild.features|join:", "|default:"none" }}</p>
+{% if snapshot.errors %}
+<div class="alert alert-warning">Couldn't read: {% for name, error in snapshot.errors.items %}<b>{{ name }}</b> ({{ error }}){% if not forloop.last %}; {% endif %}{% endfor %}</div>
+{% endif %}
+
+<h3>Roles</h3>
+<table class="table table-condensed snapshot-table">
+  <thead><tr><th>Role</th><th>Permissions</th><th>Flags</th></tr></thead>
+  <tbody>
+  {% for role in roles %}
+    <tr><td><span class="role-swatch" style="background-color: {{ role.color_hex }}"></span> {{ role.name }}</td>
+      <td>{{ role.permission_names|join:", "|default:"(none)" }}</td>
+      <td>{% if role.is_everyone %}@everyone {% endif %}{% if role.managed %}managed by an integration {% endif %}{% if role.hoist %}shown separately {% endif %}{% if role.mentionable %}mentionable{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<h3>Channels</h3>
+<table class="table table-condensed snapshot-table">
+  <thead><tr><th>Channel</th><th>Type</th><th>Permission overwrites</th><th>Topic</th></tr></thead>
+  <tbody>
+  {% for category, channels in channel_tree %}
+    {% if category %}<tr class="category-row"><td colspan="2"><b>{{ category.name }}</b></td><td>{{ category.permission_overwrites|length }}</td><td></td></tr>
+    {% elif channels %}<tr class="category-row"><td colspan="4"><i>(no category)</i></td></tr>{% endif %}
+    {% for channel in channels %}
+    <tr><td class="channel-name">#{{ channel.name }}</td><td>{{ channel.type_name }}</td>
+      <td>{{ channel.permission_overwrites|length }}</td><td>{{ channel.topic|default:"" }}</td></tr>
+    {% endfor %}
+  {% endfor %}
+  </tbody>
+</table>
+
+<h3>Onboarding</h3>
+{% if onboarding %}
+<p>Enabled: {{ onboarding.enabled|yesno }}; mode {{ onboarding.mode }}; {{ onboarding.prompts|length }} prompt(s);
+  default channels: {{ onboarding.default_channel_names|join:", "|default:"none" }}.</p>
+{% else %}<p>Not available.</p>{% endif %}
+
+<h3>Raw data</h3>
+<details><summary>Everything Discord returned (JSON)</summary><pre class="raw-json">{{ raw_json }}</pre></details>
+{% endblock %}

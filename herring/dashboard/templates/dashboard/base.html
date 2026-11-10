@@ -10,9 +10,11 @@
   <ul class="nav nav-pills dashboard-nav">
     <li class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}"><a href="{% url 'dashboard:home' %}">Dashboard</a></li>
     <li class="{% if request.resolver_match.url_name == 'logs' %}active{% endif %}"><a href="{% url 'dashboard:logs' %}">Logs</a></li>
+    <li class="{% if request.resolver_match.url_name == 'discord' or request.resolver_match.url_name == 'snapshot' %}active{% endif %}"><a href="{% url 'dashboard:discord' %}">Discord servers</a></li>
     <li><a href="/admin/">Django admin</a></li>
     <li><a href="/">Back to Herring</a></li>
   </ul>
+  {% for message in messages %}<div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}">{{ message }}</div>{% endfor %}
   {% block content %}{% endblock %}
 </div>
 {% endblock %}
