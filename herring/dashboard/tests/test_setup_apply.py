@@ -78,7 +78,7 @@ class ApplyTests(TestCase):
 
     def test_bot_role_must_be_on_top_and_numbered_above_the_roles(self):
         results = apply(make_plan(), ['role.order'], FakeDiscord())  # new roles all at 1, like Discord does
-        self.assertIn("drag the bot's role to the very top", results['role.order'].error)
+        self.assertIn("drag any role down a slot and back", results['role.order'].error)
 
     def test_role_order_applies_once_bot_role_is_renumbered(self):
         discord = FakeDiscord()

@@ -159,8 +159,9 @@ def check_bot_role_on_top(plan, condition, discord):
     bot_top = max((r['position'] for r in roles if r['id'] in bot['roles']), default=0)
     if bot_top > condition['bot_role_on_top'] and bot_top >= max(r['position'] for r in roles):
         return None
-    return ("Discord only lets the bot arrange roles below its own role. In Discord: Server Settings → Roles, "
-            "drag the bot's role to the very top (that renumbers all the roles), then apply this step again.")
+    return ("Discord only lets the bot arrange roles below its own role's number. In Discord: Server Settings → Roles, "
+            "make sure the bot's role is at the top and drag any role down a slot and back (any reordering makes "
+            "Discord number all the roles), then apply this step again.")
 
 
 # ('absent' conditions are handled by already_exists/adopt, before these.)

@@ -44,9 +44,10 @@ def bot_role_notices(target_sections, bot_user_id, roles_to_arrange):
     bot_top = max((r['position'] for r in roles if (r.get('tags') or {}).get('bot_id') == bot_user_id), default=0)
     if bot_top > roles_to_arrange and bot_top >= max((r['position'] for r in roles), default=0):
         return []
-    return ["Arranging the roles needs a hand from you: once the roles have been created (apply the plan), go to "
-            "Server Settings → Roles in Discord and drag the bot's role to the very top of the list. That renumbers "
-            "the roles so the bot may arrange them; then apply the 'Arrange the roles' step again."]
+    return ["Arranging the roles needs a hand from you. Discord gives new roles no distinct order, and the bot may only "
+            "arrange roles below its own. So once the roles have been created (apply the plan), go to Server Settings → "
+            "Roles in Discord, make sure the bot's role is at the top, and drag any role down a slot and back: any "
+            "reordering makes Discord number all the roles. Then apply the 'Arrange the roles' step again."]
 
 
 def puzzle_category_ids():
