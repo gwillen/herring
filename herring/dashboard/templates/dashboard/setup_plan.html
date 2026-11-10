@@ -1,0 +1,53 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+
+{% block head_scripts %}{{ block.super }}{% if in_progress %}<meta http-equiv="refresh" content="3">{% endif %}{% endblock %}
+
+{% block content %}
+<h2>Setting up {{ plan.server_name }}</h2>
+<p>Copying <a href="{% url 'dashboard:snapshot' plan.source.id %}">{{ plan.source.guild_name }}</a> into
+  <b>{{ plan.target.guild_name }}</b> <code>{{ plan.target_guild_id }}</code>
+  (<a href="{% url 'dashboard:snapshot' plan.target.id %}">as it was when planned</a>, {{ plan.created_at|date:"Y-m-d H:i" }} UTC).
+  {% if counts.applied or counts.failed or counts.skipped %}So far: {{ counts.applied }} applied, {{ counts.failed }} failed, {{ counts.skipped }} skipped.{% endif %}</p>
+
+<p>Target server: created {{ plan.usage.age_days }} days ago, {{ plan.usage.human_members }} non-bot members,
+  {% if plan.usage.human_messages > 50 %}more than 50{% else %}{{ plan.usage.human_messages }}{% endif %} messages from non-bot users.</p>
+{% if plan.warnings %}
+<div class="alert alert-danger"><b>This doesn't look like a new server:</b> {{ plan.warnings|join:"; " }}.
+  {% if plan.acknowledged_by %}{{ plan.acknowledged_by }} confirmed it's the right server.{% else %}Applying requires confirming it's the right one, below.{% endif %}</div>
+{% endif %}
+{% for notice in plan.notices %}<div class="alert alert-warning">{{ notice }}</div>{% endfor %}
+{% for note in plan.notes %}<p class="text-muted">{{ note }}</p>{% endfor %}
+{% if in_progress %}<div class="alert alert-info">Applying&hellip; (this page refreshes every 3 seconds)</div>{% endif %}
+
+<form method="post" action="{% url 'dashboard:apply_setup_plan' plan.id %}" id="plan-form">
+  {% csrf_token %}
+  <p class="text-muted">Ticking an operation also ticks what it depends on; unticking one unticks what depends on it.
+    Click a description for the exact request.</p>
+  <table class="table table-condensed plan-table">
+    <thead><tr><th><input type="checkbox" id="toggle-all" title="all / none"></th><th>Stage</th><th>Operation</th><th>Status</th></tr></thead>
+    <tbody>
+    {% for op in operations %}
+      <tr class="status-{{ op.status }}">
+        <td>{% if op.status != 'applied' %}<input type="checkbox" name="operation" value="{{ op.key }}" data-deps="{{ op.depends_on|join:' ' }}"
+          {% if op.default_selected and op.status == 'pending' %}checked{% endif %} {% if in_progress %}disabled{% endif %}>{% endif %}</td>
+        <td>{{ op.stage }}</td>
+        <td><details><summary>{{ op.description }}</summary>
+          <pre class="op-request">{{ op.method }} {{ op.path }}
+{% if op.body is not None %}{{ op.display_body|pprint }}{% endif %}{% if op.depends_on %}
+after: {{ op.depends_on|join:", " }}{% endif %}{% if op.preconditions %}
+checks: {{ op.preconditions|pprint }}{% endif %}{% if op.result %}
+result: {{ op.display_result|pprint }}{% endif %}</pre></details></td>
+        <td>{{ op.status }}{% if op.error %}: <span class="op-error">{{ op.error }}</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if plan.warnings and not plan.acknowledged_by %}
+  <label class="acknowledge"><input type="checkbox" name="acknowledge" value="yes">
+    I've checked: <b>{{ plan.target.guild_name }}</b> is the server to set up, despite the warning above.</label><br>
+  {% endif %}
+  <button type="submit" class="btn btn-primary" {% if in_progress %}disabled{% endif %}>Apply the ticked operations</button>
+</form>
+<script src="{% static 'dashboard/setup_plan.js' %}"></script>
+{% endblock %}

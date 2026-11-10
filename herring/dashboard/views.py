@@ -12,8 +12,8 @@ from django.views.decorators.http import require_POST
 from herring.log_buffer import LEVEL_NAMES
 from herring.version import herring_version
 from puzzles.redis_state import discord_connected
-from . import discord_api, logs, server_structure
-from .models import DiscordServerSnapshot
+from . import discord_api, logs, server_structure, setup_apply, setup_flow
+from .models import DiscordServerSnapshot, SetupPlan
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,8 @@ def save_log_levels(request):
 @staff_member_required
 def discord_servers(request):
     """The servers the bot is in, with snapshot buttons, and the saved snapshots."""
-    context = {'snapshots': DiscordServerSnapshot.objects.only('guild_id', 'guild_name', 'taken_at', 'taken_by', 'errors'),
+    context = {'snapshots': DiscordServerSnapshot.objects.only('guild_id', 'guild_name', 'taken_at', 'taken_by', 'errors', 'origin'),
+               'plans': SetupPlan.objects.select_related('source', 'target'),
                'configured_guild_id': str(settings.HERRING_DISCORD_GUILD_ID)}
     if not settings.HERRING_ACTIVATE_DISCORD:
         context['guilds_error'] = "the Discord integration is off (ACTIVATE_DISCORD)"
@@ -109,5 +110,78 @@ def snapshot_detail(request, snapshot_id):
                'roles': server_structure.role_rows(sections), 'channel_tree': server_structure.channel_tree(sections),
                'onboarding': server_structure.onboarding_summary(sections),
                'counts': server_structure.section_counts(sections),
-               'raw_json': json.dumps(sections, indent=2, sort_keys=True)}
+               'raw_json': json.dumps(server_structure.abbreviated(sections), indent=2, sort_keys=True)}
     return render(request, 'dashboard/snapshot.html', context)
+
+
+@staff_member_required
+@require_POST
+def import_template(request):
+    """Saves a Discord server template (given its discord.new link or code) as a snapshot."""
+    code = request.POST['template'].strip().rstrip('/').rsplit('/', 1)[-1]
+    try:
+        template = discord_api.run(discord_api.fetch_template(code))
+    except Exception as e:
+        logger.error("Reading server template %r failed", code, exc_info=True)
+        messages.error(request, f"Couldn't read template {code!r}: {type(e).__name__}: {e}")
+        return redirect('dashboard:discord')
+    snapshot = DiscordServerSnapshot.objects.create(
+        guild_id=int(template['source_guild_id']), guild_name=f"{template['name']} (template {code})", origin='template',
+        taken_by=request.user, herring_version=herring_version(), sections=server_structure.sections_from_template(template))
+    logger.info("Saved server template %s as snapshot %s for %s", code, snapshot.id, request.user)
+    return redirect('dashboard:snapshot', snapshot_id=snapshot.id)
+
+
+@staff_member_required
+@require_POST
+def create_setup_plan(request):
+    source = get_object_or_404(DiscordServerSnapshot, id=request.POST['source'])
+    target_guild_id, server_name = int(request.POST['target']), request.POST['server_name'].strip()
+    if target_guild_id == source.guild_id or not server_name:
+        messages.error(request, "Choose a target server other than the source, and a server name.")
+        return redirect('dashboard:discord')
+    try:
+        plan = setup_flow.create_plan(source, target_guild_id, server_name, request.user)
+    except Exception as e:
+        logger.error("Making a setup plan for server %s failed", target_guild_id, exc_info=True)
+        messages.error(request, f"Couldn't make a setup plan: {type(e).__name__}: {e}")
+        return redirect('dashboard:discord')
+    return redirect('dashboard:setup_plan', plan_id=plan.id)
+
+
+@staff_member_required
+def setup_plan_detail(request, plan_id):
+    plan = get_object_or_404(SetupPlan.objects.select_related('source', 'target', 'acknowledged_by'), id=plan_id)
+    operations = [with_display_fields(op) for op in plan.operations.all()]
+    context = {'plan': plan, 'operations': operations, 'in_progress': any(op.status == 'queued' for op in operations),
+               'counts': {s: sum(1 for op in operations if op.status == s) for s in ('applied', 'failed', 'skipped')}}
+    return render(request, 'dashboard/setup_plan.html', context)
+
+
+def with_display_fields(operation):
+    operation.display_body = server_structure.abbreviated(operation.body)
+    operation.display_result = server_structure.abbreviated(operation.result)
+    return operation
+
+
+@staff_member_required
+@require_POST
+def apply_setup_plan(request, plan_id):
+    plan = get_object_or_404(SetupPlan, id=plan_id)
+    if plan.operations.filter(status='queued').exists():
+        messages.error(request, "This plan is already being applied.")
+    elif plan.warnings and not plan.acknowledged_by and request.POST.get('acknowledge') != 'yes':
+        messages.error(request, "This server doesn't look new; tick the confirmation to apply anyway.")
+    else:
+        start_applying(request, plan)
+    return redirect('dashboard:setup_plan', plan_id=plan.id)
+
+
+def start_applying(request, plan):
+    if plan.warnings and not plan.acknowledged_by:
+        plan.acknowledged_by = request.user
+        plan.save(update_fields=['acknowledged_by'])
+    queued = setup_apply.queue_operations(plan, request.POST.getlist('operation'))
+    logger.info("%s queued %d operations of setup plan %s: %s", request.user, len(queued), plan.id, queued)
+    setup_apply.apply_setup_plan.delay(plan.id, request.user.id)
+    messages.success(request, f"Applying {len(queued)} operations; this page updates as they finish.")

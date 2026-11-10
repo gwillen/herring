@@ -25,16 +25,51 @@
   <a href="{{ invite_url }}" target="_blank" rel="noopener">invite link</a>.</p>
 {% endif %}
 
+<h3>Set up a new hunt's server</h3>
+<p class="text-muted">Copies a snapshot's roles, categories and channels (not last year's puzzle rounds), permissions,
+  Community settings, onboarding, emojis, stickers and AutoMod rules into a server. This makes a <b>plan</b> you review
+  first; nothing changes in Discord until you apply operations from it.</p>
+{% if guilds %}
+<form method="post" action="{% url 'dashboard:create_setup_plan' %}" class="form-inline setup-form">
+  {% csrf_token %}
+  <label>Copy from
+    <select name="source" class="form-control input-sm" required>
+      {% for snapshot in snapshots %}<option value="{{ snapshot.id }}">{{ snapshot.guild_name }} ({{ snapshot.taken_at|date:"Y-m-d" }})</option>{% endfor %}
+    </select></label>
+  <label>into server
+    <select name="target" class="form-control input-sm" required>
+      {% for guild in guilds %}<option value="{{ guild.id }}">{{ guild.name }} ({{ guild.id }})</option>{% endfor %}
+    </select></label>
+  <label>named <input name="server_name" class="form-control input-sm" required placeholder="new team name"></label>
+  <button type="submit" class="btn btn-primary btn-sm">Make a plan</button>
+</form>
+{% endif %}
+{% if plans %}
+<table class="table table-condensed">
+  <thead><tr><th>Plan made (UTC)</th><th>From</th><th>Into</th></tr></thead>
+  <tbody>{% for plan in plans %}
+    <tr><td><a href="{% url 'dashboard:setup_plan' plan.id %}">{{ plan.created_at|date:"Y-m-d H:i:s" }}</a></td>
+      <td>{{ plan.source.guild_name }}</td><td>{{ plan.target.guild_name }} &rarr; {{ plan.server_name }}</td></tr>
+  {% endfor %}</tbody>
+</table>
+{% endif %}
+
 <h3>Saved snapshots</h3>
 <p class="text-muted">A snapshot records a server's roles, channels and permissions, onboarding, welcome screen, emojis and
   AutoMod rules exactly as Discord reports them. Taking one changes nothing in Discord.</p>
+<form method="post" action="{% url 'dashboard:import_template' %}" class="form-inline">
+  {% csrf_token %}
+  <label>Or save a server template as a snapshot (roles, channels and permissions only):
+    <input name="template" class="form-control input-sm" placeholder="https://discord.new/..." required></label>
+  <button type="submit" class="btn btn-default btn-sm">Import template</button>
+</form>
 <table class="table table-condensed">
   <thead><tr><th>Taken (UTC)</th><th>Server</th><th>By</th><th>Notes</th></tr></thead>
   <tbody>
   {% for snapshot in snapshots %}
     <tr><td><a href="{% url 'dashboard:snapshot' snapshot.id %}">{{ snapshot.taken_at|date:"Y-m-d H:i:s" }}</a></td>
       <td>{{ snapshot.guild_name }} <code>{{ snapshot.guild_id }}</code></td><td>{{ snapshot.taken_by|default:"" }}</td>
-      <td>{% if snapshot.errors %}couldn't read: {{ snapshot.errors|join:", " }}{% endif %}</td></tr>
+      <td>{% if snapshot.origin == 'template' %}from a server template. {% endif %}{% if snapshot.errors %}couldn't read: {{ snapshot.errors|join:", " }}{% endif %}</td></tr>
   {% empty %}
     <tr><td colspan="4">No snapshots yet.</td></tr>
   {% endfor %}

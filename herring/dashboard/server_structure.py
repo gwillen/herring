@@ -52,3 +52,38 @@ def channel_names(sections):
 def section_counts(sections):
     """{section: number of items} for the list-valued sections, for an overview."""
     return {name.replace('_', ' '): len(data) for name, data in sections.items() if isinstance(data, list)}
+
+
+def sections_from_template(template):
+    """
+    Snapshot-style sections from a Discord server template. Templates use small
+    integer placeholder IDs (@everyone is role 0, which then also serves as the
+    guild ID), give roles in order instead of positions, and have no bot roles,
+    member overwrites, Community features, onboarding, emojis or stickers.
+    """
+    source = template['serialized_source_guild']
+    guild = ({k: v for k, v in source.items() if k not in ('roles', 'channels')}
+             | {'id': '0', 'features': []} | id_strings(source, ('system_channel_id', 'afk_channel_id')))
+    roles = [{**role, 'id': str(role['id']), 'permissions': str(role['permissions']), 'position': i, 'managed': False}
+             for i, role in enumerate(source['roles'])]
+    channels = [{**channel, **id_strings(channel, ('id', 'parent_id')),
+                 'permission_overwrites': [{**o, 'id': str(o['id'])} for o in channel.get('permission_overwrites', [])]}
+                for channel in source['channels']]
+    return {'guild': guild, 'roles': roles, 'channels': channels,
+            'template': {k: v for k, v in template.items() if k != 'serialized_source_guild'}}
+
+
+def id_strings(obj, keys):
+    """The given ID fields as strings (None stays None), like real snapshot IDs."""
+    return {k: (str(obj[k]) if obj.get(k) is not None else None) for k in keys if k in obj}
+
+
+def abbreviated(value, max_length=300):
+    """For display: value with long strings (e.g. base64 images) cut short, saying how long they were."""
+    if isinstance(value, str) and len(value) > max_length:
+        return f"{value[:60]}... ({len(value)} characters in all)"
+    if isinstance(value, dict):
+        return {k: abbreviated(v, max_length) for k, v in value.items()}
+    if isinstance(value, list):
+        return [abbreviated(v, max_length) for v in value]
+    return value

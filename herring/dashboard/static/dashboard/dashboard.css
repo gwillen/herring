@@ -19,3 +19,11 @@
 .snapshot-table .channel-name { padding-left: 2em; }
 .role-swatch { display: inline-block; width: 0.9em; height: 0.9em; border-radius: 50%; vertical-align: middle; border: 1px solid #ccc; }
 .raw-json { max-height: 40em; overflow: auto; font-size: 12px; }
+.setup-form label { margin-right: 12px; font-weight: normal; }
+.plan-table { font-size: 13px; }
+.plan-table summary { cursor: pointer; }
+.op-request { font-size: 11px; max-height: 30em; overflow: auto; margin: 4px 0 0; }
+.status-applied { color: #3c763d; }
+.status-failed .op-error { color: #a94442; }
+.status-skipped { color: #8a6d3b; }
+.acknowledge { font-weight: normal; margin: 8px 0; }
