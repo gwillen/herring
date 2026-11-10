@@ -46,7 +46,7 @@ Checked 2026-10-05 by running the unmodified repo: `docker compose up` (python:3
 ## Deploy checklist (Heroku)
 
 1. Check stack, Postgres ≥ 14, buildpacks (README "Deploying to Heroku"). Stack is now heroku-26; SECRET_KEY set (user, 2026-10-06).
-2. **Open:** user believes an external script may call `/post_discord/`; they'll check. It now needs `token` = `SECRETS['post-discord-token']`. If the script exists, it probably belongs in this repo.
+2. `/post_discord/` now needs `token` = `SECRETS['post-discord-token']`. User (2026-11-10): treat as a scream test; nothing important uses it. Production Postgres is 17.10 (fine for Django 5.2).
 3. Deploy to staging (`rage-herring-staging`) first; watch for Celery broker / redbeat errors with `rediss://` URLs (kombu/redis-py/redbeat all upgraded) and for collectstatic (whitenoise replaced dj-static).
 
 ## Open issues / recommendations

@@ -64,6 +64,15 @@ Goal: user creates the new year's Discord server by hand; Herring does everythin
 - **Step 1, done (1444b4a):** dashboard "Discord servers" page: servers the bot is in (marks DISCORD_GUILD), invite link, "Take snapshot" → `dashboard.models.DiscordServerSnapshot` (raw JSON per section from `dashboard/discord_api.py` SNAPSHOT_SECTIONS; refused sections in `errors`). REST only, no gateway. Live-tested on the test server.
 - **Step 2, next:** "copy structure" plan: diff a source snapshot (last year) against a fresh snapshot of the target server → list of operations with stored payloads, preconditions, dependencies; source→target ID mapping (roles, channels) for overwrites and onboarding; exclude last year's puzzle categories/channels.
 - **Step 3:** review/apply page: select operations (dependencies pulled in), apply exactly as stored in dependency order in a Celery task, re-check preconditions against live state, record per-op results (created IDs) in an audit log.
+- **Decisions (user, 2026-11-10):**
+  - Copy: roles; non-puzzle categories/channels with permissions/settings; Community, rules channel, onboarding, welcome screen; **emojis, stickers, AutoMod rules** (probably few or none of the latter). Not copied: icon (a designer makes one later), members, messages, invites, webhooks.
+  - Server name for this year: **"You Are Being Rage Limited"** (the new team name); set it as part of setup.
+  - The team traditionally renames the default "Text Channels" category to "General Stuff" (which keeps #general).
+  - **Safety gate:** setup refuses by default on a server that looks used: older than 1 month, or more than 5 non-bot members, or more than 50 messages ever from non-bot users. Then it shows those stats and requires clicking through a warning.
+  - **Only during setup**, anything goes: create/rename/move channels and categories; delete channels with NO message history (e.g. default voice channels); delete categories with no channels.
+  - Fake "last year" layout on the test server for development; optionally also a Discord server template link of last year's real server (readable via GET /guilds/templates/{code} without joining).
+  - User will create a second test server ("target") and invite the test bot.
+  - Production Postgres is 17.10. `/post_discord/` caller: ignore ("scream test"; nothing important uses it).
 - Blocker for the real run: this branch isn't deployed to production; the production bot (in last year's server) must run the tool. Deploy checklist in modernization.md.
 - Discord API facts: bots can't create servers (Create Guild no longer documented); Community requires rules + public updates channels; onboarding needs ≥7 default channels (≥5 writable by @everyone) when enabled.
 
