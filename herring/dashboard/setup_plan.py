@@ -16,6 +16,11 @@ import discord
 
 CATEGORY = discord.ChannelType.category.value
 THREAD_TYPES = {10, 11, 12}
+# The documented guild channel types (text, voice, category, announcement, stage, directory, forum, media).
+# Discord has others: its create endpoint also accepts the undocumented 6 and 21, and in 2026-11 an
+# experimental "server-hub" channel of a type it can't create showed up. Operations on channels of other
+# types are offered, but unticked.
+KNOWN_CHANNEL_TYPES = {0, 2, CATEGORY, 5, 13, 14, 15, 16}
 # Last year's puzzle channels (r4-anagrams, r2m-final-meta) aren't copied.
 PUZZLE_CHANNEL_RE = re.compile(r'^r\d+m?-')
 REF_RE = re.compile(r'@ref:[a-z_]+:[0-9]+')
@@ -396,21 +401,34 @@ def channel_label(channel):
     return f"category {channel['name']!r}" if channel['type'] == CATEGORY else f"#{channel['name']}"
 
 
+def type_doubts(channel):
+    """Why an operation on this channel shouldn't be ticked by default, judging by its type."""
+    return [] if channel['type'] in KNOWN_CHANNEL_TYPES else [
+        f"its type, {channel['type']}, isn't one Herring knows (maybe a new Discord feature), so Discord may refuse it"]
+
+
+def with_doubts(description, doubts):
+    return description + (f" — left unticked: {'; '.join(doubts)}" if doubts else "")
+
+
 def channel_create_operation(setup, channel):
     kind = channel_kind(channel)
     empty = kind == 'category' and not children_of(setup.source, channel['id'])
+    doubts = (["empty last year; maybe an old round"] if empty else []) + type_doubts(channel)
     return Operation(f"{kind}.create.{channel['id']}", stage_for(kind),
-                     f"Create {channel_label(channel)}" + (" (empty last year; maybe an old round)" if empty else ""),
+                     with_doubts(f"Create {channel_label(channel)}", doubts),
                      'POST', guild_path(setup, '/channels'), channel_body(setup, channel),
-                     creates=ref('channel', channel['id']), selected=not empty,
+                     creates=ref('channel', channel['id']), selected=not doubts,
                      preconditions=({'absent': 'channels', 'name': channel['name'], 'type': channel['type']},))
 
 
 def channel_update_operation(setup, channel, target, changes):
     kind = channel_kind(channel)
+    doubts = type_doubts(target)
     return Operation(f"{kind}.update.{channel['id']}", stage_for(kind),
-                     f"Update {channel_label(target)}: {', '.join(describe_change(k, v) for k, v in changes.items())}",
-                     'PATCH', f"/channels/{target['id']}", changes,
+                     with_doubts(f"Update {channel_label(target)}: "
+                                 f"{', '.join(describe_change(k, v) for k, v in changes.items())}", doubts),
+                     'PATCH', f"/channels/{target['id']}", changes, selected=not doubts,
                      preconditions=({'exists': 'channels', 'id': target['id']},))
 
 
@@ -452,9 +470,11 @@ def is_target_puzzle_channel(setup, channel):
 
 
 def delete_channel_operation(channel):
+    doubts = type_doubts(channel)
     return Operation(f"channel.delete.{channel['id']}", 'Cleanup',
-                     f"Delete {channel_label(channel)} (not in last year's server; only if it has no messages)",
-                     'DELETE', f"/channels/{channel['id']}",
+                     with_doubts(f"Delete {channel_label(channel)} (not in last year's server; only if it has no messages)",
+                                 doubts),
+                     'DELETE', f"/channels/{channel['id']}", selected=not doubts,
                      preconditions=({'exists': 'channels', 'id': channel['id']}, {'no_messages': channel['id']}))
 
 

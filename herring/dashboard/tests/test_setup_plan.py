@@ -43,6 +43,19 @@ class OperationTests(SimpleTestCase):
     def test_empty_category_is_created_unticked(self):
         self.assertFalse(operation(plan(), 'category.create.30').selected)
 
+    def test_unknown_channel_types_are_unticked_and_explained(self):
+        hub = {'type': 99, 'name': 'server-hub', 'position': 4, 'permission_overwrites': []}
+        updated = {'type': 99, 'name': 'odd', 'position': 5, 'permission_overwrites': []}
+        source = {**SOURCE, 'channels': SOURCE['channels'] + [{**hub, 'id': '40'}, {**updated, 'id': '41'},
+                                                              {**hub, 'id': '42', 'type': 15, 'name': 'forum'}]}
+        target = {**TARGET, 'channels': TARGET['channels'] + [{**hub, 'id': '140', 'name': 'stray-hub'},
+                                                              {**updated, 'id': '141', 'parent_id': '110'}]}
+        draft = plan(source, target)
+        for key in ('channel.create.40', 'channel.update.41', 'channel.delete.140'):
+            self.assertFalse(operation(draft, key).selected, key)
+            self.assertIn("type, 99, isn't one Herring knows", operation(draft, key).description)
+        self.assertTrue(operation(draft, 'channel.create.42').selected)  # documented, though Herring doesn't use it
+
     def test_roles_created_in_order_without_bot_role(self):
         draft = plan()
         self.assertEqual([op.key for op in draft.operations if op.key.startswith('role.create')],
