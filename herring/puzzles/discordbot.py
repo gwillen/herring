@@ -28,7 +28,7 @@ from puzzles import site_settings
 from puzzles.models import Round, Puzzle, UserProfile
 from herring.log_buffer import process_label
 from herring.version import herring_version
-from puzzles.redis_state import DISCORD_STATUS_INTERVAL_SECONDS, redis_client, set_discord_status
+from puzzles.redis_state import DISCORD_STATUS_INTERVAL_SECONDS, record_listener_heartbeat, redis_client
 
 logger = logging.getLogger(__name__)
 
@@ -242,7 +242,7 @@ class HerringCog(commands.Cog):
     async def report_status(self):
         """Heartbeat for the web UI's Discord status (see puzzles.redis_state)."""
         try:
-            set_discord_status('listener', self.bot.is_ready())
+            record_listener_heartbeat(self.bot.is_ready(), process_label())
         except Exception:
             logger.warning("listener bot: couldn't report status to Redis", exc_info=True)
 
@@ -1443,16 +1443,6 @@ class LazyAnnouncer:
 
 
 DISCORD_ANNOUNCER = LazyAnnouncer(create_announcer_bot)
-
-def announcer_is_ready():
-    """
-    Whether the announcer bot is connected, without waiting for it. The first
-    call in a process starts creating the bot (which takes milliseconds); it
-    connects in the background.
-    """
-    bot = DISCORD_ANNOUNCER.get()
-    return bot is not None and bot.is_really_ready()
-
 
 def do_in_discord(coro):
     try:

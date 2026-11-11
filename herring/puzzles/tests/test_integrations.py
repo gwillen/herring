@@ -22,7 +22,7 @@ class CeleryTests(TestCase):
         expected = {'puzzles.tasks.post_answer', 'puzzles.tasks.post_update',
                     'puzzles.tasks.create_puzzle_sheet_and_channel', 'puzzles.tasks.create_round_category',
                     'puzzles.tasks.check_connection_to_messaging', 'puzzles.tasks.process_google_sheets_changes',
-                    'puzzles.tasks.add_user_to_puzzle', 'puzzles.tasks.report_discord_status',
+                    'puzzles.tasks.add_user_to_puzzle',
                     'puzzles.tasks.post_discord_message'}
         celery_app.loader.import_default_modules()
         self.assertLessEqual(expected, set(celery_app.tasks))
@@ -106,23 +106,23 @@ class LazyAnnouncerTests(SimpleTestCase):
 
 
 class DiscordStatusTests(TestCase):
-    def connected_with(self, values):
-        with mock.patch('puzzles.redis_state.redis_client') as redis_client:
-            redis_client.return_value.mget.return_value = values
-            return redis_state.discord_connected()
+    def setUp(self):
+        redis_state.redis_client().delete(redis_state.LISTENER_HEARTBEAT_KEY)
+        self.addCleanup(redis_state.redis_client().delete, redis_state.LISTENER_HEARTBEAT_KEY)
 
-    def test_connected_only_if_every_component_reported_connected(self):
-        self.assertTrue(self.connected_with([b'1', b'1']))
-        self.assertFalse(self.connected_with([b'1', b'0']))
-        self.assertFalse(self.connected_with([b'1', None]))  # expired: the process stopped reporting
+    def test_connected_only_with_a_recent_connected_heartbeat(self):
+        self.assertFalse(redis_state.discord_connected())  # never reported, or expired
+        redis_state.record_listener_heartbeat(False, 'host worker 1')
+        self.assertFalse(redis_state.discord_connected())
+        redis_state.record_listener_heartbeat(True, 'host worker 1')
+        self.assertTrue(redis_state.discord_connected())
+        heartbeat = redis_state.listener_heartbeat()
+        self.assertEqual((heartbeat['process'], heartbeat['seconds_ago']), ('host worker 1', 0))
 
-    @override_settings(HERRING_ACTIVATE_DISCORD=True)
-    def test_report_discord_status_records_announcer(self):
-        from puzzles import tasks
-        with mock.patch.object(tasks, 'announcer_is_ready', return_value=True), \
-                mock.patch.object(tasks, 'set_discord_status') as set_status:
-            tasks.report_discord_status()
-        set_status.assert_called_once_with('announcer', True)
+    def test_heartbeat_expires(self):
+        redis_state.record_listener_heartbeat(True, 'host worker 1')
+        self.assertLessEqual(redis_state.redis_client().ttl(redis_state.LISTENER_HEARTBEAT_KEY),
+                             redis_state.DISCORD_STATUS_TTL_SECONDS)
 
 
 @override_settings(HERRING_ACTIVATE_DISCORD=True, HERRING_ACTIVATE_GAPPS=False)

@@ -13,9 +13,9 @@ from django.views.decorators.http import require_POST
 
 from herring.log_buffer import LEVEL_NAMES
 from herring.version import herring_version
-from puzzles import site_settings
+from puzzles import redis_state, site_settings
 from puzzles.models import SiteSettingChange
-from puzzles.redis_state import discord_connected
+from puzzles.redis_state import listener_heartbeat
 from . import discord_api, logs, server_structure, setup_apply, setup_flow
 from .models import DiscordServerSnapshot, SetupPlan
 
@@ -29,7 +29,8 @@ def home(request):
     context = {
         'version': herring_version(),
         'site': site_settings.current(),
-        'discord_connected': site_settings.discord_on() and discord_connected(),
+        'heartbeat': listener_heartbeat(),
+        'heartbeat_limit': redis_state.DISCORD_STATUS_TTL_SECONDS,
         'log_entries': logs.buffer_size(),
         'log_capacity': settings.HERRING_LOG_BUFFER_ENTRIES,
         'log_levels': sorted(logs.current_levels().items()),

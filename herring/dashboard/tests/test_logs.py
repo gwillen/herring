@@ -2,7 +2,7 @@ import logging
 from unittest import mock
 
 from django.conf import settings
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from dashboard import logs
 from herring import log_buffer
@@ -106,3 +106,22 @@ class DashboardViewTests(TestCase):
         self.assertNotContains(self.client.get('/dashboard/'), 'missing')
         with mock.patch('dashboard.views.unapplied_migrations', return_value=['dashboard.0099_new']):
             self.assertContains(self.client.get('/dashboard/'), 'dashboard.0099_new')
+
+
+@override_settings(HERRING_ACTIVATE_DISCORD=True)
+class DiscordStatusDisplayTests(TestCase):
+    def setUp(self):
+        from puzzles import redis_state
+        self.redis_state = redis_state
+        redis_state.redis_client().delete(redis_state.LISTENER_HEARTBEAT_KEY)
+        self.addCleanup(redis_state.redis_client().delete, redis_state.LISTENER_HEARTBEAT_KEY)
+        self.client.force_login(make_superuser())
+
+    def test_no_heartbeat(self):
+        self.assertContains(self.client.get('/dashboard/'), 'no heartbeat from the listener bot')
+
+    def test_connected_shows_where_and_when(self):
+        self.redis_state.record_listener_heartbeat(True, 'dyno worker 7')
+        page = self.client.get('/dashboard/')
+        self.assertContains(page, 'connected')
+        self.assertContains(page, 'dyno worker 7')

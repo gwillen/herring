@@ -10,10 +10,10 @@ from django.conf import settings
 from django.db import transaction
 import json
 import kombu.exceptions
-from puzzles.discordbot import run_listener_bot, DISCORD_ANNOUNCER, announcer_is_ready, do_in_discord, LEAVE_EMOJI, TRIUMPH_EMOJI
+from puzzles.discordbot import run_listener_bot, DISCORD_ANNOUNCER, do_in_discord, LEAVE_EMOJI, TRIUMPH_EMOJI
 from puzzles.models import Puzzle, Round, UserProfile
 from puzzles import site_settings
-from puzzles.redis_state import discord_connected, redis_client, set_discord_status
+from puzzles.redis_state import discord_connected, redis_client
 from puzzles.spreadsheets import check_spreadsheet_service, iterate_changes, make_sheet
 import logging
 
@@ -321,13 +321,6 @@ def get_service_status():
         'discord': discord,
         'gapps': gapps,
     }
-
-
-@shared_task(ignore_result=True)
-def report_discord_status():
-    """Periodic (Celery beat): record whether this worker's announcer bot is connected."""
-    # While switched off, don't start an announcer just to ask (it would disconnect itself again).
-    set_discord_status('announcer', site_settings.discord_on() and announcer_is_ready())
 
 
 @shared_task(ignore_result=True)

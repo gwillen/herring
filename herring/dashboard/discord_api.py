@@ -32,10 +32,16 @@ SNAPSHOT_SECTIONS = {
 TIMEOUT_SECONDS = 60
 
 
+def rest_only_intents():
+    """These clients never connect to the gateway, so intents don't matter; the guilds intent just stops
+    discord.py warning that it's off."""
+    return discord.Intents(guilds=True)
+
+
 @asynccontextmanager
 async def bot_http():
     """The bot's HTTP client, logged in, and closed afterwards."""
-    client = discord.Client(intents=discord.Intents.none())
+    client = discord.Client(intents=rest_only_intents())
     await client.login(settings.HERRING_SECRETS['discord-bot-token'])
     try:
         yield client
@@ -203,7 +209,7 @@ class DiscordSession:
 
     def __enter__(self):
         self.loop = asyncio.new_event_loop()
-        self.client = discord.Client(intents=discord.Intents.none())
+        self.client = discord.Client(intents=rest_only_intents())
         self.loop.run_until_complete(self.client.login(settings.HERRING_SECRETS['discord-bot-token']))
         return self
 

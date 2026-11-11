@@ -163,8 +163,12 @@ CELERY_BROKER_URL = env.get_value('BROKER_URL', default=REDIS_URL)
 # example, in development environments if the developer doesn't want to run a
 # whole Redis+Celery stack and is okay with integrations not working.
 CELERY_BROKER_TRANSPORT_OPTIONS = dict(max_retries=3)
-CELERY_REDBEAT_REDIS_URL = REDIS_URL #+ "?ssl_cert_reqs=none"  # allow self-signed certificates
-#CELERY_REDBEAT_REDIS_USE_SSL = { 'ssl_cert_reqs': 'none' }  # allow self-signed SSL certs
+CELERY_REDBEAT_REDIS_URL = REDIS_URL
+if REDIS_URL.startswith('rediss:'):
+    # Heroku's Redis uses self-signed certificates. RedBeat otherwise requires a verified certificate for
+    # rediss:// and can't connect, so no scheduled task runs (e.g. the 60 s check that starts the Discord
+    # listener). Same policy as puzzles.redis_state and the result backend below.
+    CELERY_REDBEAT_REDIS_USE_SSL = {'ssl_cert_reqs': ssl.CERT_NONE}
 CELERY_BEAT_SCHEDULER = 'redbeat.RedBeatScheduler'
 
 # Results are only kept for tasks that ask for them (ignore_result=False) --
@@ -191,14 +195,8 @@ if HERRING_ACTIVATE_DISCORD and not HERRING_ENABLE_STANDALONE_DISCORD:
         'schedule': 60.0,
     }
 
-# How often Discord connection status is reported to Redis (see puzzles.redis_state).
+# How often the Discord listener records its heartbeat in Redis (see puzzles.redis_state).
 HERRING_DISCORD_STATUS_INTERVAL_SECONDS = 30
-
-if HERRING_ACTIVATE_DISCORD:
-    CELERY_BEAT_SCHEDULE['report-discord-status'] = {
-        'task': 'puzzles.tasks.report_discord_status',
-        'schedule': float(HERRING_DISCORD_STATUS_INTERVAL_SECONDS),
-    }
 
 # This indirectly affects the expiration time of the lock RedBeat sets in
 # Redis to ensure that only one scheduler is running. It largely doesn't

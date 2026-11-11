@@ -3,7 +3,9 @@ Shared Redis state: the client, and Discord connection status, which the
 processes that hold Discord connections (Celery workers, the listener bot)
 report here so the web process can show it without connecting to Discord.
 """
+import json
 import logging
+import time
 from functools import cache
 from urllib.parse import urlparse
 
@@ -12,12 +14,12 @@ from redis import Redis
 
 logger = logging.getLogger(__name__)
 
-# Each reporter writes its status every HERRING_DISCORD_STATUS_INTERVAL_SECONDS;
-# a status expires if it isn't refreshed, so a dead process shows up as "not
-# connected".
+# The Discord listener bot (the one long-lived connection) records a heartbeat
+# every HERRING_DISCORD_STATUS_INTERVAL_SECONDS; it expires if not refreshed, so
+# a stopped listener shows up as "not connected".
 DISCORD_STATUS_INTERVAL_SECONDS = settings.HERRING_DISCORD_STATUS_INTERVAL_SECONDS
 DISCORD_STATUS_TTL_SECONDS = 3 * DISCORD_STATUS_INTERVAL_SECONDS
-DISCORD_COMPONENTS = ('announcer', 'listener')
+LISTENER_HEARTBEAT_KEY = 'herring:discord-listener-heartbeat'
 
 
 @cache
@@ -33,18 +35,22 @@ def redis_client():
     return Redis.from_url(settings.REDIS_URL, max_connections=1, **ssl_kwargs)
 
 
-def _status_key(component):
-    return f'herring:discord-status:{component}'
+def record_listener_heartbeat(connected, process):
+    heartbeat = {'at': time.time(), 'connected': connected, 'process': process}
+    redis_client().set(LISTENER_HEARTBEAT_KEY, json.dumps(heartbeat), ex=DISCORD_STATUS_TTL_SECONDS)
 
 
-def set_discord_status(component, connected):
-    """Record whether `component` ('announcer' or 'listener') is connected to Discord."""
-    assert component in DISCORD_COMPONENTS, component
-    redis_client().set(_status_key(component), '1' if connected else '0', ex=DISCORD_STATUS_TTL_SECONDS)
+def listener_heartbeat():
+    """The listener's latest heartbeat ({'at', 'connected', 'process', 'seconds_ago'}), or None if it's gone quiet."""
+    raw = redis_client().get(LISTENER_HEARTBEAT_KEY)
+    if raw is None:
+        return None
+    heartbeat = json.loads(raw)
+    return heartbeat | {'seconds_ago': round(time.time() - heartbeat['at'])}
 
 
 def discord_connected():
-    """True if every Discord component reported itself connected recently."""
-    values = redis_client().mget([_status_key(c) for c in DISCORD_COMPONENTS])
-    logger.debug("discord status from redis: %s", dict(zip(DISCORD_COMPONENTS, values)))
-    return all(value == b'1' for value in values)
+    """True if the listener bot recently reported itself connected."""
+    heartbeat = listener_heartbeat()
+    logger.debug("Discord listener heartbeat: %s", heartbeat)
+    return bool(heartbeat and heartbeat['connected'])
