@@ -1,6 +1,6 @@
 # Modernization (2026-10)
 
-Done on branch `claude-2026-oct` (2026-10-05/06): tests, uv/pnpm + Docker, Django 3.2 → 5.2, Python 3.10 → 3.14, all deps current, frontend on esbuild + React 19, security fixes, HTTPS hardening, self-hosted Compose option, /puzzles/ performance fixes. User has set SECRET_KEY on Heroku and moved the app to heroku-26 (2026-10-06).
+Done 2026-10/11 (started on branch `claude-2026-oct`; merged, and work continues on `master` since 2026-11-10): tests, uv/pnpm + Docker, Django 3.2 → 5.2, Python 3.10 → 3.14, all deps current, frontend on esbuild + React 19, security fixes, HTTPS hardening, self-hosted Compose option, /puzzles/ performance fixes. User has set SECRET_KEY on Heroku and moved the app to heroku-26 (2026-10-06).
 
 ## Decisions (user, 2026-10-05)
 
@@ -44,11 +44,11 @@ Checked 2026-10-05 by running the unmodified repo: `docker compose up` (python:3
 - Security: SECRET_KEY from env (no default); `/post_discord/` requires `token` = `SECRETS['post-discord-token']`; puzzle update endpoint accepts only answer/note/tags strings; signup secret compared in constant time and refused if unconfigured.
 - `LOGIN_REDIRECT_URL = '/'`; profile edit works for users without email.
 
-## Deploy checklist (Heroku)
+## Deployment (Heroku)
 
-1. Check stack, Postgres ≥ 14, buildpacks (README "Deploying to Heroku"). Stack is now heroku-26; SECRET_KEY set (user, 2026-10-06).
-2. `/post_discord/` now needs `token` = `SECRETS['post-discord-token']`. User (2026-11-10): treat as a scream test; nothing important uses it. Production Postgres is 17.10 (fine for Django 5.2).
-3. Deploy to staging (`rage-herring-staging`) first; watch for Celery broker / redbeat errors with `rediss://` URLs (kombu/redis-py/redbeat all upgraded) and for collectstatic (whitenoise replaced dj-static).
+- Deployed to staging and production by the user (2026-11-10): heroku-26, Postgres 17.10, SECRET_KEY set; the Procfile `release:` step runs migrations on each deploy. Staging has its own bot (three bot apps exist: prod, staging, test).
+- `/post_discord/` needs `token` = `SECRETS['post-discord-token']`; user treats it as a scream test.
+- Open: verify RedBeat connects over rediss on Heroku after f79c675 (worker logs "Scheduler: Sending due task ..."); before it, Discord status showed "not connected" there.
 
 ## Open issues / recommendations
 
@@ -71,4 +71,5 @@ Checked 2026-10-05 by running the unmodified repo: `docker compose up` (python:3
 - Dev image has git, so the dev stack reports `git describe` of the bind-mounted checkout.
 - Gotcha: always bring the dev stack up with `HERRING_PORT=18000` (the user browses it at that port and HOST points there); a bare `docker compose -p herring-claude up` moves it to 8000.
 - Channel links still use the old `discordapp.com` domain (redirects to discord.com).
+- Dev helpers in `scripts/dev/` (dashboard login, apply a setup plan, save Settings, compare a snapshot with a live server, enrich a test server); see their headers.
 - Discord test server: README "Using a test Discord server" (separate bot app; config in `.env`, which Claude must not read). `scripts/test.sh` and `scripts/ui-test.sh` force integrations off regardless of `.env`.

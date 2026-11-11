@@ -65,6 +65,10 @@ Deployment settings (database and Redis URLs, secrets, `HOST`, ...) come from th
 
 `DISCORD_GUILD`, `HUNT_ID` and `DISCORD_PROTECTED_CATEGORIES` in the environment are only copied in once, by the migration that created these settings; changing them later has no effect.
 
+### Dev helper scripts
+
+`scripts/dev/` has small helpers for the dev stack (each explains itself at the top): logging into the dashboard, applying a server-setup plan, saving Settings, comparing a saved server snapshot with a live server, and giving a test server Community/onboarding/emoji/sticker/AutoMod so it can serve as a setup source.
+
 ### Running the tests
 
 `scripts/test.sh` runs the test suite in Docker. It uses a separate Compose project (`herring-test`) with its own database, so it doesn't interfere with a running dev stack, and it cleans up after itself. Arguments are passed to `manage.py test`, e.g. `scripts/test.sh puzzles.tests.test_views`.

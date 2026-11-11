@@ -89,7 +89,7 @@ Goal: user creates the new year's Discord server by hand; Herring does everythin
   - Fake "last year" layout on the test server for development; optionally also a Discord server template link of last year's real server (readable via GET /guilds/templates/{code} without joining).
   - User will create a second test server ("target") and invite the test bot.
   - Production Postgres is 17.10. `/post_discord/` caller: ignore ("scream test"; nothing important uses it).
-- Blocker for the real run: this branch isn't deployed to production; the production bot (in last year's server) must run the tool. Deploy checklist in modernization.md.
+- (Resolved 2026-11-10: deployed to staging and production.) Formerly a blocker: this branch wasn't deployed to production; the production bot (in last year's server) must run the tool. Deploy checklist in modernization.md.
 - Discord API facts: bots can't create servers (Create Guild no longer documented); Community requires rules + public updates channels; onboarding needs ≥7 default channels (≥5 writable by @everyone) when enabled.
 
 ## Bot interface (user, 2026-10-09)
