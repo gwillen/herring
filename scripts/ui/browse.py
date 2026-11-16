@@ -74,7 +74,8 @@ def check_solve_notifications(page, other):
 def check_settings(page, other):
     page.check('text=Use app links')
     page.select_option('.solve-settings select', 'toast')
-    page.reload(); page.wait_for_selector('.puzzle')
+    # Every puzzle is solved by now, so both rounds load collapsed (hidden).
+    page.reload(); page.wait_for_selector('.puzzle', state='attached')
     check('app links setting survived reload', page.is_checked('text=Use app links'))
     check('popup setting reached the other tab', other.input_value('.solve-settings select') == 'toast')
     set_answers(page, {'Shipping Containers': ''})
