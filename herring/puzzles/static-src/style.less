@@ -214,6 +214,11 @@ button, a.button, input[type=submit] {
 		margin-top: -2px;
 		color: @textColor;
 	}
+
+	select {
+		color: @textColor;
+		margin-left: @stdpadding/2;
+	}
 }
 
 .round {
@@ -380,6 +385,22 @@ button, a.button, input[type=submit] {
 	}
 }
 
+// The box of a popup (Modal or Toast).
+.popup-box() {
+	border: 2px solid @mainColor;
+	background-color: white;
+	color: @mainColor;
+	padding: @stdpadding;
+	position: relative;
+	overflow-y: auto;
+
+	.close-button {
+		position: absolute;
+		top: @stdpadding/2;
+		right: @stdpadding/2;
+	}
+}
+
 .modal {
 	position: fixed;
 	top: 0;
@@ -392,19 +413,26 @@ button, a.button, input[type=submit] {
 	align-items: center;
 	justify-content: center;
 
-	.close-button {
-		position: absolute;
-		top: @stdpadding/2;
-		right: @stdpadding/2;
-	}
-
 	> div {
+		.popup-box();
 		width: 50%;
-		border: 2px solid @mainColor;
-		background-color: white;
-		color: @mainColor;
-		padding: @stdpadding;
-		position: relative;
+		max-height: 90vh;
+	}
+}
+
+.toast-popup {
+	.popup-box();
+	position: fixed;
+	bottom: @stdpadding;
+	right: @stdpadding;
+	z-index: 1050;
+	width: 400px;
+	max-width: calc(100vw - @stdpadding * 2);
+	max-height: 50vh;
+	box-shadow: 0 2px 10px rgba(0,0,0,.3);
+
+	h1 {
+		font-size: 22px;
 	}
 }
 
@@ -414,6 +442,31 @@ button, a.button, input[type=submit] {
 	.answer {
 		font-weight: 900;
 		text-transform: uppercase;
+	}
+
+	// With several solves listed, each gets less room.
+	.solved-puzzle:not(:only-child) {
+		h1 { font-size: 24px; }
+		h2 { font-size: 20px; }
+		p, h1, h2 { margin: 2px 0; }
+		& + .solved-puzzle {
+			border-top: 1px solid lighten(@mainColor, 50%);
+			margin-top: @stdpadding/2;
+			padding-top: @stdpadding/2;
+		}
+	}
+
+	.meta-label {
+		font-size: 60%;
+		vertical-align: middle;
+		color: white;
+		background: @mainColor;
+		padding: 0 4px;
+		margin-right: 8px;
+	}
+
+	.show-all {
+		margin-top: @stdpadding;
 	}
 }
 

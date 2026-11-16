@@ -3,6 +3,7 @@
 import React from 'react';
 import Filters from './filters';
 import RoundComponent from './round';
+import SolveSettings from './solve-settings';
 
 export default class RoundsComponent extends React.Component {
     state = {
@@ -28,7 +29,11 @@ export default class RoundsComponent extends React.Component {
                             uiSettings={ this.props.uiSettings }
                             updateFulltextFilter={ this.changeFilter }
                             updateAnswerFilter={ this.toggleAnswerStatus }
-                            toggleLinkType={ this.props.toggleLinkType }
+                            updateUiSetting={ this.props.updateUiSetting }
+                        />
+                        <SolveSettings
+                            uiSettings={ this.props.uiSettings }
+                            updateUiSetting={ this.props.updateUiSetting }
                         />
                     </div>
                 </div>

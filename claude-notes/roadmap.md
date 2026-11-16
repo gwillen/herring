@@ -130,4 +130,6 @@ Implications for the replacement (plan/apply design above): identify channels by
 4. Draft → approved workflow; token-authenticated API for automated drafts.
 5. In-app editing UI.
 
+- (User, 2026-11-16) Add `Puzzle.solved_at` (when the answer was set; cleared with it). The solve popup currently orders solves by when each tab noticed them (10 s polls, ~1 min in throttled background tabs); `solved_at` would order them properly and allow "solved N min ago" and solve stats.
+
 Notes for revision: a Hunt model (owning its Discord guild ID, Drive folder, template sheet, active flag) would replace `HUNT_ID`/`DISCORD_GUILD` env config and fits multi-server. Discord channel/category IDs are globally unique snowflakes, so per-server scoping doesn't affect ID-based lookup, but bot commands need to resolve "which hunt" from the guild a command came from (DMs → primary hunt).

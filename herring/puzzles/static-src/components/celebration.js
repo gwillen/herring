@@ -1,43 +1,45 @@
 'use strict';
 
 import React from 'react';
+import { classNames } from '../utils';
+import { summarizeEntries } from '../solve-tracking';
 import Modal from './utils/modal';
+import Toast from './utils/toast';
 
-var n;
+const FRAMES = { modal: Modal, toast: Toast };
 
-export default class Celebration extends React.Component {
-    componentDidMount() {
-        var self = this;
-        if (Notification.permission === 'granted') {
-            // If it's okay let's create a notification
-            n = new Notification('We solved puzzle ' + this.props.puzzle.name + '!', {
-                body: 'In round ' + this.props.roundNumber + ': ' + this.props.roundName +
-                    '. Answer: ' + this.props.puzzle.answer.toUpperCase(),
-                tag: this.props.puzzle.name,
-            });
-            n.onclick = function (){
-                window.focus();
-                self.props.closeCallback();
-                n.close();
-            };
-        }
-    }
-    render() {
-        return (
-            <Modal closeCallback={ this.handleClose }>
-                <div className="celebration">
-                    <audio src="/static/YannickLemieux-applause.mp3" autoPlay />
-                    <h1>{ this.props.puzzle.name } SOLVED!!!</h1>
-                    <p>in round { this.props.roundNumber }: { this.props.roundName }</p>
-                    <h2>Answer: <span className="answer">{ this.props.puzzle.answer }</span></h2>
+function SolvedPuzzle({ puzzle, round }) {
+    return (
+        <div className={ classNames({ 'solved-puzzle': true, 'meta': puzzle.is_meta }) }>
+            <h1>
+                { puzzle.is_meta && <span className="meta-label">META</span> }
+                { puzzle.name } SOLVED!!!
+            </h1>
+            <p>in round { round.number }: { round.name }</p>
+            <h2>Answer: <span className="answer">{ puzzle.answer }</span></h2>
+        </div>
+    );
+}
+
+// One popup listing every solve not yet dismissed. `entries` are
+// {puzzleId, seenAt}; `index` maps puzzle ids to their current {puzzle, round},
+// so answer changes show up here as they're polled.
+export default function Celebration({ entries, index, popupStyle, onDismiss }) {
+    const [showAll, setShowAll] = React.useState(false);
+    const { listed, hiddenCount } = summarizeEntries({ entries, index, showAll });
+    const Frame = FRAMES[popupStyle];
+    return (
+        <Frame closeCallback={ onDismiss }>
+            <div className="celebration">
+                <div className="solved-list">
+                    { listed.map(entry =>
+                        <SolvedPuzzle key={ entry.puzzleId } { ...index.get(entry.puzzleId) } />) }
                 </div>
-            </Modal>
-        );
-    }
-    handleClose = () => {
-        if (n) {
-            n.close();
-        }
-        this.props.closeCallback();
-    };
+                { hiddenCount > 0 &&
+                    <button className="show-all" onClick={ () => setShowAll(true) }>
+                        …and { hiddenCount } more solved puzzles (show all)
+                    </button> }
+            </div>
+        </Frame>
+    );
 }

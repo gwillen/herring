@@ -35,7 +35,6 @@ export default class RoundComponent extends React.Component {
         var puzzles = filteredPuzzles.map(puzzle =>
             <PuzzleComponent key={ puzzle.id }
                              puzzle={ puzzle }
-                             parent={ round }
                              changeMade={ this.changeMade }
                              settings={ this.props.settings }
                              uiSettings={ this.props.uiSettings }

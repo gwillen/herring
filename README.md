@@ -83,9 +83,12 @@ The React frontend lives in `herring/puzzles/static-src`. Its build (`build.mjs`
 cd herring/puzzles/static-src
 pnpm install
 pnpm watch      # or `pnpm build` for a one-off build
+pnpm test       # unit tests of the pure frontend logic (node --test, no extra dependencies)
 ```
 
-`scripts/ui-test.sh` is a browser smoke test: it starts a throwaway stack (Compose project `herring-ui`, port 18100), seeds sample puzzles, and drives the UI in headless Chromium (Playwright's Docker image), failing on browser console errors or failed requests. Screenshots go to `ui-test-output/`.
+`scripts/ui-test.sh` is a browser smoke test: it starts a throwaway stack (Compose project `herring-ui`, port 18100), seeds sample puzzles, and drives the UI in headless Chromium (Playwright's Docker image), with two tabs to check the solve notifications. It fails on browser console errors, failed requests, or failed checks. Screenshots go to `ui-test-output/`.
+
+Solve notifications are per-browser settings on the puzzle page ("When a puzzle is solved:"): a popup in the middle of the page, in the corner, or none; the applause sound; and browser notifications. With several Herring tabs open, only one of them plays the sound and shows the browser notification, and dismissing the popup in one tab dismisses it in all of them.
 
 ### Manually
 

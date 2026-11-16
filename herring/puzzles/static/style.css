@@ -173,6 +173,10 @@ input[type=submit]:hover {
   margin-top: -2px;
   color: #333;
 }
+.filters select {
+  color: #333;
+  margin-left: 6px;
+}
 .round {
   margin-bottom: 36px;
 }
@@ -322,18 +326,44 @@ input[type=submit]:hover {
   align-items: center;
   justify-content: center;
 }
-.modal .close-button {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-}
 .modal > div {
-  width: 50%;
   border: 2px solid #87104a;
   background-color: white;
   color: #87104a;
   padding: 12px;
   position: relative;
+  overflow-y: auto;
+  width: 50%;
+  max-height: 90vh;
+}
+.modal > div .close-button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+.toast-popup {
+  border: 2px solid #87104a;
+  background-color: white;
+  color: #87104a;
+  padding: 12px;
+  position: relative;
+  overflow-y: auto;
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  z-index: 1050;
+  width: 400px;
+  max-width: calc(100vw - 12px * 2);
+  max-height: 50vh;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+.toast-popup .close-button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+.toast-popup h1 {
+  font-size: 22px;
 }
 .celebration {
   text-align: center;
@@ -341,6 +371,33 @@ input[type=submit]:hover {
 .celebration .answer {
   font-weight: 900;
   text-transform: uppercase;
+}
+.celebration .solved-puzzle:not(:only-child) h1 {
+  font-size: 24px;
+}
+.celebration .solved-puzzle:not(:only-child) h2 {
+  font-size: 20px;
+}
+.celebration .solved-puzzle:not(:only-child) p,
+.celebration .solved-puzzle:not(:only-child) h1,
+.celebration .solved-puzzle:not(:only-child) h2 {
+  margin: 2px 0;
+}
+.celebration .solved-puzzle:not(:only-child) + .solved-puzzle {
+  border-top: 1px solid #f4a2ca;
+  margin-top: 6px;
+  padding-top: 6px;
+}
+.celebration .meta-label {
+  font-size: 60%;
+  vertical-align: middle;
+  color: white;
+  background: #87104a;
+  padding: 0 4px;
+  margin-right: 8px;
+}
+.celebration .show-all {
+  margin-top: 12px;
 }
 div.editable > span {
   pointer-events: none;

@@ -2,40 +2,48 @@
 
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { getJson, loadStored, saveStored } from './utils';
+import { getJson, loadStored, onStoredChange, saveStored } from './utils';
+import { askNotificationPermissionOnClick } from './solve-alerts';
 import NavHeaderComponent from './components/nav-header';
 import RoundsComponent from './components/rounds';
+import SolveNotifier from './components/solve-notifier';
+
+// Same localStorage key and format the old store.js library used.
+const UI_SETTINGS_KEY = 'uiSettings';
+const DEFAULT_UI_SETTINGS = {
+  app_links: false,
+  solve_popup: 'modal',  // 'modal', 'toast' or 'off'
+  solve_sound: true,
+  solve_desktop: true,   // browser notifications
+};
+
+function loadUiSettings() {
+  return {...DEFAULT_UI_SETTINGS, ...loadStored(UI_SETTINGS_KEY, {})};
+}
 
 class Page extends React.Component {
   state = {
-    // Same localStorage key and format the old store.js library used.
-    uiSettings: loadStored('uiSettings', {app_links: false})
+    uiSettings: loadUiSettings()
   };
   componentDidMount() {
     this.loadDataFromServer();
     setInterval(this.loadDataFromServer, this.props.pollInterval);
-
-
-    // Request permission to send web notifications--this has to take place in
-    // an event handler triggered by a user interaction, or modern browsers
-    // will ignore it.
-    const askForPermissionToNotify = () => {
-      Notification.requestPermission(permission => {
-        document.removeEventListener('click', askForPermissionToNotify);
-        if (permission === 'granted') {
-          console.log('Browser notifications are active.');
-        }
-      });
-    };
-    document.addEventListener('click', askForPermissionToNotify);
+    // Keep every tab on the settings last changed in any of them.
+    onStoredChange(UI_SETTINGS_KEY, () => this.setState({uiSettings: loadUiSettings()}));
+    askNotificationPermissionOnClick(() => this.state.uiSettings.solve_desktop);
   }
-  componentDidUpdate() {
-    saveStored('uiSettings', this.state.uiSettings);
+  componentDidUpdate(prevProps, prevState) {
+    if (prevState.uiSettings !== this.state.uiSettings) {
+      saveStored(UI_SETTINGS_KEY, this.state.uiSettings);
+    }
   }
   render() {
     if (this.state.rounds) {
         return (
           <div>
+            <SolveNotifier rounds={ this.state.rounds }
+                           uiSettings={ this.state.uiSettings }
+            />
             <NavHeaderComponent rounds={ this.state.rounds }
                                 settings={ this.state.settings }
             />
@@ -43,7 +51,7 @@ class Page extends React.Component {
                              changeMade={ this.loadDataFromServer }
                              settings={ this.state.settings }
                              uiSettings={ this.state.uiSettings }
-                             toggleLinkType={ this.toggleLinkType }
+                             updateUiSetting={ this.updateUiSetting }
             />
           </div>);
     } else {
@@ -55,12 +63,11 @@ class Page extends React.Component {
       .then(data => this.setState(data))
       .catch(err => console.error('Loading puzzle data failed:', err));
   };
-  toggleLinkType = () => {
-    // this just deep-merges into state.uiSettings
+  updateUiSetting = (key, value) => {
     this.setState(state => ({
-      uiSettings: {...state.uiSettings, app_links: !state.uiSettings.app_links}
-    }))
-  }
+      uiSettings: {...state.uiSettings, [key]: value}
+    }));
+  };
 }
 
 createRoot(document.getElementById('react-root')).render(<Page pollInterval={ 10000 } />);

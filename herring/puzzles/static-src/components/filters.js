@@ -31,7 +31,7 @@ export default class Filters extends React.Component {
                     <label>
                         <input type="checkbox"
                                checked={ this.props.uiSettings.app_links }
-                               onChange={ this.props.toggleLinkType } />
+                               onChange={ this.toggleLinkType } />
                         Use app links
                     </label>
                 </div>
@@ -40,6 +40,9 @@ export default class Filters extends React.Component {
     }
     updateFilter = evt => {
         this.props.updateFulltextFilter(evt.target.value);
+    };
+    toggleLinkType = () => {
+        this.props.updateUiSetting('app_links', !this.props.uiSettings.app_links);
     };
     focus() {
         this.searchFilter.current.focus();

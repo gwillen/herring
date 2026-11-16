@@ -57,3 +57,22 @@ export function saveStored(key, value) {
         console.error(`Couldn't save ${key} to localStorage:`, err);
     }
 }
+
+// Applies `change` to a stored value and saves the result if it differs
+// (each save sends a storage event to the other tabs). Returns the result.
+export function updateStored(key, fallback, change) {
+    const before = loadStored(key, fallback);
+    const after = change(before);
+    if (JSON.stringify(after) !== JSON.stringify(before)) {
+        saveStored(key, after);
+    }
+    return after;
+}
+
+// Calls `callback` when another tab changes `key` in localStorage. Returns a
+// function that stops listening.
+export function onStoredChange(key, callback) {
+    const listener = evt => evt.key === key && callback();
+    window.addEventListener('storage', listener);
+    return () => window.removeEventListener('storage', listener);
+}

@@ -73,3 +73,7 @@ Checked 2026-10-05 by running the unmodified repo: `docker compose up` (python:3
 - Channel links still use the old `discordapp.com` domain (redirects to discord.com).
 - Dev helpers in `scripts/dev/` (dashboard login, apply a setup plan, save Settings, compare a snapshot with a live server, enrich a test server); see their headers.
 - Discord test server: README "Using a test Discord server" (separate bot app; config in `.env`, which Claude must not read). `scripts/test.sh` and `scripts/ui-test.sh` force integrations off regardless of `.env`.
+
+## Host problem: Docker can't run the stacks (found 2026-11-16)
+
+On the dev machine (kernel 7.0.0-42-generic, Docker 29.7.1), Docker's default AppArmor profile stops a process in a container from signaling another process in the same container (`kill` → Permission denied). The postgres image's entrypoint hangs in `gosu` at 100% CPU, so every compose stack here (dev, `scripts/test.sh`, `scripts/ui-test.sh`) fails with "postgres is unhealthy". `--security-opt apparmor=unconfined` makes it work (verified with plain `docker run`). This is the host's problem, not Herring's; the auto-mode permission check refused running the test stack unconfined, so it's the user's call how to fix it.
