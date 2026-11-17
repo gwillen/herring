@@ -645,7 +645,8 @@ class HerringCog(commands.Cog):
     async def who(self, ctx, puzzle_name:typing.Optional[discord.TextChannel]):
         """
         Reports status of puzzles, including who is currently in the voice chat (if anyone). Can take a puzzle
-        channel name, in which case it only reports that puzzle; otherwise it PMs the user a menu to choose the round
+        channel name, in which case it only reports that puzzle; otherwise it PMs the user a menu to choose the round,
+        and reports that round's unsolved puzzles
         :param puzzle_name: (optional) A particular puzzle channel you're curious about
         """
         await self.delete_message_if_possible(ctx)
@@ -709,9 +710,9 @@ class HerringCog(commands.Cog):
             await ctx.author.send("Sorry, that round contains no puzzles right now.")
             return
 
-        description = puzzle_printerizer(puzzles[0])
-        for puzzle in puzzles[1:]:
-            puzzle_line = puzzle_printerizer(puzzle)
+        lines = _round_status_lines(puzzles, puzzle_printerizer)
+        description = lines[0]
+        for puzzle_line in lines[1:]:
             if len(description) + len(puzzle_line) > 2000:
                 await ctx.author.send("", embed=discord.Embed(description=description))
                 description = puzzle_line
@@ -1480,6 +1481,14 @@ def _build_topic(puzzle):
     puzzle_name = _discord_short_name(puzzle)
     topic = f"{puzzle_name} - Sheet: {settings.HERRING_HOST}{reverse('puzzle_spreadsheet', args=[puzzle.id])} - Puzzle: {puzzle.hunt_url}"
     return topic
+
+
+def _round_status_lines(puzzles, printerizer):
+    """hb!who's lines for a round: its unsolved puzzles, then how many solved ones were left out."""
+    unsolved = [puzzle for puzzle in puzzles if not puzzle.answer]
+    solved_count = len(puzzles) - len(unsolved)
+    note = [f"({solved_count} solved puzzle{'s' if solved_count != 1 else ''} not shown)"] if solved_count else []
+    return [printerizer(puzzle) for puzzle in unsolved] + note
 
 
 def discord_text(text: str) -> str:
