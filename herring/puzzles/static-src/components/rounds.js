@@ -4,51 +4,49 @@ import React from 'react';
 import Filters from './filters';
 import RoundComponent from './round';
 import SolveSettings from './solve-settings';
+import TagFilters from './tag-filters';
+import { toggleRoundShown } from '../puzzle-list';
 
+// The filter and settings bars, then every round. The search text lives
+// here; the other filters are uiSettings, so they survive a reload.
 export default class RoundsComponent extends React.Component {
     state = {
-        filter: '',
-        showAnswered: true
-    };
-    changeMade = () => {
-        this.props.changeMade && this.props.changeMade();
+        search: ''
     };
     render() {
-        var rs = this.props.rounds.map(round =>
-                    <RoundComponent key={ round.id }
-                                    round={ round }
-                                    changeMade={ this.changeMade }
-                                    settings={ this.props.settings }
-                                    uiSettings={ this.props.uiSettings }
-                                    { ...this.state } />);
+        const { rounds, uiSettings, updateUiSetting } = this.props;
+        const listFilter = { search: this.state.search, unsolvedOnly: uiSettings.unsolved_only, tag: uiSettings.tag_filter };
         return (
             <div>
                 <div className='row'>
                     <div className="col-xs-12">
-                        <Filters
-                            uiSettings={ this.props.uiSettings }
-                            updateFulltextFilter={ this.changeFilter }
-                            updateAnswerFilter={ this.toggleAnswerStatus }
-                            updateUiSetting={ this.props.updateUiSetting }
-                        />
-                        <SolveSettings
-                            uiSettings={ this.props.uiSettings }
-                            updateUiSetting={ this.props.updateUiSetting }
-                        />
+                        <Filters uiSettings={ uiSettings }
+                                 updateSearch={ this.updateSearch }
+                                 updateUiSetting={ updateUiSetting } />
+                        <TagFilters rounds={ rounds }
+                                    selectedTag={ uiSettings.tag_filter }
+                                    selectTag={ tag => updateUiSetting('tag_filter', tag) } />
+                        <SolveSettings uiSettings={ uiSettings }
+                                       updateUiSetting={ updateUiSetting } />
                     </div>
                 </div>
-                { rs.length > 0 ? rs : <p>No puzzles are available</p> }
+                { rounds.length > 0 ? rounds.map(round =>
+                    <RoundComponent key={ round.id }
+                                    round={ round }
+                                    listFilter={ listFilter }
+                                    roundDisplay={ uiSettings.round_display }
+                                    toggleRound={ this.toggleRound }
+                                    changeMade={ this.props.changeMade }
+                                    settings={ this.props.settings }
+                                    uiSettings={ uiSettings } />)
+                  : <p>No puzzles are available</p> }
             </div>
         );
     }
-    changeFilter = filter => {
-        this.setState({
-            filter: filter
-        });
+    updateSearch = search => {
+        this.setState({ search });
     };
-    toggleAnswerStatus = () => {
-        this.setState({
-            showAnswered: !this.state.showAnswered
-        });
+    toggleRound = round => {
+        this.props.updateUiSetting('round_display', toggleRoundShown(this.props.uiSettings.round_display, round));
     };
 }

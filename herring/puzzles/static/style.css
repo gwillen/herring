@@ -177,6 +177,37 @@ input[type=submit]:hover {
   color: #333;
   margin-left: 6px;
 }
+.tag-filters {
+  margin: -6px 0 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.tag-filters .tag-filters-label {
+  color: #87104a;
+  margin-right: 6px;
+}
+.tag-filters .tag-filter {
+  border: 1px solid #ef74b0;
+  border-radius: 10px;
+  background: white;
+  color: #87104a;
+  padding: 0 8px;
+  font-size: 90%;
+  line-height: 1.5;
+}
+.tag-filters .tag-filter:hover {
+  background: #f9d0e4;
+}
+.tag-filters .tag-filter.selected,
+.tag-filters .tag-filter.selected:hover {
+  background: #87104a;
+  color: white;
+}
+.tag-filters .tag-filter .tag-count {
+  opacity: 0.6;
+}
 .round {
   margin-bottom: 36px;
 }

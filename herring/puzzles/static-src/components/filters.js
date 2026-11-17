@@ -16,14 +16,15 @@ export default class Filters extends React.Component {
                         <input type="search"
                                ref={ this.searchFilter }
                                placeholder="Search..."
-                               onChange={ this.updateFilter } />
+                               onChange={ this.updateSearch } />
                         Tag or puzzle name
                     </label>
                 </div>
                 <div>
                     <label>
                         <input type="checkbox"
-                               onChange={ this.props.updateAnswerFilter } />
+                               checked={ this.props.uiSettings.unsolved_only }
+                               onChange={ this.toggleUnsolvedOnly } />
                         Unsolved
                     </label>
                 </div>
@@ -38,8 +39,11 @@ export default class Filters extends React.Component {
             </div>
         );
     }
-    updateFilter = evt => {
-        this.props.updateFulltextFilter(evt.target.value);
+    updateSearch = evt => {
+        this.props.updateSearch(evt.target.value);
+    };
+    toggleUnsolvedOnly = () => {
+        this.props.updateUiSetting('unsolved_only', !this.props.uiSettings.unsolved_only);
     };
     toggleLinkType = () => {
         this.props.updateUiSetting('app_links', !this.props.uiSettings.app_links);

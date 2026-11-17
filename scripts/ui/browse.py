@@ -71,6 +71,23 @@ def check_solve_notifications(page, other):
     page.keyboard.press('Escape')
     check('Escape dismisses', page.locator('.celebration').count() == 0)
 
+def check_puzzle_list(page):
+    """Runs when every puzzle is solved, so both rounds start collapsed."""
+    page.click('.tag-filter:has-text("grid")')
+    check('tag filter shows only tagged puzzles', page.locator('.puzzle').count() == 1)
+    page.click('.tag-filter:has-text("grid")')
+    check('clicking the tag again shows all', page.locator('.puzzle').count() == 6)
+    page.locator('h2', has_text='The Warehouse').locator('button').click()
+    page.check('text=Unsolved')
+    page.reload(); page.wait_for_selector('.filters')
+    check('Unsolved filter survived reload', page.is_checked('text=Unsolved') and page.locator('.puzzle').count() == 0)
+    page.uncheck('text=Unsolved')
+    page.wait_for_selector('.puzzle', state='attached')
+    check('hand-expanded round stayed expanded after reload',
+          page.locator('.puzzle', has_text='Anagram Antics').is_visible()
+          and not page.locator('.puzzle', has_text='Knots and Ropes').is_visible())
+    shot(page, '7-puzzle-list')
+
 def check_settings(page, other):
     page.check('text=Use app links')
     page.select_option('.solve-settings select', 'toast')
@@ -109,6 +126,7 @@ with sync_playwright() as p:
     print('puzzles after filter "logic":', page.locator('.puzzle').count())
     shot(page, '6-filtered')
     page.fill('input[type=search]', '')
+    check_puzzle_list(page)
     check_settings(page, other)
 print('\n'.join(problems) or 'no console errors / failed requests / failed checks')
 sys.exit(1 if problems else 0)

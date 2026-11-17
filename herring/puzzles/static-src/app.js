@@ -15,6 +15,9 @@ const DEFAULT_UI_SETTINGS = {
   solve_popup: 'modal',  // 'modal', 'toast' or 'off'
   solve_sound: true,
   solve_desktop: true,   // browser notifications
+  unsolved_only: false,  // puzzle list filters
+  tag_filter: '',
+  round_display: {},     // rounds expanded/collapsed by hand; see puzzle-list.js
 };
 
 function loadUiSettings() {
