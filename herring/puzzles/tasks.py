@@ -92,6 +92,14 @@ def post_update(slug, updated_field, value):
 
 
 @optional_task
+@shared_task(rate_limit=0.5)
+def update_puzzle_link(slug, old_url, new_url):
+    logger.warning("tasks: update_puzzle_link(%s, %s, %s)", slug, old_url, new_url)
+    if site_settings.discord_on():
+        do_in_discord(DISCORD_ANNOUNCER.update_puzzle_link(slug, old_url, new_url))
+
+
+@optional_task
 @shared_task
 def create_puzzle_sheet_and_channel(slug):
     """

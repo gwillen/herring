@@ -23,6 +23,7 @@ class CeleryTests(TestCase):
                     'puzzles.tasks.create_puzzle_sheet_and_channel', 'puzzles.tasks.create_round_category',
                     'puzzles.tasks.check_connection_to_messaging', 'puzzles.tasks.process_google_sheets_changes',
                     'puzzles.tasks.add_user_to_puzzle',
+                    'puzzles.tasks.update_puzzle_link',
                     'puzzles.tasks.post_discord_message'}
         celery_app.loader.import_default_modules()
         self.assertLessEqual(expected, set(celery_app.tasks))
@@ -243,3 +244,22 @@ class WhoTests(TestCase):
                    for n, (name, answer) in enumerate([('A', ''), ('B', 'X'), ('C', 'Y')])]
         lines = discordbot._round_status_lines(puzzles, lambda puzzle: puzzle.name)
         self.assertEqual(lines, ['A', '(2 solved puzzles not shown)'])
+
+
+class PuzzleLinkTests(TestCase):
+    def test_replace_topic_link(self):
+        replace = discordbot._replace_topic_link
+        self.assertEqual(replace('P - Sheet: s - Puzzle: http://old', 'http://old', 'http://new'),
+                         'P - Sheet: s - Puzzle: http://new')
+        self.assertEqual(replace('P - Sheet: s - Puzzle:', '', 'http://new'), 'P - Sheet: s - Puzzle: http://new')
+        self.assertEqual(replace('P - Sheet: s - Puzzle: http://old', 'http://old', ''), 'P - Sheet: s - Puzzle:')
+        self.assertIsNone(replace('Our own topic', 'http://old', 'http://new'))
+
+    def test_changing_the_link_queues_a_topic_update(self):
+        puzzle = make_puzzle(make_round())
+        with mock.patch('puzzles.signals.update_puzzle_link') as update:
+            puzzle.hunt_url = 'http://new'
+            puzzle.save()
+            puzzle.note = 'unrelated'
+            puzzle.save()
+        update.delay.assert_called_once_with(puzzle.slug, '', 'http://new')

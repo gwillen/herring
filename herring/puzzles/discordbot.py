@@ -1371,6 +1371,23 @@ class HerringAnnouncerBot(discord.Client):
         if global_reaction:
             await global_message.add_reaction(global_reaction)
 
+    async def update_puzzle_link(self, puzzle_name, old_url, new_url):
+        """
+        Puts the puzzle's new link in its channel topic. If someone has edited the topic by hand, it's left
+        alone and the new link is posted in the channel instead.
+        """
+        await self._really_ready.wait()
+        channel: discord.TextChannel = get(self.guild.text_channels, name=puzzle_name)
+        if channel is None:
+            logger.error(f"Couldn't get Discord channel {puzzle_name} to update its puzzle link")
+            return
+        new_topic = _replace_topic_link(channel.topic or "", old_url, new_url)
+        if new_topic is None:
+            logger.info(f"Topic of {puzzle_name} was edited by hand; posting the new puzzle link instead")
+            await channel.send(f"Puzzle link changed: {new_url}\n(The channel topic was edited by hand, so I left it alone.)")
+        else:
+            await channel.edit(topic=new_topic)
+
     async def add_user_to_puzzle(self, user_profile: UserProfile, puzzle_name):
         await self._really_ready.wait()
         text_channel, voice_channel = self.get_channel_pair(puzzle_name)
@@ -1481,6 +1498,17 @@ def _build_topic(puzzle):
     puzzle_name = _discord_short_name(puzzle)
     topic = f"{puzzle_name} - Sheet: {settings.HERRING_HOST}{reverse('puzzle_spreadsheet', args=[puzzle.id])} - Puzzle: {puzzle.hunt_url}"
     return topic
+
+
+def _replace_topic_link(topic, old_url, new_url):
+    """
+    The channel topic (as _build_topic makes it) with its puzzle link changed, or None if the topic doesn't
+    end with the old link because someone edited it. Discord drops trailing spaces, as when the link was empty.
+    """
+    old_end = f"Puzzle: {old_url}".rstrip()
+    if not topic.rstrip().endswith(old_end):
+        return None
+    return topic.rstrip()[:-len(old_end)] + f"Puzzle: {new_url}".rstrip()
 
 
 def _round_status_lines(puzzles, printerizer):
