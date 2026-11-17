@@ -14,7 +14,7 @@ from django.test import SimpleTestCase, TestCase, override_settings
 
 from herring.celery import app as celery_app
 from puzzles import discordbot, redis_state
-from .helpers import make_user, set_site_settings
+from .helpers import make_puzzle, make_round, make_user, set_site_settings
 
 
 class CeleryTests(TestCase):
@@ -215,3 +215,21 @@ class CommandErrorTests(SimpleTestCase):
 
     def test_prefix_commands_get_a_dm(self):
         self.reply(None).assert_awaited_once_with('hello')
+
+
+class DiscordTextTests(TestCase):
+    def test_escapes_markdown_and_mentions(self):
+        self.assertEqual(discordbot.discord_text('a_b *c* @everyone'), 'a\\_b \\*c\\* @​everyone')
+
+    def test_announcements_escape_names_and_values(self):
+        from puzzles.tasks import post_answer, post_update
+        puzzle = make_puzzle(make_round(name='Round_1'), name='Under_score')
+        with mock.patch('puzzles.tasks.post_local_and_global') as post:
+            post_answer(puzzle.slug, 'a*b')
+            post_update(puzzle.slug, 'notes', '~strike~')
+        (_, solved_local, solved_global, *_), (_, update_local, update_global) = \
+            [call.args for call in post.call_args_list]
+        self.assertIn('Confirmed answer: A\\*B', solved_local)
+        self.assertIn('"Under\\_score"', solved_global)
+        self.assertIn('round Round\\_1', solved_global)
+        self.assertIn('\\~strike\\~', update_global)

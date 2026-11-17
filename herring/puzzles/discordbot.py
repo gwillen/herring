@@ -175,7 +175,7 @@ class RoundChoiceView(discord.ui.View):
 
         puzzles = await sync_to_async(lambda: list(round_chosen.puzzle_set.all()))()
         if len(puzzles) == 0:
-            await interaction.reply.send_message(f"Sorry, {round_chosen.name} has no puzzles at the moment.")
+            await interaction.reply.send_message(f"Sorry, {discord_text(round_chosen.name)} has no puzzles at the moment.")
             return
 
         new_view = PuzzleChoiceView(self.herring_cog, puzzles)
@@ -442,11 +442,11 @@ class HerringCog(commands.Cog):
             round_chosen = await sync_to_async(Round.objects.get)(hunt_id=hunt_id, id=round_id)
             puzzles = await sync_to_async(list)(Puzzle.objects.filter(hunt_id=hunt_id, parent_id=round_id))
             if len(puzzles) == 0:
-                await interaction.reply.send_message(f"Sorry, {round_chosen.name} has no puzzles at the moment.")
+                await interaction.reply.send_message(f"Sorry, {discord_text(round_chosen.name)} has no puzzles at the moment.")
                 return
 
             new_view = PuzzleChoiceView(self, puzzles)
-            await interaction.response.send_message(f'Please choose a puzzle in {round_chosen.name} to join:', view=new_view, ephemeral=True)
+            await interaction.response.send_message(f'Please choose a puzzle in {discord_text(round_chosen.name)} to join:', view=new_view, ephemeral=True)
             return
 
         rounds = await sync_to_async(list)(Round.objects.filter(hunt_id = site_settings.hunt_id()))
@@ -471,7 +471,7 @@ class HerringCog(commands.Cog):
             return f"{solved}<problem with puzzle channels, admins have been notified>"
 
     def puzzle_join_printerizer(self, puzzle):
-        return f"{_abbreviate_name(puzzle)} {self.puzzle_join_extra_info(puzzle)}"
+        return f"{_discord_short_name(puzzle)} {self.puzzle_join_extra_info(puzzle)}"
 
     @commands.command(brief="Join a puzzle channel")
     async def join(self, ctx:commands.Context, channel:typing.Optional[discord.TextChannel]):
@@ -498,7 +498,7 @@ class HerringCog(commands.Cog):
             ctx.author,
             rounds,
             "Which round contains the puzzle you want to join?",
-            lambda round: round.name
+            lambda round: discord_text(round.name)
         )
         if round_chosen is None:
             # timed out, bail
@@ -506,7 +506,7 @@ class HerringCog(commands.Cog):
 
         puzzles = await sync_to_async(lambda: list(round_chosen.puzzle_set.all()))()
         if len(puzzles) == 0:
-            await ctx.author.send(f"Sorry, {round_chosen.name} has no puzzles at the moment.")
+            await ctx.author.send(f"Sorry, {discord_text(round_chosen.name)} has no puzzles at the moment.")
             return
 
         puzzle_chosen: Puzzle = await self.do_menu(
@@ -657,7 +657,7 @@ class HerringCog(commands.Cog):
             if len(membership) > MAX_USER_LIST:
                 watching = len(membership)
             else:
-                watching = ", ".join(member.display_name for member in membership) or "no one"
+                watching = ", ".join(discord_text(member.display_name) for member in membership) or "no one"
 
             if voice_channel is None:
                 voice_status = ""
@@ -665,10 +665,10 @@ class HerringCog(commands.Cog):
                 in_voice = len(voice_channel.members)
                 voice_status = f", {in_voice} in voice chat"
             else:
-                in_voice = ", ".join(member.display_name for member in voice_channel.members) or "no one"
+                in_voice = ", ".join(discord_text(member.display_name) for member in voice_channel.members) or "no one"
                 voice_status = f", {in_voice} in voice chat"
             solved = " (SOLVED!)" if puzzle.answer else ""
-            return f"{_abbreviate_name(puzzle)} ({text_channel.mention}){solved}: {watching} watching{voice_status}"
+            return f"{_discord_short_name(puzzle)} ({text_channel.mention}){solved}: {watching} watching{voice_status}"
 
         if puzzle_name is not None:
             try:
@@ -698,7 +698,7 @@ class HerringCog(commands.Cog):
             ctx.author,
             rounds,
             "Which round are you curious about?",
-            lambda round: round.name
+            lambda round: discord_text(round.name)
         )
         if round_chosen is None:
             # timed out, bail
@@ -1344,7 +1344,7 @@ class HerringAnnouncerBot(discord.Client):
         round, category = await ensure_category_ready()
 
         text_channel, voice_channel = await _make_puzzle_channels_inner(category, puzzle)
-        announcement = await self.announce_channel.send(f"New puzzle {puzzle.name} opened in round {round.name}! {SIGNUP_EMOJI} this message to join, then click here to jump to the channel: {text_channel.mention}.")
+        announcement = await self.announce_channel.send(f"New puzzle {discord_text(puzzle.name)} opened in round {discord_text(round.name)}! {SIGNUP_EMOJI} this message to join, then click here to jump to the channel: {text_channel.mention}.")
         await announcement.add_reaction(SIGNUP_EMOJI)
 
     async def post_message(self, channel_name, message, **kwargs):
@@ -1477,16 +1477,25 @@ async def _make_puzzle_channels_inner(category: discord.CategoryChannel, puzzle:
 
 
 def _build_topic(puzzle):
-    puzzle_name = _abbreviate_name(puzzle)
+    puzzle_name = _discord_short_name(puzzle)
     topic = f"{puzzle_name} - Sheet: {settings.HERRING_HOST}{reverse('puzzle_spreadsheet', args=[puzzle.id])} - Puzzle: {puzzle.hunt_url}"
     return topic
 
 
-def _abbreviate_name(puzzle):
+def discord_text(text: str) -> str:
+    """
+    Escapes text from Herring (puzzle and round names, answers, notes, ...) for a Discord message, so it
+    shows as typed: no Markdown formatting, and no pings from things like "@everyone".
+    """
+    return discord.utils.escape_mentions(discord.utils.escape_markdown(text))
+
+
+def _discord_short_name(puzzle):
+    """The puzzle's name, shortened if long, escaped for a Discord message."""
     puzzle_name = puzzle.name
     if len(puzzle_name) >= 30:
         puzzle_name = puzzle_name[:29] + '\N{HORIZONTAL ELLIPSIS}'
-    return puzzle_name
+    return discord_text(puzzle_name)
 
 
 async def _make_category_inner(guild: discord.Guild, name: str):

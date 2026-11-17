@@ -10,7 +10,7 @@ from django.conf import settings
 from django.db import transaction
 import json
 import kombu.exceptions
-from puzzles.discordbot import run_listener_bot, DISCORD_ANNOUNCER, do_in_discord, LEAVE_EMOJI, TRIUMPH_EMOJI
+from puzzles.discordbot import run_listener_bot, DISCORD_ANNOUNCER, do_in_discord, discord_text, LEAVE_EMOJI, TRIUMPH_EMOJI
 from puzzles.models import Puzzle, Round, UserProfile
 from puzzles import site_settings
 from puzzles.redis_state import discord_connected, redis_client
@@ -69,9 +69,9 @@ def post_answer(slug, answer):
     logger.warning("tasks: post_answer(%s, %s)", slug, answer)
 
     puzzle = Puzzle.objects.get(slug=slug)
-    answer = answer.upper()
+    answer = discord_text(answer.upper())
     local_message = f"{TRIUMPH_EMOJI} Confirmed answer: {answer}\nReact with {LEAVE_EMOJI} to leave the puzzle!"
-    global_message = f'{TRIUMPH_EMOJI} Puzzle "{puzzle.name}" (#{slug}) from round {puzzle.parent.name} was solved! The answer is: {answer}\nReact with {LEAVE_EMOJI} to leave the puzzle!'
+    global_message = f'{TRIUMPH_EMOJI} Puzzle "{discord_text(puzzle.name)}" (#{slug}) from round {discord_text(puzzle.parent.name)} was solved! The answer is: {answer}\nReact with {LEAVE_EMOJI} to leave the puzzle!'
     post_local_and_global(slug, local_message, global_message, LEAVE_EMOJI, LEAVE_EMOJI)
 
 
@@ -84,8 +84,9 @@ def post_update(slug, updated_field, value):
         puzzle = Puzzle.objects.get(slug=slug)
     except Puzzle.DoesNotExist:
         return
+    value = discord_text(value)
     local_message = f'{updated_field} set to: {value}'
-    global_message = f'"{puzzle.name}" (#{slug}) from round {puzzle.parent.name} now has these {updated_field}: {value}'
+    global_message = f'"{discord_text(puzzle.name)}" (#{slug}) from round {discord_text(puzzle.parent.name)} now has these {updated_field}: {value}'
     post_local_and_global(slug, local_message, global_message)
 
 
