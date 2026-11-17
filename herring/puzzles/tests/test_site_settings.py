@@ -85,16 +85,44 @@ class SettingsPageTests(TestCase):
 
     def test_save(self):
         response = self.client.post('/dashboard/settings/save/', {
-            'hunt_id': '2027', 'discord_enabled': 'on', 'discord_guild_id': '555', 'protected_category_ids': ['9']})
+            'hunt_id': '2027', 'discord_enabled': 'on', 'discord_guild_id': '555', 'protected_category_ids': ['9'],
+            'team_name': 'You Are Being Rage Limited', 'hunt_site_url': ' https://hunt.example/ ',
+            'menu_notes': 'Team phone: 555\r\n\r\nTeam room: 1-115\r\n'})
         self.assertRedirects(response, '/dashboard/settings/', fetch_redirect_response=False)
         current = site_settings.current()
         self.assertEqual((current.hunt_id, current.discord_guild_id, current.protected_category_ids),
                          (2027, 555, frozenset({'9'})))
+        self.assertEqual((current.team_name, current.hunt_site_url, current.menu_lines),
+                         ('You Are Being Rage Limited', 'https://hunt.example/', ['Team phone: 555', 'Team room: 1-115']))
 
     def test_bad_hunt_id_is_refused(self):
         self.client.post('/dashboard/settings/save/', {'hunt_id': 'next year'})
         self.assertEqual(site_settings.hunt_id(), 0)
 
     def test_unchecking_turns_discord_off(self):
-        self.client.post('/dashboard/settings/save/', {'hunt_id': '0', 'discord_guild_id': ''})
+        self.client.post('/dashboard/settings/save/', {'hunt_id': '0', 'discord_guild_id': '', 'team_name': 'Team'})
         self.assertFalse(site_settings.discord_on())
+
+    def test_blank_team_name_is_refused(self):
+        self.client.post('/dashboard/settings/save/', {'hunt_id': '2027', 'team_name': ' '})
+        self.assertEqual(site_settings.hunt_id(), 0)
+
+
+class PageHeaderTests(TestCase):
+    def setUp(self):
+        self.client.force_login(make_user())
+
+    def test_defaults_match_the_old_hardcoded_header(self):
+        page = self.client.get('/')
+        self.assertContains(page, '<h1>Rage Against the Dying of the Warehouse</h1>')
+        self.assertContains(page, 'Team room (2020): 3-442')
+        self.assertNotContains(page, 'Hunt site')
+
+    def test_shows_the_dashboard_settings(self):
+        set_site_settings(team_name='You Are Being Rage Limited', hunt_site_url='https://hunt.example/',
+                          menu_notes='Team room: 1-115')
+        page = self.client.get('/')
+        self.assertContains(page, '<h1>You Are Being Rage Limited</h1>')
+        self.assertContains(page, 'href="https://hunt.example/"')
+        self.assertContains(page, 'Team room: 1-115')
+        self.assertNotContains(page, 'Team phone')

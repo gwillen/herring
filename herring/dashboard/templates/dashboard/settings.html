@@ -10,6 +10,14 @@
   <label>Hunt ID <input name="hunt_id" value="{{ row.hunt_id|default_if_none:'' }}" class="form-control input-sm" inputmode="numeric"></label>
   <p class="help-block">The hunt the puzzle list, the bot and the admin pages work with. Blank: none.</p>
 
+  <h3>Team</h3>
+  <label>Team name <input name="team_name" value="{{ row.team_name }}" class="form-control input-sm" required></label>
+  <p class="help-block">Shown at the top of every page.</p>
+  <label>Hunt site <input name="hunt_site_url" value="{{ row.hunt_site_url }}" class="form-control input-sm" type="url" placeholder="https://..."></label>
+  <p class="help-block">The menu's "Hunt site" link. Blank: no link.</p>
+  <label>Menu notes <textarea name="menu_notes" rows="3" class="form-control input-sm">{{ row.menu_notes }}</textarea></label>
+  <p class="help-block">Lines shown at the bottom of the menu, e.g. the team phone number and team room.</p>
+
   <h3>Discord</h3>
   {% if not env.HERRING_ACTIVATE_DISCORD %}
     <p>Off for this deployment (the <code>ACTIVATE_DISCORD</code> environment variable), so it can't be turned on here.</p>

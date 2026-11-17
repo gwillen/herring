@@ -29,6 +29,13 @@ class Current:
     discord_guild_id: int = None
     hunt_id: int = None
     protected_category_ids: frozenset = field(default_factory=frozenset)
+    team_name: str = ''
+    hunt_site_url: str = ''
+    menu_notes: str = ''
+
+    @property
+    def menu_lines(self):
+        return [line for line in self.menu_notes.splitlines() if line.strip()]
 
 
 def current():
@@ -62,7 +69,8 @@ def effective(row):
     return Current(discord_enabled=settings.HERRING_ACTIVATE_DISCORD and row.discord_enabled,
                    gapps_enabled=settings.HERRING_ACTIVATE_GAPPS and row.gapps_enabled,
                    discord_guild_id=row.discord_guild_id, hunt_id=row.hunt_id,
-                   protected_category_ids=frozenset(row.protected_category_ids))
+                   protected_category_ids=frozenset(row.protected_category_ids),
+                   team_name=row.team_name, hunt_site_url=row.hunt_site_url, menu_notes=row.menu_notes)
 
 
 def clear_cache():
@@ -92,7 +100,8 @@ def default_hunt_id():
     return hunt_id() or 0
 
 
-EDITABLE = ('discord_enabled', 'gapps_enabled', 'discord_guild_id', 'hunt_id', 'protected_category_ids')
+EDITABLE = ('discord_enabled', 'gapps_enabled', 'discord_guild_id', 'hunt_id', 'protected_category_ids',
+            'team_name', 'hunt_site_url', 'menu_notes')
 
 
 @transaction.atomic

@@ -236,13 +236,22 @@ def save_settings(request):
 def settings_from_form(form):
     """The site settings the form sets. Switches the environment has turned off aren't on the form, so stay as they are."""
     changes = {'hunt_id': optional_int(form.get('hunt_id', ''), 'hunt ID'),
-               'protected_category_ids': sorted(form.getlist('protected_category_ids'))}
+               'protected_category_ids': sorted(form.getlist('protected_category_ids'))} | team_settings_from_form(form)
     if settings.HERRING_ACTIVATE_DISCORD:
         changes |= {'discord_enabled': 'discord_enabled' in form,
                     'discord_guild_id': optional_int(form.get('discord_guild_id', ''), 'server ID')}
     if settings.HERRING_ACTIVATE_GAPPS:
         changes['gapps_enabled'] = 'gapps_enabled' in form
     return changes
+
+
+def team_settings_from_form(form):
+    team_name = form.get('team_name', '').strip()
+    if not team_name:
+        raise ValueError("the team name can't be blank")
+    return {'team_name': team_name,
+            'hunt_site_url': form.get('hunt_site_url', '').strip(),
+            'menu_notes': form.get('menu_notes', '').replace('\r\n', '\n').strip()}
 
 
 def optional_int(text, label):

@@ -194,6 +194,11 @@ class ChannelParticipation(models.Model):
         indexes = [models.Index(fields=['channel_puzzle', 'user_id'])]
 
 
+# What the page header and menu said when they were hardcoded.
+DEFAULT_TEAM_NAME = "Rage Against the Dying of the Warehouse"
+DEFAULT_MENU_NOTES = "Team phone: +1 (415) 787-7243\nTeam room (2020): 3-442"
+
+
 class SiteSettings(models.Model):
     """
     Settings admins change in the dashboard (a single row; see puzzles.site_settings for reading
@@ -207,6 +212,11 @@ class SiteSettings(models.Model):
     hunt_id = models.IntegerField(null=True, blank=True, help_text="The current hunt")
     protected_category_ids = models.JSONField(default=list, blank=True,
                                               help_text="Discord categories cleanup_channels never touches")
+    team_name = models.CharField(max_length=200, default=DEFAULT_TEAM_NAME, help_text="Shown at the top of every page")
+    hunt_site_url = models.CharField(max_length=1000, blank=True, default='',
+                                     help_text="The menu's 'Hunt site' link; blank hides it")
+    menu_notes = models.TextField(blank=True, default=DEFAULT_MENU_NOTES,
+                                  help_text="Lines shown at the bottom of the menu (team phone, team room, ...)")
 
 
 class SiteSettingChange(models.Model):
