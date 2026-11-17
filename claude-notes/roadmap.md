@@ -62,6 +62,7 @@ Status (2026-10-06): user asked to hold off on design/implementation while they 
 
 - `puzzles.SiteSettings` (single row) + `SiteSettingChange` history; read via `puzzles.site_settings` (5 s cache; from async code via a reader thread that closes its DB connection after each read; tests use cache 0). Holds: discord_enabled, gapps_enabled (effective = env hard switch AND flag), discord_guild_id, hunt_id, protected_category_ids. Migration 0017 seeded them from DISCORD_GUILD / HUNT_ID / DISCORD_PROTECTED_CATEGORIES; those env vars are initial values only now.
 - Bots look up the current guild per use (properties), so switching servers needs no restart (verified live). Switching Discord off: commands reply "switched off", events ignored, each bot's `close_when_disabled` watcher disconnects it within ~5 s (verified: ~3 s); the listener supervisor stops and the 60 s beat restarts it when back on (verified: 64 s).
+- (2026-11-17, #97) Also: team name (page header), hunt site URL (menu link; blank hides it), menu notes (lines at the bottom of the menu), via `puzzles.context_processors.site`; defaults are the old hardcoded text. With a Hunt model, the hunt site URL (and maybe team name) belongs on the hunt.
 - Not yet in the dashboard (user: change rarely): announcements channel name, debug/other env settings. Multi-server bot is the next step toward the hunt redesign; this "current server" setting then only governs DMs and website links.
 
 ## New hunt server setup (started 2026-11-09; user's current priority)

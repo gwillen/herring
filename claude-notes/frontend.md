@@ -2,7 +2,8 @@
 
 ## UI settings
 
-- `uiSettings` in localStorage (same key/format as the old store.js): `app_links`, `solve_popup` ('modal' | 'toast' | 'off'), `solve_sound`, `solve_desktop`. Defaults in `app.js` `DEFAULT_UI_SETTINGS`, merged under stored values. Per browser, not per user.
+- `uiSettings` in localStorage (same key/format as the old store.js): `app_links`, `solve_popup` ('modal' | 'toast' | 'off'), `solve_sound`, `solve_desktop`, `unsolved_only`, `tag_filter`, `round_display`, `compact`. Defaults in `app.js` `DEFAULT_UI_SETTINGS`, merged under stored values. Per browser, not per user. The search text is deliberately not saved (a forgotten search would hide puzzles).
+- `compact` puts a class on `<body>` (from `app.js`), so its CSS also reaches the Django-rendered header.
 - Saved only when they change, and every tab reloads them on the `storage` event. Before 2026-11-16 each tab saved its copy on every poll, so a stale tab overwrote another tab's change within 10 s.
 
 ## Solve notifications (rebuilt 2026-11-16)
@@ -17,7 +18,14 @@ Files: `solve-tracking.js` (pure logic, unit-tested by `solve-tracking.test.js` 
 - Ordering uses the time the tab noticed the solve; solves seen in the same poll are tied and keep data order.
 - `Notification` is missing on some mobile browsers and on non-localhost http; Android Chrome throws from `new Notification` (needs a service worker). Both are handled (setting shows why; error logged as a warning).
 
+## Puzzle list (2026-11-17)
+
+- `puzzle-list.js` (pure, unit-tested by `puzzle-list.test.js`): filter matching, tags (comma-separated, compared lowercase, as the bot's `_parse_tags`), tag choices for the quick-filter row, solve counts, round expand/collapse.
+- Round collapse: automatic = collapsed iff all puzzles solved (an empty round counts as all solved). A manual toggle is saved in `round_display[roundId] = {shown, allSolved}` and applies only while the round's all-solved state is unchanged, so adding a puzzle or solving the last one returns it to automatic. `RoundComponent` has no state.
+- Tag quick filters (#103) list every tag in use; the selected one stays listed with count 0 if it disappears, so a saved filter can't silently hide everything.
+- The sheet icon links to docs.google.com directly when `sheet_id` is known (puzzle JSON includes it), else `/s/<id>` (explains a missing sheet).
+
 ## Tests
 
 - `pnpm test` (in static-src): `node --test`, pure modules only (no JSX/browser APIs).
-- `scripts/ui-test.sh` / `scripts/ui/browse.py`: two tabs in one browser context; stubs `HTMLMediaElement.play` to count applause plays; sets answers through the API to simulate teammates; checks one sound across tabs, cross-tab dismissal, one popup for many solves, summary and show-all, answer correction, Esc, settings reaching other tabs, re-solve as toast. Polls take up to 10 s, so it waits up to 15 s per step.
+- `scripts/ui-test.sh` / `scripts/ui/browse.py`: two tabs in one browser context; stubs `HTMLMediaElement.play` to count applause plays; sets answers through the API to simulate teammates; checks solve counts, one sound across tabs, cross-tab dismissal, one popup for many solves, summary and show-all, answer correction, Esc, tag filter, Unsolved and round collapse surviving reloads, compact mode, the narrow-window Activity hint, the favicon link, settings reaching other tabs, re-solve as toast. Polls take up to 10 s, so it waits up to 15 s per step. By the end every puzzle is solved, so rounds load collapsed: wait for `.puzzle` with `state='attached'`, not visible.

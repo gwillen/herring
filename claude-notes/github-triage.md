@@ -2,22 +2,11 @@
 
 All 55 open issues and 7 open PRs on gwillen/herring, read in full 2026-11-17 and checked against the code where noted. Re-check before acting; things change.
 
-## Quick fixes (small, few interactions)
+## Quick fixes (all done 2026-11-17 on claude-2026-nov, except #104)
 
-- #102 Escape Markdown in puzzle names in Discord posts (`discord.utils.escape_markdown`; tasks.py announcements, discordbot.py welcome messages).
-- #73 Remember the "Unsolved" filter (add to uiSettings, like app_links).
-- #34 + PR #95 Rounds: remember collapse state per round; expand a round when puzzles are added (new/empty rounds currently start collapsed and stay collapsed). PR #95 (dgulotta) fixes the latter; its bundle.js conflicts, so redo it on current code.
-- #104 One click to open puzzle page + Discord + sheet. Browsers usually allow one `window.open` per click; more need a popup permission.
-- #88 Real Google Sheets links in the web UI (sheet_id isn't in the puzzle JSON yet; keep `/s/<id>` for channel topics and the no-sheet page).
-- #93 Show counts of puzzles open/solved (metas separately, per round).
-- #69 Make the activity column discoverable (hidden below the lg breakpoint).
-- #67 Compact mode (CSS in the issue) as a UI setting.
-- #40 Favicon (a small red fish).
-- #97 / PR #97 Hardcoded team name: header still says "Rage Against the Dying of the Warehouse", menu has a team phone number and "Team room (2020): 3-442". PR #97 references `settings.HERRING_TEAM_NAME`, which nothing defines, and predates site_settings. Better: team name (and menu extras) as dashboard settings.
-- #41 `hb!who`: hide solved puzzles.
-- #103 Quick filters (e.g. "stuck", "locked") over tags; the status-field version belongs to the redesign.
-- #100 React ✋ to join on more messages (e.g. note updates, any message mentioning a puzzle channel).
-- #98 Update the Discord topic when the puzzle link changes (topic-edit code exists; Discord allows ~2 topic edits per 10 min per channel).
+Done: #102 escape Markdown/mentions in bot posts; #41 hb!who hides solved; #100 ✋ on update announcements; #98 topic follows link changes (hand-edited topics left alone, link posted instead); #97 team name / hunt site / menu notes as dashboard settings; #73 Unsolved saved; #34 + PR #95 round collapse saved, new puzzles expand a round; #103 tag quick filters (over tags; a status field is redesign); #88 direct sheet links; #93 solve counts; #69 Activity hint and tooltips; #67 compact mode; #40 favicon. Also the security lock upgrade (Dependabot #105/#107/#108/#109).
+
+Left on purpose: #104 (open all links in one click). The user wants to do it separately to check popup blocking across the browsers the team uses.
 
 ## Redesign input (schema / architecture; see roadmap.md)
 
@@ -36,10 +25,12 @@ New requirements from the issues:
 
 ## Proposed GitHub updates (none done; each needs the user's OK)
 
-- Close as done: #99, #49, #96 (solve notifications rework, 2026-11-16); #33 (Discord log channel removed, 2026-10); #94 (Procfile.dev `--no-restart-on-command-exit`); #23 (done per Zahariel, 2024).
+Each fix is on `claude-2026-nov`; the user merges to master. Closing comments should name the commit.
+- Close as done (2026-11-16/17 work): #99, #49, #96 (solve notifications); #102, #41, #100, #98, #97, #73, #34, #88, #93, #69, #67, #40 (quick fixes); #103 (tag filters; or keep open for a status field).
+- Close as done earlier: #33 (Discord log channel removed, 2026-10); #94 (Procfile.dev `--no-restart-on-command-exit`); #23 (done per Zahariel, 2024).
 - Close as obsolete: #16 (README rewritten), #26 (README and dashboard give the invite link); probably #28, #68, #70 (per-puzzle voice channels off).
-- PRs: #97 close in favor of a dashboard setting; #95 close once redone (credit dgulotta); #81 keep as reference or close pointing at #101.
-- Dependabot #105, #107, #108, #109: superseded by a lock upgrade; Dependabot closes them once master has the versions.
+- PRs: #97 and #95, superseded by the fixes above (credit dgulotta); #81 keep as reference or close pointing at #101.
+- Dependabot #105, #107, #108, #109: superseded by the lock upgrade (29f801b); Dependabot closes them once master has the versions.
 - #53: link this triage, or extract the docs if the user wants.
 
 ## Dependabot alerts (24 open, 2026-11-17)
