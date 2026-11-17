@@ -221,7 +221,7 @@ class DiscordTextTests(TestCase):
     def test_escapes_markdown_and_mentions(self):
         self.assertEqual(discordbot.discord_text('a_b *c* @everyone'), 'a\\_b \\*c\\* @​everyone')
 
-    def test_announcements_escape_names_and_values(self):
+    def test_announcements_escape_text_and_offer_joining(self):
         from puzzles.tasks import post_answer, post_update
         puzzle = make_puzzle(make_round(name='Round_1'), name='Under_score')
         with mock.patch('puzzles.tasks.post_local_and_global') as post:
@@ -229,7 +229,17 @@ class DiscordTextTests(TestCase):
             post_update(puzzle.slug, 'notes', '~strike~')
         (_, solved_local, solved_global, *_), (_, update_local, update_global) = \
             [call.args for call in post.call_args_list]
+        self.assertEqual(post.call_args_list[1].kwargs, {'global_reaction': discordbot.SIGNUP_EMOJI})
         self.assertIn('Confirmed answer: A\\*B', solved_local)
         self.assertIn('"Under\\_score"', solved_global)
         self.assertIn('round Round\\_1', solved_global)
         self.assertIn('\\~strike\\~', update_global)
+
+
+class WhoTests(TestCase):
+    def test_round_listing_leaves_out_solved_puzzles(self):
+        round = make_round()
+        puzzles = [make_puzzle(round, name=name, number=n, answer=answer)
+                   for n, (name, answer) in enumerate([('A', ''), ('B', 'X'), ('C', 'Y')])]
+        lines = discordbot._round_status_lines(puzzles, lambda puzzle: puzzle.name)
+        self.assertEqual(lines, ['A', '(2 solved puzzles not shown)'])
