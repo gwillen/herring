@@ -18,7 +18,13 @@ const DEFAULT_UI_SETTINGS = {
   unsolved_only: false,  // puzzle list filters
   tag_filter: '',
   round_display: {},     // rounds expanded/collapsed by hand; see puzzle-list.js
+  compact: false,
 };
+
+// Compact mode styles the whole page, including the Django-rendered header.
+function applyCompactMode(compact) {
+  document.body.classList.toggle('compact', compact);
+}
 
 function loadUiSettings() {
   return {...DEFAULT_UI_SETTINGS, ...loadStored(UI_SETTINGS_KEY, {})};
@@ -34,10 +40,12 @@ class Page extends React.Component {
     // Keep every tab on the settings last changed in any of them.
     onStoredChange(UI_SETTINGS_KEY, () => this.setState({uiSettings: loadUiSettings()}));
     askNotificationPermissionOnClick(() => this.state.uiSettings.solve_desktop);
+    applyCompactMode(this.state.uiSettings.compact);
   }
   componentDidUpdate(prevProps, prevState) {
     if (prevState.uiSettings !== this.state.uiSettings) {
       saveStored(UI_SETTINGS_KEY, this.state.uiSettings);
+      applyCompactMode(this.state.uiSettings.compact);
     }
   }
   render() {

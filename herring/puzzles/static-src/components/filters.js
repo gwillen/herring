@@ -36,11 +36,22 @@ export default class Filters extends React.Component {
                         Use app links
                     </label>
                 </div>
+                <div>
+                    <label>
+                        <input type="checkbox"
+                               checked={ this.props.uiSettings.compact }
+                               onChange={ this.toggleCompact } />
+                        Compact
+                    </label>
+                </div>
             </div>
         );
     }
     updateSearch = evt => {
         this.props.updateSearch(evt.target.value);
+    };
+    toggleCompact = () => {
+        this.props.updateUiSetting('compact', !this.props.uiSettings.compact);
     };
     toggleUnsolvedOnly = () => {
         this.props.updateUiSetting('unsolved_only', !this.props.uiSettings.unsolved_only);

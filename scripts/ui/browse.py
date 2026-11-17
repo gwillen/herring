@@ -88,6 +88,17 @@ def check_puzzle_list(page):
           and not page.locator('.puzzle', has_text='Knots and Ropes').is_visible())
     shot(page, '7-puzzle-list')
 
+def check_layout(page):
+    page.check('text=Compact')
+    check('compact mode styles the page', 'compact' in page.evaluate('document.body.className'))
+    shot(page, '8-compact')
+    page.uncheck('text=Compact')
+    page.set_viewport_size({'width': 1000, 'height': 900})
+    check('narrow window explains the missing Activity column', page.locator('.activity-hint').is_visible())
+    page.set_viewport_size({'width': 1400, 'height': 900})
+    check('wide window has no Activity hint', not page.locator('.activity-hint').is_visible())
+    check('favicon is linked', page.locator('link[rel=icon]').get_attribute('href') == '/static/favicon.svg')
+
 def check_settings(page, other):
     page.check('text=Use app links')
     page.select_option('.solve-settings select', 'toast')
@@ -130,6 +141,10 @@ with sync_playwright() as p:
     shot(page, '6-filtered')
     page.fill('input[type=search]', '')
     check_puzzle_list(page)
+    check_layout(page)
     check_settings(page, other)
+    page.set_content(f'<img src="{base}/static/favicon.svg" width="128"> <img src="{base}/static/favicon.svg" width="16">')
+    page.wait_for_load_state('networkidle')
+    page.screenshot(path=f'{out}-9-favicon.png', clip={'x': 0, 'y': 0, 'width': 200, 'height': 140})
 print('\n'.join(problems) or 'no console errors / failed requests / failed checks')
 sys.exit(1 if problems else 0)

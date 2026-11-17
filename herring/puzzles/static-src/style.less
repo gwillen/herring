@@ -526,3 +526,60 @@ button, a.button, input[type=submit] {
 div.editable > span {
 	pointer-events: none;
 }
+
+// Compact mode (a UI setting; Page puts the class on <body>): less vertical
+// space everywhere, column headings hidden, alternate rows shaded instead.
+body.compact {
+	.header h1 {
+		font-size: 22px;
+		margin: 4px 0;
+	}
+
+	.dropdown {
+		margin-top: 0;
+	}
+
+	.shortcuts, .filters {
+		padding: 2px @stdpadding/2;
+		margin-bottom: 4px;
+	}
+
+	.tag-filters {
+		margin: 0 0 4px;
+	}
+
+	.round {
+		margin-bottom: @stdpadding;
+
+		h2 {
+			font-size: 20px;
+			margin: 4px 0;
+
+			.round-count {
+				font-size: 13px;
+			}
+		}
+	}
+
+	.row.legend {
+		display: none;
+	}
+
+	.puzzle {
+		line-height: 1.5;
+		padding-top: 1px;
+		padding-bottom: 1px;
+	}
+
+	.round > div > .row:nth-child(even) .puzzle:not(.solved):not(.meta):not(:hover) {
+		background-color: darken(@puzzleBackgroundColor, 5%);
+	}
+
+	.puzzle .messaging-logo {
+		width: 20px;
+	}
+
+	a.button {
+		padding: 0 4px;
+	}
+}

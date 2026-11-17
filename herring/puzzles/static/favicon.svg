@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Herring's favicon: a small red fish (a red herring). -->
+  <path d="M3 32 C13 15 35 13 47 29 L61 17 L56 32 L61 47 L47 35 C35 51 13 49 3 32 Z" fill="#c8102e"/>
+  <path d="M22 21 C26 27 26 37 22 43" fill="none" stroke="#7a0a1c" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="13" cy="29" r="3.5" fill="#fff"/>
+  <circle cx="12.5" cy="29" r="1.8" fill="#222"/>
+</svg>
