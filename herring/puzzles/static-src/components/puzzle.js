@@ -58,7 +58,7 @@ export default class PuzzleComponent extends React.Component {
           gappsButton = (
               <a
                   title={ `#${puzzle.slug}` }
-                  href={ `/s/${puzzle.id}` }
+                  href={ sheetUrl(puzzle) }
                   target="_blank" rel="noopener">
                 <img className="messaging-logo" src={ gappsIcon } alt={`Google Sheets`} />
               </a>
@@ -120,6 +120,12 @@ export default class PuzzleComponent extends React.Component {
             .then(() => this.props.changeMade && this.props.changeMade())
             .catch(err => console.error(`Updating ${key} failed:`, err));
     }
+}
+
+// The sheet itself, so right-click / copy link gives its real address. Without
+// a sheet yet, Herring's /s/ link explains why.
+function sheetUrl(puzzle) {
+    return puzzle.sheet_id ? `https://docs.google.com/spreadsheets/d/${puzzle.sheet_id}/edit` : `/s/${puzzle.id}`;
 }
 
 function copyToClipboard(text) {

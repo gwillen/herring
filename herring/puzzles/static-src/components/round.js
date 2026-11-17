@@ -3,7 +3,7 @@
 import React from 'react';
 import PuzzleComponent from './puzzle';
 import { targetifyRound } from '../utils';
-import { isRoundShown, puzzleMatches } from '../puzzle-list';
+import { isRoundShown, puzzleMatches, solveCounts } from '../puzzle-list';
 
 // One round: its title (click the caret to expand/collapse) and the puzzles
 // that pass `listFilter`. Nothing at all if none pass.
@@ -36,6 +36,7 @@ export default function RoundComponent({ round, listFilter, roundDisplay, toggle
 
 function RoundTitle({ round, shown, toggle }) {
     const name = `R${round.number} ${round.name}`;
+    const counts = solveCounts(round.puzzle_set);
     const caret = (
         <button onClick={ evt => { evt.preventDefault(); toggle(); } }>
             { shown ? 'v' : '^' }
@@ -44,6 +45,7 @@ function RoundTitle({ round, shown, toggle }) {
     return (
         <h2 id={ targetifyRound(round) }>
             { round.hunt_url ? <a href={ round.hunt_url }>{ name }</a> : name } { caret }
+            <span className="round-count" title="Puzzles solved in this round">{ counts.solved }/{ counts.total } solved</span>
         </h2>
     );
 }

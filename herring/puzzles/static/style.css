@@ -225,6 +225,20 @@ input[type=submit]:hover {
   text-align: right;
   padding-right: 12px;
 }
+.solve-summary {
+  margin-left: 24px;
+}
+.activity-hint {
+  margin-left: 24px;
+  opacity: 0.6;
+  font-size: 90%;
+}
+.round-count {
+  font-size: 50%;
+  margin-left: 12px;
+  color: #333;
+  opacity: 0.7;
+}
 .messaging-logo {
   width: 32px;
   margin-top: -2px;

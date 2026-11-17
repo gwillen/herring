@@ -2,6 +2,7 @@
 
 import React from 'react';
 import * as Utils from '../utils';
+import { solveCounts } from '../puzzle-list';
 
 // importing these as react/webpack images does NOT work because we don't really have webpack
 // and Django set up to talk to each other
@@ -35,6 +36,10 @@ export default function NavHeaderComponent({ rounds, settings }) {
           <div className="col-lg-12">
             <div className="shortcuts">
               Hop to: {rs}
+              <SolveSummary puzzles={ rounds.flatMap(round => round.puzzle_set) } />
+              <span className="hidden-lg activity-hint" title="The Activity column only fits on wide windows">
+                (widen the window to see the Activity column)
+              </span>
               <div className="integration-status">
                 Integrations:
                 {discord}
@@ -44,4 +49,13 @@ export default function NavHeaderComponent({ rounds, settings }) {
           </div>
         </div>
          );
+}
+
+function SolveSummary({ puzzles }) {
+    const counts = solveCounts(puzzles);
+    return (
+        <span className="solve-summary">
+          Solved {counts.solved}/{counts.total}{ counts.metasTotal > 0 && `, metas ${counts.metasSolved}/${counts.metasTotal}` }
+        </span>
+    );
 }

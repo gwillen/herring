@@ -88,7 +88,7 @@ class Puzzle(models.Model,JSONMixin):
         ordering = ['parent', '-is_meta', 'number', 'id']
 
     class Json:
-        include_fields = ['id', 'name', 'number', 'answer', 'note', 'tags', 'is_meta', 'hunt_url', 'slug', 'channel_count', 'activity_histo', 'last_active', 'slack_channel_id']
+        include_fields = ['id', 'name', 'number', 'answer', 'note', 'tags', 'is_meta', 'hunt_url', 'slug', 'sheet_id', 'channel_count', 'activity_histo', 'last_active', 'slack_channel_id']
 
     def round_prefix(self):
         meta_marker = ''

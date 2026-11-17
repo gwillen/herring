@@ -116,6 +116,9 @@ with sync_playwright() as p:
     other.goto(f'{base}/'); other.wait_for_selector('.puzzle')
     page.bring_to_front()
     print('puzzles shown:', page.locator('.puzzle').count())
+    check('solve summary counts puzzles (1 of 6 solved, 0 of 1 metas)',
+          page.inner_text('.solve-summary').strip() == 'Solved 1/6, metas 0/1')
+    check('round title counts its puzzles', '1/4 solved' in page.inner_text('h2:has-text("The Warehouse")'))
     shot(page, '1-index')
     page.click('#nav-menu')
     page.wait_for_selector('.dropdown-menu', state='visible')

@@ -74,6 +74,7 @@ class SolverTests(TestCase):
         puzzle = data['rounds'][0]['puzzle_set'][0]
         self.assertEqual(puzzle['slug'], self.puzzle.slug)
         self.assertEqual(puzzle['channel_active'], [])
+        self.assertIn('sheet_id', puzzle)  # the web UI links straight to the sheet
         self.assertEqual(data['settings']['service_status'], {'discord': None, 'gapps': None})
 
     def test_one_puzzle_page(self):

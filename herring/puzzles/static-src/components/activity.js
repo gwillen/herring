@@ -15,17 +15,17 @@ export default function ActivityComponent(props) {
     const activeUsers = channelActive.join(', ');
     return (
         <div className={className}>
-            <span className="allMembers">
+            <span className="allMembers" title={ `${channelCount} in the puzzle's Discord channel` }>
                 {pad(channelCount)}
                 <span className="glyphicon glyphicon-user" aria-hidden="true"></span>
             </span>
             &nbsp;
-            <span className={`activeMembers ${activeInvisible}`} title={activeUsers}>
+            <span className={`activeMembers ${activeInvisible}`} title={ `Typed in the channel in the last 2 hours: ${activeUsers}` }>
                 {pad(channelActive.length)}
                 <span className="glyphicon glyphicon-user" aria-hidden="true"></span>
             </span> {
-            buckets && <BarChart data={buckets} max={B} width={30} height={13} />} {
-            lastActive <= 0 ? 'never' : renderTimeDelta(now - lastActive)}
+            buckets && <span title="Activity over the last 2 hours"><BarChart data={buckets} max={B} width={30} height={13} /></span>} {
+            <span title="Last activity">{ lastActive <= 0 ? 'never' : renderTimeDelta(now - lastActive) }</span>}
         </div>);
 }
 
