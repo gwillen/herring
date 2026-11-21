@@ -21,7 +21,6 @@
                 <li><a href="/">Home</a></li>
                 <li><a href="#">Hunt site</a></li>
                 <li><a href="/resources/">Important links / resources</a></li>
-                <!--<li><a href="http://mrwright.name/rage-2016-people/">Team photo directory</a></li>-->
                 <li><a href="/edit_profile/">Edit user profile</a></li>
                 {% if user.is_staff %}<li><a href="{% url 'dashboard:home' %}">Admin dashboard</a></li>{% endif %}
                 <li><a href="/admin/">Admin</a></li>
@@ -30,7 +29,7 @@
                 <li>&nbsp;&nbsp;Team room (2020): 3-442</li>
               </ul>
             </div>
-            <h1>Rage Against the Dying of the Warehouse</h1>
+            <h1>{{ team_name }}</h1>
         </div>
 
         <div class="content">
